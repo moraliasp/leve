@@ -3,7 +3,7 @@
 Configuração de `moraliasp/leve` no GitHub: o que existe, o que deveria existir e o risco de cada diferença.
 O que se protege, em ordem: **a chave do atualizador** (`TAURI_SIGNING_PRIVATE_KEY`, environment `release`; quem a tiver publica atualização para todo Leve instalado), a capacidade de **publicar release**, e a **`main`**.
 
-Auditoria de 2026-10-25, lida por `gh api` com a conta `eclbrz` (admin do repositório, owner da org). Status: ✅ ok ou aplicado · ⏳ pronto para aplicar (comando abaixo) · ❓ decisão do Eduardo · 🔒 não lido (falta escopo do token).
+Auditoria de 2026-10-25, lida por `gh api` com a conta `eclbrz` (admin do repositório, owner da org); a parte da org relida no mesmo dia com `admin:org` e `admin:org_hook`. Status: ✅ ok ou aplicado · ⏳ pronto para aplicar (comando abaixo) · ❓ decisão do Eduardo · 👁 conferir na tela (a API não mostra).
 
 ## Resumo
 
@@ -14,19 +14,28 @@ Auditoria de 2026-10-25, lida por `gh api` com a conta `eclbrz` (admin do reposi
 
 ## Org `moraliasp`
 
+Plano Free. Repositórios: `leve` (público) e `mfo` (privado). O que vale para a org vale para os dois.
+
 | Item | Atual | Recomendado | Risco | Status |
 |---|---|---|---|---|
-| Owners | `eclbrz` (único membro) | 1 ou 2 owners, cada um com passkey | baixo | ✅ |
-| 2FA obrigatório | **desligado** | ligado | médio: um membro futuro sem 2FA vira porta de entrada. Hoje o único membro é o Eduardo | ❓ |
+| Owners | `eclbrz`, único membro (`role: admin`); sem convites pendentes, sem security managers, sem bloqueios | 1 ou 2 owners, cada um com passkey | baixo | ✅ |
+| 2FA obrigatório | **desligado** (a conta `eclbrz` tem 2FA) | ligado | médio: um membro futuro sem 2FA vira porta de entrada | ❓ |
 | Permissão base dos membros | `read` | `read` ou `none` | baixo | ✅ |
-| Membros criam repo público | sim | não (só owner) | baixo enquanto só há o Eduardo | ⏳ (precisa `admin:org`) |
+| Membros criam repo | público, privado e Pages (público e privado) | só owner | baixo enquanto só há o Eduardo | ⏳ |
+| Membros apagam repo, mudam visibilidade, convidam colaborador externo, criam time | sim (padrão do GitHub) | não | baixo enquanto só há o Eduardo; vira médio com o segundo membro | ⏳ |
 | Times / colaboradores externos | nenhum | — | — | ✅ |
-| Apps instalados | **Claude** (`claude`), todos os repositórios; escrita em `contents`, `workflows`, `actions`, `pull_requests`, `issues`, `checks`, `discussions`, `repository_hooks` | só nos repositórios onde é usado; no `leve`, nada ou só leitura | **alto**: cria tag `v*`, mexe em workflow e webhook, abre e mergeia PR (o ruleset aceita 0 aprovação) | ❓ |
-| Webhooks da org | não lido | nenhum | — | 🔒 `admin:org_hook` |
-| PATs fine-grained com acesso | não lido | nenhum ou só os conhecidos, com expiração | médio | 🔒 `admin:org` |
-| Política de Actions da org | não lida | GitHub + allowlist; aprovação de fork para todos | médio | 🔒 `admin:org` |
+| Apps instalados | só o **Claude** (`claude`, app 1236702), instalado em **todos** os repositórios (`leve` e `mfo`), ativo; escrita em `contents`, `workflows`, `actions`, `pull_requests`, `issues`, `checks`, `discussions`, `repository_hooks`; leitura em `administration`, `members` | só nos repositórios onde é usado; fora do `leve` | **alto**: cria tag `v*`, mexe em workflow e webhook, abre e mergeia PR (o ruleset aceita 0 aprovação) | ❓ |
+| Webhooks da org | nenhum | nenhum | — | ✅ |
+| Secrets e variáveis da org (Actions, Dependabot) | nenhum | nenhum (a chave fica só no environment) | — | ✅ |
+| Runners próprios | nenhum; grupo padrão não aceita repositório público | só hospedados pelo GitHub | — | ✅ |
+| PATs fine-grained com acesso | a API só responde para GitHub App (`404` com token de usuário) | nenhum ou só os conhecidos, com expiração | médio | 👁 Settings da org › Personal access tokens › Active tokens |
+| Actions da org: quais rodam | **todas**, sem pin por SHA exigido | GitHub + allowlist, pin exigido (o `leve` já está assim; o repositório só pode apertar o que a org permite) | médio: vale para o `mfo` e todo repositório novo | ⏳ |
+| Actions da org: `GITHUB_TOKEN` | somente leitura; não aprova PR | idem | — | ✅ |
+| Actions da org: fork em repo público | aprovação só no primeiro PR (`first_time_contributors`) | todo contribuidor externo (o `leve` já está assim) | médio | ⏳ |
+| Actions da org: fork em repo privado | não roda; sem token de escrita nem secrets | idem | — | ✅ |
+| Rulesets da org | indisponível no Free ("Upgrade to GitHub Team") | rulesets por repositório | — | — |
 | Deploy keys | desligadas na org | desligadas | — | ✅ |
-| Padrões para repositório novo | Dependabot, secret scanning e push protection **desligados** | ligados | baixo (vale para os próximos) | ⏳ (precisa `admin:org`) |
+| Padrões para repositório novo | Dependabot, grafo de dependências, secret scanning, push protection e validity checks **desligados**; a configuração "GitHub recommended" existe mas não é aplicada a nada | ligados | baixo (vale para os próximos) | ⏳ |
 
 ## Repositório
 
@@ -150,16 +159,20 @@ gh api -X PATCH $R/code-scanning/default-setup -f state=configured -f 'languages
 
 Conferir depois: `gh api $R/rulesets --jq '.[].name'`, `gh api $R/environments/release --jq '{can_admins_bypass, rules: [.protection_rules[].type]}'` (esperado: `required_reviewers` e `branch_policy`), `gh api $R/code-scanning/default-setup --jq .state`.
 
-Org (precisa de `gh auth refresh -h github.com -s admin:org,admin:org_hook` antes):
+Org (precisa de `admin:org`; vale também para o `mfo`, então conferir que os workflows dele usam só actions do GitHub ou da allowlist, pinadas por SHA, antes de ligar a segunda linha):
 
 ```bash
-gh api -X PATCH orgs/moraliasp -F members_can_create_public_repositories=false -F dependabot_alerts_enabled_for_new_repositories=true -F secret_scanning_enabled_for_new_repositories=true -F secret_scanning_push_protection_enabled_for_new_repositories=true
-gh api orgs/moraliasp/actions/permissions; gh api orgs/moraliasp/hooks; gh api orgs/moraliasp/personal-access-tokens
+gh api -X PATCH orgs/moraliasp -F members_can_create_public_repositories=false -F members_can_create_public_pages=false -F members_can_delete_repositories=false -F members_can_change_repo_visibility=false -F members_can_invite_outside_collaborators=false -F dependabot_alerts_enabled_for_new_repositories=true -F dependency_graph_enabled_for_new_repositories=true -F secret_scanning_enabled_for_new_repositories=true -F secret_scanning_push_protection_enabled_for_new_repositories=true
+gh api -X PUT orgs/moraliasp/actions/permissions --input - <<<'{"enabled_repositories":"all","allowed_actions":"selected","sha_pinning_required":true}'
+gh api -X PUT orgs/moraliasp/actions/permissions/selected-actions --input - <<<'{"github_owned_allowed":true,"verified_allowed":false,"patterns_allowed":["pnpm/action-setup@*","azure/login@*","ossf/scorecard-action@*"]}'
+gh api -X PUT orgs/moraliasp/actions/permissions/fork-pr-contributor-approval -f approval_policy=all_external_contributors
 ```
+
+Conferir depois: `gh api orgs/moraliasp --jq '{members_can_create_public_repositories, secret_scanning_enabled_for_new_repositories}'`, `gh api orgs/moraliasp/actions/permissions`. Desfazer as Actions da org: `gh api -X PUT orgs/moraliasp/actions/permissions -f enabled_repositories=all -f allowed_actions=all -F sha_pinning_required=false`.
 
 ## ❓ Decisões do Eduardo
 
-1. **App Claude no `leve`.** Tirar o `leve` da instalação (Settings da org › GitHub Apps › Claude › Repository access › Only select repositories). Ganho: some a única identidade além do Eduardo com escrita no repositório. Custo: Claude Code na web e `@claude` em issue param de funcionar aqui; sessões locais seguem usando o `gh` do Eduardo.
+1. **App Claude no `leve`.** Tirar o `leve` da instalação (Settings da org › GitHub Apps › Claude › Repository access › Only select repositories; deixar só o `mfo`, se for usado lá). Ganho: some a única identidade além do Eduardo com escrita no repositório. Custo: Claude Code na web e `@claude` em issue param de funcionar aqui; sessões locais seguem usando o `gh` do Eduardo.
 2. **Bypass de admin no environment `release`** (`can_admins_bypass: false`). Ganho: nem um token de admin vazado pula a aprovação. Custo: se a conta do Eduardo estiver fora (perda de 2FA), não há release até recuperar; sendo o único revisor, ele aprova o próprio run normalmente.
 3. **1 aprovação no PR da `main` com bypass do admin só via PR.** Ganho: outra conta com escrita não mergeia sozinha. Custo: o Eduardo marca "merge sem aprovação" em todo PR dele (é o único mantenedor); o bypass também dispensa o CI quando usado.
 4. **2FA obrigatório na org.** Hoje sem efeito colateral (o único membro é o Eduardo, com 2FA ligado na conta); vale como trava para quem entrar depois. Membro sem 2FA é removido na hora.
@@ -179,4 +192,5 @@ gh api orgs/moraliasp/actions/permissions; gh api orgs/moraliasp/hooks; gh api o
 
 - **Cofre:** confirmar que `leve.key` e a senha estão no cofre da Moralia, em itens separados. Depois disso, apagar `~/.tauri/leve.key.password` (e, se quiser, `leve.key`): hoje os dois ficam lado a lado no disco, então a senha não protege nada contra quem lê a pasta.
 - **Conta GitHub:** conferir em github.com/settings/security que há passkey ou chave de segurança, além do TOTP, e códigos de recuperação guardados no cofre.
-- **Token do `gh`:** o desta máquina tem `repo`, `workflow` e `gist` sem expiração. Para a rotina basta isso; dar `admin:org` só na hora de aplicar a parte da org e revogar depois (`gh auth refresh -h github.com -r admin:org,admin:org_hook`).
+- **PATs:** abrir Settings da org › Personal access tokens › Active tokens e revogar o que não reconhecer; a API não lista isso para token de usuário.
+- **Token do `gh`:** o desta máquina tem `repo`, `workflow`, `gist` e, desde a auditoria da org, `admin:org` e `admin:org_hook`, sem expiração. Para a rotina bastam os três primeiros: depois de aplicar a parte da org, tirar os dois de admin com `gh auth refresh -h github.com -r admin:org,admin:org_hook`.

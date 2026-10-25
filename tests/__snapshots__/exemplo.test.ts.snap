@@ -1,0 +1,144 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`docs/exemplo.md > não muda sem querer 1`] = `
+"<details class="frontmatter" open=""><summary>Metadados</summary><table><tbody><tr><th>title</th><td><span class="fm-scalar">Exemplo de documento</span></td></tr><tr><th>status</th><td><span class="fm-scalar">rascunho</span></td></tr><tr><th>tags</th><td><span class="fm-tag">tauri</span> <span class="fm-tag">markdown</span> <span class="fm-tag">moralia</span></td></tr><tr><th>revisado</th><td><span class="fm-scalar">não</span></td></tr><tr><th>criado</th><td><span class="fm-scalar">2026-10-23</span></td></tr><tr><th>autor</th><td><pre class="fm-nested">nome: Moralia
+area: Produto</pre></td></tr></tbody></table></details><h1 id="exemplo-de-documento" tabindex="-1">Exemplo de documento</h1>
+<p>Este arquivo exercita o que o <strong>Leve</strong> renderiza. Edite e salve: a tela recarrega sozinha. Em <strong>Exibir › Largura</strong> e <strong>Exibir › Fonte</strong> você troca a medida da coluna (estreita, padrão, larga) e a família (sans, serif, mono); a escolha fica salva e o zoom continua valendo por cima.</p>
+<h2 id="texto-e-links" tabindex="-1">Texto e links</h2>
+<p>Parágrafo com <em>itálico</em>, <strong>negrito</strong>, <code>código inline</code>, <s>riscado</s> e um link externo para a <a href="https://tauri.app">documentação do Tauri</a>. Link interno para <a href="#tabelas">a seção de tabelas</a> e para outro arquivo: <a href="../README.md">README do projeto</a>.</p>
+<p>Nota de rodapé<sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a></sup>.</p>
+<h2 id="fluxo-de-abertura" tabindex="-1">Fluxo de abertura</h2>
+<p>Diagrama logo no início: tudo abaixo dele muda de lugar quando o Mermaid termina, e a rolagem restaurada precisa acompanhar.</p>
+<pre class="mermaid">sequenceDiagram
+  participant SO
+  participant App as Leve
+  participant Web as WebView
+  SO-&gt;&gt;App: abre exemplo.md
+  App-&gt;&gt;App: request_open / pending_open
+  App-&gt;&gt;Web: evento open-file
+  Web-&gt;&gt;App: read_markdown
+  App--&gt;&gt;Web: conteúdo
+  Web-&gt;&gt;Web: render + âncora de rolagem
+  Web-&gt;&gt;Web: Mermaid termina → reaplica âncora
+</pre>
+<h2 id="matemática" tabindex="-1">Matemática</h2>
+<p>Inline: a energia é <span class="math math-inline">E = mc^2</span> e a área do círculo é <span class="math math-inline">A = \\pi r^2</span>. Cifrão solto não vira fórmula: custa $5 e $10, ou $20 escapado.</p>
+<div class="math math-block">\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}</div>
+<p>Erro de sintaxe fica em vermelho sem quebrar a página: <span class="math math-inline">\\frac{a}{</span> e também em bloco:</p>
+<div class="math math-block">\\begin{matrix} 1 &amp; 2 \\\\ 3 &amp; 4 \\end{matrix} \\comandoInexistente</div>
+<h2 id="wikilinks" tabindex="-1">Wikilinks</h2>
+<p>Links no estilo Obsidian resolvem na pasta do arquivo: <a href="assinatura.md" class="wikilink" data-target="assinatura" data-hash="">assinatura</a> abre <code>assinatura.md</code>, <a href="assinatura.md" class="wikilink" data-target="assinatura" data-hash="">Como assinar o app</a> usa rótulo, <a href="assinatura.md#Windows (opcional)" class="wikilink" data-target="assinatura" data-hash="Windows (opcional)">assinatura › Windows (opcional)</a> vai direto ao título e <a href="#Tabelas" class="wikilink" data-target="" data-hash="Tabelas">Tabelas</a> rola dentro deste documento. Nota inexistente fica apagada: <a href="nota-que-nao-existe.md" class="wikilink" data-target="nota-que-nao-existe" data-hash="">nota-que-nao-existe</a>. Embeds ficam fora de escopo e aparecem como texto: ![[imagem.png]].</p>
+<h2 id="lista-de-tarefas" tabindex="-1">Lista de tarefas</h2>
+<ul class="contains-task-list">
+<li class="task-list-item"><label><input class="task-list-item-checkbox" checked="" disabled="" type="checkbox"> Abrir por duplo-clique</label></li>
+<li class="task-list-item"><label><input class="task-list-item-checkbox" checked="" disabled="" type="checkbox"> Recarregar ao salvar</label></li>
+<li class="task-list-item"><label><input class="task-list-item-checkbox" disabled="" type="checkbox"> Assinar e notarizar no Mac</label></li>
+<li class="task-list-item"><label><input class="task-list-item-checkbox" disabled="" type="checkbox"> Assinar no Windows</label></li>
+</ul>
+<h2 id="código" tabindex="-1">Código</h2>
+<pre class="hljs"><code class="language-ts">export function slugify(s: string): string {
+  return s.trim().toLowerCase().replace(/\\s+/g, "-");
+}
+</code></pre>
+<pre class="hljs"><code class="language-bash">pnpm tauri dev -- -- docs/exemplo.md
+</code></pre>
+<p>Bloco sem linguagem (só o botão de copiar, sem rótulo):</p>
+<pre class="hljs"><code class="language-text">pasta/
+├── a.md
+└── b.md
+</code></pre>
+<h2 id="tabelas" tabindex="-1">Tabelas</h2>
+<table>
+<thead>
+<tr>
+<th>Recurso</th>
+<th style="text-align:center">Mac</th>
+<th style="text-align:center">Windows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Associação de <code>.md</code></td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+</tr>
+<tr>
+<td>Recarga automática</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+</tr>
+<tr>
+<td>Exportar PDF</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+</tr>
+</tbody>
+</table>
+<h2 id="diagrama" tabindex="-1">Diagrama</h2>
+<pre class="mermaid">flowchart LR
+  A[Duplo-clique no .md] --&gt; B{App aberto?}
+  B -- não --&gt; C[Abre janela]
+  B -- sim --&gt; D[Troca o documento]
+  C --&gt; E[Renderiza]
+  D --&gt; E
+</pre>
+<h2 id="alertas-e-callouts" tabindex="-1">Alertas e callouts</h2>
+<div class="alert alert-note">
+<p class="alert-title">Nota</p>
+<p>Alertas no formato GitHub: <code>NOTE</code>, <code>TIP</code>, <code>IMPORTANT</code>, <code>WARNING</code>, <code>CAUTION</code>.</p>
+</div>
+<div class="alert alert-tip">
+<p class="alert-title">Dica</p>
+<p>Dicas aparecem em verde.</p>
+</div>
+<div class="alert alert-important">
+<p class="alert-title">Importante</p>
+<p>Informação essencial para o leitor.</p>
+</div>
+<div class="alert alert-warning">
+<p class="alert-title">Atenção</p>
+<p>Algo que pede atenção antes de seguir.</p>
+</div>
+<div class="alert alert-caution">
+<p class="alert-title">Cuidado</p>
+<p>Consequências negativas de uma ação.</p>
+</div>
+<div class="alert alert-note">
+<p class="alert-title">Callout Obsidian com título</p>
+<p>Tipos do Obsidian (<code>info</code>, <code>hint</code>, <code>question</code>, <code>danger</code>, <code>bug</code>…) caem nos cinco estilos acima.</p>
+</div>
+<details class="alert alert-important">
+<summary class="alert-title">Colapsado por padrão (marcador de menos)</summary>
+<p>Este conteúdo começa escondido. Clique no título para abrir.</p>
+</details>
+<details class="alert alert-tip" open="">
+<summary class="alert-title">Aberto por padrão (marcador de mais)</summary>
+<p>Este começa aberto e pode ser recolhido.</p>
+</details>
+<blockquote>
+<p>Citação comum continua como citação.</p>
+</blockquote>
+<p>Diagrama com erro de sintaxe mostra a mensagem do parser e a fonte, sem afetar o diagrama acima:</p>
+<pre class="mermaid">flowchart LR
+  A --&gt; B
+  B --&gt; C[
+</pre>
+<h2 id="citação-e-imagem" tabindex="-1">Citação e imagem</h2>
+<blockquote>
+<p>"A simplicidade é a sofisticação máxima."</p>
+</blockquote>
+<p><img src="../src-tauri/icons/128x128.png" alt="Ícone do app"></p>
+<p>Imagem remota fica bloqueada até você pedir (aviso no topo do documento): <img alt="Logo do Tauri" data-remote-src="https://tauri.app/favicon.ico" data-remote=""></p>
+<p>Imagem que não existe vira aviso discreto com o texto alternativo e o caminho: <img src="./imagens/nao-existe.png" alt="Captura antiga"></p>
+<h3 id="subtítulo-nível-3" tabindex="-1">Subtítulo nível 3</h3>
+<h4 id="nível-4" tabindex="-1">Nível 4</h4>
+<p>Texto final para testar o sumário e a busca. Palavra-chave: <strong>recarregar</strong>.</p>
+<hr class="footnotes-sep">
+<section class="footnotes">
+<ol class="footnotes-list">
+<li id="fn1" class="footnote-item"><p>Rodapés funcionam via <code>markdown-it-footnote</code>. <a href="#fnref1" class="footnote-backref">↩︎</a></p>
+</li>
+</ol>
+</section>
+"
+`;

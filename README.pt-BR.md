@@ -1,0 +1,60 @@
+# Leve
+
+**Visualizador leve de Markdown para macOS e Windows.** Duplo-clique num `.md` abre; salve no editor e o Leve recarrega.
+
+[English](README.md)
+
+![Leve mostrando um documento Markdown com sumário](docs/screenshot.png)
+
+## Download
+
+Baixe a versão mais recente em [Releases](https://github.com/moraliasp/leve/releases/latest):
+
+- **macOS 11+** (Apple silicon e Intel): `Leve_x.y.z_universal.dmg`
+- **Windows 10/11** (x64): `Leve_x.y.z_x64-setup.exe` (por usuário, sem administrador) ou `.msi`
+
+Cada release traz os SHA-256 em `SHA256SUMS.txt` e [attestations de proveniência](https://github.com/moraliasp/leve/attestations) (`gh attestation verify <arquivo> --repo moraliasp/leve`).
+
+### Primeira abertura
+
+O Leve ainda não tem assinatura Apple nem Microsoft, então o sistema avisa uma vez.
+**macOS:** abra o Leve, clique em *Concluído*, vá em *Ajustes do Sistema › Privacidade e Segurança* e clique em *Abrir Mesmo Assim* (ou rode `xattr -dr com.apple.quarantine /Applications/Leve.app`).
+**Windows:** no aviso do SmartScreen, clique em *Mais informações › Executar assim mesmo*.
+
+Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações têm assinatura própria, conferida pelo app antes de instalar: *Leve › Verificar atualizações…* (no Windows, *Ajuda › Verificar atualizações…*), ou ligue a checagem diária nas *Preferências*.
+
+## Recursos
+
+- Markdown no padrão do GitHub: tabelas, listas de tarefas, notas de rodapé, alertas (`> [!NOTE]`) e callouts do Obsidian
+- Realce de código, diagramas Mermaid e fórmulas KaTeX, carregados só quando o documento usa
+- Frontmatter como tabela, `[[wikilinks]]`, links e imagens relativos
+- Sumário, busca no documento, abas, voltar/avançar
+- Tema claro e escuro, três larguras de leitura, três fontes, zoom
+- Imprimir ou exportar PDF
+- Português e inglês, pelo idioma do sistema ou pela escolha nas *Preferências*
+- Documentos grandes (até 20 MB) abrem num modo mais leve
+
+## Privacidade
+
+Sem telemetria. O Leve só lê arquivos que você abriu (diálogo, duplo-clique, arrastar) e os que um documento aberto aponta por caminho relativo. Imagens remotas ficam bloqueadas até você pedir. A rede só é usada nos links que você abre, nas imagens remotas que você pedir e para procurar atualizações.
+
+## Build
+
+Pré-requisitos: Node 22+, pnpm, Rust estável e Xcode Command Line Tools (macOS) ou Visual Studio Build Tools + WebView2 (Windows).
+
+```bash
+pnpm install
+pnpm tauri dev -- -- docs/exemplo.md   # roda com um documento
+pnpm test                               # testes unitários e golden
+pnpm tauri build                        # .app/.dmg no macOS, .exe/.msi no Windows
+```
+
+Do Mac também sai o instalador NSIS do Windows com `pnpm build:windows` (precisa de `cargo-xwin`, `llvm`, `lld` e `makensis`; ver `scripts/build-windows.sh`).
+
+Contribuições: [CONTRIBUTING.md](CONTRIBUTING.md). As decisões de projeto ficam em [`docs/decisoes.md`](docs/decisoes.md).
+
+## Licença
+
+Código sob a [licença MIT](LICENSE), © 2026 Moralia. Avisos de terceiros: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) e [THIRD_PARTY.md](THIRD_PARTY.md).
+
+**Marca:** o nome Leve, o logo e a marca Moralia não estão sob a MIT. Um fork distribuído deve usar outro nome e outro ícone.

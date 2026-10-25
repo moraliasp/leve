@@ -1,0 +1,1147 @@
+:root {
+  --bar-bg: #f6f8fa;
+  --bar-fg: #1f2328;
+  --bar-muted: #656d76;
+  --border: #d0d7de;
+  --page-bg: #ffffff;
+  --accent: #0969da;
+  --hover: rgba(0, 0, 0, 0.06);
+  --error: #cf222e;
+  --find-bg: #fff8c5;
+  --find-current: #ff9800;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-theme="dark"] {
+  --bar-bg: #161b22;
+  --bar-fg: #e6edf3;
+  --bar-muted: #8d96a0;
+  --border: #30363d;
+  --page-bg: #0d1117;
+  --accent: #2f81f7;
+  --hover: rgba(255, 255, 255, 0.08);
+  --error: #ff7b72;
+  --find-bg: #6a5300;
+  --find-current: #d29922;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--page-bg);
+  color: var(--bar-fg);
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- barra ---------- */
+
+#bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 10px;
+  background: var(--bar-bg);
+  border-bottom: 1px solid var(--border);
+  flex: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  color: var(--bar-muted);
+  font-size: 12px;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+.status.error {
+  color: var(--error);
+}
+
+/* ---------- foco e leitor de tela ---------- */
+
+/* Um anel só, na cor de destaque, para teclado em todo o app. Clique de mouse não mostra. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Regiões grandes e abas: anel por dentro, para não ser cortado pelo overflow. */
+#main:focus-visible,
+.tab:focus-visible,
+.toc li a:focus-visible {
+  outline-offset: -2px;
+}
+
+/* O CSS do tema (github-markdown-css, injetado depois) zera o outline dos links do documento;
+   o id vence a especificidade dele e devolve o mesmo anel ao conteúdo. */
+#content a:focus-visible,
+#content summary:focus-visible,
+#content button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+/* Título alvo do sumário recebe foco só para o Tab continuar dali; sem anel. */
+.markdown-body :is(h1, h2, h3, h4, h5, h6)[tabindex="-1"]:focus {
+  outline: none;
+}
+
+/* "Ir para o documento": invisível até receber foco de teclado; pula barra, abas e sumário. */
+.skip {
+  position: absolute;
+  top: -100px;
+  left: 8px;
+  z-index: 20;
+  padding: 6px 10px;
+  color: var(--page-bg);
+  background: var(--accent);
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.skip:focus-visible {
+  top: 8px;
+  outline-color: var(--bar-fg);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+button.icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+button.text {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+}
+
+button.link {
+  color: var(--accent);
+  padding: 0;
+  text-decoration: underline;
+  font-size: inherit;
+}
+
+/* ---------- busca ---------- */
+
+.find {
+  position: absolute;
+  top: 46px;
+  right: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  background: var(--bar-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.find input {
+  font: inherit;
+  width: 240px;
+  padding: 5px 8px;
+  color: var(--bar-fg);
+  background: var(--page-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: none;
+}
+
+.find input:focus {
+  border-color: var(--accent);
+}
+
+.find input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.find .count {
+  min-width: 44px;
+  text-align: center;
+  color: var(--bar-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hidden {
+  display: none !important;
+}
+
+::highlight(find) {
+  background: var(--find-bg);
+}
+
+::highlight(find-current) {
+  background: var(--find-current);
+  color: #000;
+}
+
+/* ---------- corpo ---------- */
+
+#body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* ---------- abas ---------- */
+.tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 34px;
+  padding: 4px 8px 0;
+  background: var(--bar-bg);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs[hidden] {
+  display: none;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 96px;
+  max-width: 220px;
+  padding: 0 4px 0 12px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  color: var(--bar-muted);
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tab:hover {
+  background: var(--hover);
+}
+
+.tab[aria-selected="true"] {
+  background: var(--page-bg);
+  border-color: var(--border);
+  color: var(--bar-fg);
+  margin-bottom: -1px;
+}
+
+.tab-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.tab-close {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: inherit;
+  /* 0,8 e não 0,55: a 0,55 o ✕ da aba inativa dava 2,2:1 (claro) e 2,7:1 (escuro) sobre a barra;
+     a 0,8 dá 3,3 e 4,2 (mínimo 3:1 para ícone). Conta em scripts/contraste.mjs. */
+  opacity: 0.8;
+}
+
+.tab-close:hover,
+.tab-close:focus-visible,
+.tab[aria-selected="true"] .tab-close {
+  opacity: 1;
+}
+
+.toc {
+  width: 260px;
+  flex: none;
+  overflow: auto;
+  padding: 12px 8px;
+  border-right: 1px solid var(--border);
+  background: var(--bar-bg);
+  font-size: 12.5px;
+}
+
+body.toc-hidden .toc,
+.toc[data-empty="true"] {
+  display: none;
+}
+
+.toc ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.toc li a {
+  display: block;
+  padding: 4px 8px;
+  border-radius: 5px;
+  color: var(--bar-muted);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toc li a:hover {
+  background: var(--hover);
+  color: var(--bar-fg);
+}
+
+.toc li a.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.toc .lvl-2 a { padding-left: 20px; }
+.toc .lvl-3 a { padding-left: 32px; }
+.toc .lvl-4 a { padding-left: 44px; }
+.toc .lvl-5 a { padding-left: 56px; }
+.toc .lvl-6 a { padding-left: 68px; }
+
+#main {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  position: relative;
+}
+
+.markdown-body {
+  box-sizing: border-box;
+  min-width: 200px;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 40px 48px 96px;
+  /* Bloco de contenção para `position: fixed`/`absolute` do documento: por qualquer caminho que
+     um elemento compute `fixed` (style, classe que colide com o CSS do app, `attr()`), ele fica
+     dentro da área do documento e não cobre a barra. `stripFixed` (render.ts) é a 2ª camada. */
+  contain: layout;
+  overflow-x: auto;
+}
+
+/* Largura e fonte de leitura (menu Exibir). `#content` vence o CSS do tema, injetado depois. */
+body[data-width="narrow"] #content {
+  max-width: 680px;
+}
+
+body[data-width="wide"] #content {
+  max-width: 1280px;
+}
+
+body[data-font="serif"] #content {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  font-size: 17px;
+}
+
+body[data-font="mono"] #content {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 15px;
+}
+
+/* Janela estreita (< 720 px): o sumário de 260 px deixaria ~120 px para o texto, que quebraria no
+   meio da palavra. Vira sobreposição dentro de #body, fechada por padrão; abre pelo botão/⌘B
+   (`body.toc-peek`, só na sessão). A preferência `mdview.toc` não muda com a largura. */
+@media (max-width: 719px) {
+  #body {
+    position: relative;
+  }
+
+  .toc {
+    display: none;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 5;
+    width: min(260px, 85%);
+    box-shadow: 4px 0 16px rgb(0 0 0 / 0.25);
+  }
+
+  body.toc-peek .toc:not([data-empty="true"]) {
+    display: block;
+  }
+
+  #content {
+    padding: 24px 20px 72px;
+  }
+}
+
+/* ---------- alerts / callouts ---------- */
+
+:root {
+  --alert-note: #0969da;
+  --alert-tip: #1a7f37;
+  --alert-important: #8250df;
+  --alert-warning: #9a6700;
+  --alert-caution: #cf222e;
+}
+
+:root[data-theme="dark"] {
+  --alert-note: #4493f8;
+  --alert-tip: #3fb950;
+  --alert-important: #ab7df8;
+  --alert-warning: #d29922;
+  --alert-caution: #f85149;
+}
+
+.markdown-body .alert {
+  margin: 0 0 16px;
+  padding: 8px 16px;
+  border-left: 4px solid var(--alert);
+  color: inherit;
+}
+
+.markdown-body .alert > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body .alert-note { --alert: var(--alert-note); }
+.markdown-body .alert-tip { --alert: var(--alert-tip); }
+.markdown-body .alert-important { --alert: var(--alert-important); }
+.markdown-body .alert-warning { --alert: var(--alert-warning); }
+.markdown-body .alert-caution { --alert: var(--alert-caution); }
+
+.markdown-body .alert-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--alert);
+}
+
+.markdown-body summary.alert-title {
+  cursor: pointer;
+  list-style: none;
+}
+
+.markdown-body summary.alert-title::-webkit-details-marker {
+  display: none;
+}
+
+.markdown-body details.alert:not([open]) > summary.alert-title {
+  margin-bottom: 0;
+}
+
+.markdown-body .alert-title::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask: var(--alert-icon) center / contain no-repeat;
+  mask: var(--alert-icon) center / contain no-repeat;
+}
+
+.markdown-body summary.alert-title::after {
+  content: "";
+  margin-left: auto;
+  width: 12px;
+  height: 12px;
+  background: currentColor;
+  -webkit-mask: var(--icon-fold) center / contain no-repeat;
+  mask: var(--icon-fold) center / contain no-repeat;
+  transition: transform 0.15s;
+}
+
+.markdown-body details.alert:not([open]) > summary.alert-title::after {
+  transform: rotate(-90deg);
+}
+
+/* Ícones: Lucide, publicados como variáveis em :root por installIcons (src/icons.ts) */
+.markdown-body .alert-note { --alert-icon: var(--icon-note); }
+.markdown-body .alert-tip { --alert-icon: var(--icon-tip); }
+.markdown-body .alert-important { --alert-icon: var(--icon-important); }
+.markdown-body .alert-warning { --alert-icon: var(--icon-warning); }
+.markdown-body .alert-caution { --alert-icon: var(--icon-caution); }
+
+/* ---------- frontmatter ---------- */
+
+.markdown-body details.frontmatter {
+  margin: 0 0 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bar-bg);
+  font-size: 13px;
+}
+
+.markdown-body details.frontmatter > summary {
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--bar-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.markdown-body details.frontmatter table {
+  display: table;
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+}
+
+.markdown-body details.frontmatter th,
+.markdown-body details.frontmatter td {
+  border: 0;
+  border-top: 1px solid var(--border);
+  padding: 6px 12px;
+  text-align: left;
+  vertical-align: top;
+  background: transparent;
+}
+
+.markdown-body details.frontmatter th {
+  width: 160px;
+  color: var(--bar-muted);
+  font-weight: 500;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.markdown-body details.frontmatter tr:nth-child(2n) {
+  background: transparent;
+}
+
+.markdown-body .fm-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  margin: 1px 2px 1px 0;
+  border-radius: 10px;
+  background: var(--hover);
+  font-size: 12px;
+}
+
+.markdown-body details.frontmatter pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  font-size: 12px;
+}
+
+.markdown-body pre.mermaid {
+  background: transparent;
+  text-align: center;
+}
+
+.markdown-body img {
+  max-width: 100%;
+}
+
+/* ---------- erros de render visíveis ao leitor ---------- */
+.markdown-body pre.mermaid.has-error {
+  text-align: left;
+  padding: 0;
+}
+
+.markdown-body .render-error {
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border-left: 4px solid var(--error);
+  border-radius: 0 6px 6px 0;
+  background: var(--bar-bg);
+  font-size: 13px;
+}
+
+.markdown-body .render-error-title {
+  color: var(--error);
+  font-weight: 600;
+  white-space: pre-wrap;
+}
+
+.markdown-body .render-error-source {
+  margin: 8px 0 0;
+  padding: 0;
+  background: transparent;
+  color: var(--bar-muted);
+  font-size: 12px;
+}
+
+.markdown-body .img-missing {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--bar-muted);
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.markdown-body .img-missing::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  -webkit-mask: var(--icon-image-off) center / contain no-repeat;
+  mask: var(--icon-image-off) center / contain no-repeat;
+}
+
+/* ---------- conteúdo remoto bloqueado ---------- */
+.markdown-body img.remote-hidden {
+  display: none;
+}
+
+/* Botão no lugar da imagem: carrega só ela. */
+.markdown-body button.img-remote {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--bar-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.markdown-body button.img-remote:hover {
+  border-style: solid;
+  color: var(--bar-fg);
+}
+
+.markdown-body .img-remote::before,
+.remote-banner::before {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  -webkit-mask: var(--icon-remote) center / contain no-repeat;
+  mask: var(--icon-remote) center / contain no-repeat;
+}
+
+.markdown-body .img-remote code {
+  font-size: 11px;
+  background: transparent;
+  padding: 0;
+}
+
+.remote-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 920px;
+  margin: 16px auto 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bar-bg);
+  color: var(--bar-muted);
+  font-size: 13px;
+}
+
+.remote-banner[hidden] {
+  display: none;
+}
+
+.remote-banner span {
+  flex: 1;
+}
+
+.markdown-body .img-missing code {
+  font-size: 11px;
+  background: transparent;
+  padding: 0;
+}
+
+/* ---------- blocos de código: rótulo + copiar ---------- */
+.code-wrap {
+  position: relative;
+}
+
+.code-tools {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.code-lang {
+  color: var(--bar-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  user-select: none;
+}
+
+.code-copy {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bar-muted);
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.code-copy:hover {
+  color: var(--bar-fg);
+}
+
+.code-wrap:hover .code-copy,
+.code-copy:focus-visible,
+.code-copy.done,
+.code-copy.fail {
+  opacity: 1;
+}
+
+.code-copy.done {
+  color: #1a7f37;
+}
+
+:root[data-theme="dark"] .code-copy.done {
+  color: #3fb950;
+}
+
+.code-copy.fail {
+  color: var(--error);
+}
+
+/* ---------- matemática (KaTeX sob demanda) ---------- */
+.markdown-body .math-block {
+  margin: 16px 0;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.markdown-body .math:not([data-rendered]) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  opacity: 0.7;
+}
+
+/* Fórmula com erro: KaTeX mostra a fonte; a cor segue o tema. */
+.markdown-body .katex-error {
+  color: var(--error) !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Wikilink sem nota correspondente: apagado e tracejado, sem erro. */
+.markdown-body a.wikilink.missing {
+  color: var(--bar-muted);
+  text-decoration: underline dashed;
+  text-underline-offset: 3px;
+  cursor: default;
+}
+
+/* ---------- estado vazio ---------- */
+
+.empty {
+  max-width: 560px;
+  margin: 12vh auto 0;
+  padding: 0 24px;
+  text-align: center;
+  color: var(--bar-muted);
+}
+
+.empty h1 {
+  color: var(--bar-fg);
+  font-weight: 700;
+  font-size: 28px;
+  margin: 0 0 8px;
+}
+
+.empty code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--hover);
+}
+
+.tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px auto 0;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bar-bg);
+  font-size: 13px;
+  text-align: left;
+}
+
+.tip[hidden] {
+  display: none;
+}
+
+.recent {
+  margin-top: 40px;
+  text-align: left;
+}
+
+/* ---------- Sobre e Atalhos ---------- */
+
+.sheet {
+  width: min(440px, calc(100vw - 32px));
+  padding: 20px 24px;
+  color: var(--bar-fg);
+  background: var(--page-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  font-size: 13px;
+}
+
+.sheet::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.sheet h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.sheet p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.sheet .muted {
+  color: var(--bar-muted);
+  font-weight: 400;
+  font-size: 13px;
+}
+
+.sheet a {
+  color: var(--accent);
+}
+
+.sheet form {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+button.text.primary {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Branco sobre o azul do tema escuro dá 3,8:1; o fundo da página dá 5,6:1 (AA). */
+:root[data-theme="dark"] button.text.primary {
+  color: var(--page-bg);
+}
+
+/* ---------- Preferências (Mod+,) ---------- */
+
+.prefs {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+}
+
+.prefs input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.pref-group {
+  margin: 0 0 16px;
+}
+
+.pref-group h3 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bar-muted);
+}
+
+/* Rótulo à esquerda, opções à direita; em janela estreita o rótulo sobe. */
+.pref-row {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 0 0 8px;
+}
+
+.pref-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+}
+
+.pref-option,
+.pref-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pref-check {
+  margin: 0 0 8px;
+}
+
+.pref-zoom {
+  gap: 6px;
+}
+
+.pref-zoom output {
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.pref-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+
+.prefs .prefs-footer {
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pref-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+@media (max-width: 479px) {
+  .pref-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.keys {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 16px;
+  margin: 0;
+}
+
+.keys dt {
+  margin: 0;
+}
+
+.keys dd {
+  margin: 0;
+  color: var(--bar-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: nowrap;
+}
+
+.recent h2 {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 8px 10px;
+}
+
+.recent ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.recent-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 10px 8px;
+}
+
+.recent-head h2 {
+  margin: 0;
+}
+
+.recent-clear {
+  font-size: 12px;
+}
+
+.recent li {
+  position: relative;
+}
+
+.recent-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 36px 8px 10px;
+  color: var(--bar-fg);
+}
+
+/* O ✕ só aparece no hover ou quando algo na linha tem foco de teclado. */
+.recent-remove {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  opacity: 0;
+  color: var(--bar-muted);
+}
+
+.recent li:hover .recent-remove,
+.recent li:focus-within .recent-remove {
+  opacity: 1;
+}
+
+/* Arquivo que não existe mais: apagado; o clique no item remove em vez de abrir. */
+.recent li.missing .recent-item strong,
+.recent li.missing .recent-item span {
+  color: var(--bar-muted);
+  text-decoration: line-through;
+}
+
+.recent-item strong {
+  display: block;
+  font-weight: 600;
+}
+
+.recent-item span {
+  display: block;
+  color: var(--bar-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+/* ---------- drop ---------- */
+
+.drop {
+  position: fixed;
+  inset: 8px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--page-bg) 80%, transparent);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent);
+  pointer-events: none;
+}
+
+/* ---------- impressão ---------- */
+
+@media print {
+  html, body, #app, #body, #main {
+    height: auto;
+    overflow: visible;
+    display: block;
+  }
+  #bar, .tabs, .toc, .find, .drop, .empty, .code-tools, .remote-banner {
+    display: none !important;
+  }
+  .markdown-body {
+    max-width: none;
+    padding: 0;
+  }
+}

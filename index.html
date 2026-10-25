@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Leve</title>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <!-- Textos vêm de src/i18n.ts: data-i18n (texto), data-i18n-html, data-i18n-title, data-i18n-aria-label, data-i18n-placeholder. -->
+  <body>
+    <div id="app">
+      <a id="skip" class="skip" href="#main" data-i18n="bar.skip"></a>
+      <header id="bar">
+        <div class="group">
+          <button id="btn-toc" class="icon" data-i18n-title="bar.toc" data-shortcut="toggle-toc" data-i18n-aria-label="bar.toc" aria-controls="toc" aria-expanded="true">
+            <span data-icon="panel-left"></span>
+          </button>
+          <button id="btn-back" class="icon" data-i18n-title="bar.back" data-shortcut="back" data-i18n-aria-label="bar.back" disabled>
+            <span data-icon="chevron-left"></span>
+          </button>
+          <button id="btn-fwd" class="icon" data-i18n-title="bar.forward" data-shortcut="forward" data-i18n-aria-label="bar.forward" disabled>
+            <span data-icon="chevron-right"></span>
+          </button>
+        </div>
+        <div id="title" class="title"></div>
+        <div class="group">
+          <span id="status" class="status" role="status" aria-live="polite"></span>
+          <button id="btn-theme" class="icon" data-i18n-title="bar.theme" data-shortcut="cycle-theme" data-i18n-aria-label="bar.themeToggle">
+            <span data-icon="sun-moon"></span>
+          </button>
+          <button id="btn-open" class="text" data-i18n-title="bar.open" data-shortcut="open" data-i18n="bar.openEllipsis"></button>
+        </div>
+      </header>
+
+      <nav id="tabs" class="tabs" role="tablist" data-i18n-aria-label="bar.tabs" hidden></nav>
+
+      <div id="find" class="find hidden" role="search">
+        <input id="find-input" type="search" data-i18n-placeholder="find.placeholder" data-i18n-aria-label="find.placeholder" autocomplete="off" spellcheck="false" />
+        <span id="find-count" class="count" aria-hidden="true"></span>
+        <span id="find-live" class="sr-only" aria-live="polite" aria-atomic="true"></span>
+        <button id="find-prev" class="icon" data-i18n-title="find.prev" data-shortcut="find-prev" data-i18n-aria-label="find.prevLabel"><span data-icon="chevron-up"></span></button>
+        <button id="find-next" class="icon" data-i18n-title="find.next" data-shortcut="find-next" data-i18n-aria-label="find.nextLabel"><span data-icon="chevron-down"></span></button>
+        <button id="find-close" class="icon" data-i18n-title="common.close" data-shortcut="find-close" data-i18n-aria-label="find.closeLabel"><span data-icon="x"></span></button>
+      </div>
+
+      <div id="remote-banner" class="remote-banner" role="status" hidden></div>
+      <div id="body">
+        <nav id="toc" class="toc" data-i18n-aria-label="bar.toc"></nav>
+        <main id="main" tabindex="0" data-i18n-aria-label="bar.document">
+          <article id="content" class="markdown-body" hidden></article>
+          <section id="empty" class="empty">
+            <h1>Leve</h1>
+            <p><span data-i18n-html="empty.lead"></span> <button id="empty-open" class="link" data-i18n="empty.open"></button>.</p>
+            <p id="tip" class="tip" hidden>
+              <span data-i18n-html="empty.tip"></span>
+              <button id="tip-close" class="icon" data-i18n-title="empty.tipClose" data-i18n-aria-label="empty.tipCloseLabel"><span data-icon="x"></span></button>
+            </p>
+            <div id="recent" class="recent"></div>
+          </section>
+        </main>
+      </div>
+
+      <div id="drop" class="drop hidden" aria-hidden="true"><div data-i18n="empty.drop"></div></div>
+
+      <dialog id="about" class="sheet" aria-labelledby="about-title">
+        <h2 id="about-title">Leve <span id="about-version" class="muted"></span></h2>
+        <p data-i18n="app.tagline"></p>
+        <p id="about-byline" class="muted">Leve · Moralia · MIT</p>
+        <p class="muted" data-i18n="app.privacy"></p>
+        <p class="muted" data-i18n="app.license"></p>
+        <p class="muted" data-i18n="app.credits"></p>
+        <p><a id="about-repo" href="https://github.com/moraliasp/leve">github.com/moraliasp/leve</a></p>
+        <form method="dialog">
+          <button id="about-update" type="button" class="text" data-i18n="update.check"></button>
+          <button class="text" data-i18n="common.close"></button>
+        </form>
+      </dialog>
+
+      <dialog id="confirm" class="sheet" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+        <h2 id="confirm-title"></h2>
+        <p id="confirm-text"></p>
+        <form method="dialog">
+          <button class="text" value="cancel" autofocus data-i18n="common.cancel"></button>
+          <button id="confirm-ok" class="text primary" value="ok" data-i18n="common.confirm"></button>
+        </form>
+      </dialog>
+
+      <dialog id="prefs" class="sheet prefs" aria-labelledby="prefs-title">
+        <h2 id="prefs-title" data-i18n="prefs.title"></h2>
+
+        <section class="pref-group" aria-labelledby="prefs-g-look">
+          <h3 id="prefs-g-look" data-i18n="prefs.look"></h3>
+          <div class="pref-row" role="radiogroup" aria-labelledby="prefs-lang-label">
+            <span id="prefs-lang-label" class="pref-label" data-i18n="prefs.language"></span>
+            <span class="pref-options">
+              <span class="pref-option"><input type="radio" id="prefs-lang-auto" name="lang" value="auto" /><label for="prefs-lang-auto" data-i18n="prefs.langAuto"></label></span>
+              <span class="pref-option"><input type="radio" id="prefs-lang-pt" name="lang" value="pt-BR" /><label for="prefs-lang-pt" lang="pt-BR">Português</label></span>
+              <span class="pref-option"><input type="radio" id="prefs-lang-en" name="lang" value="en" /><label for="prefs-lang-en" lang="en">English</label></span>
+            </span>
+          </div>
+          <div class="pref-row" role="radiogroup" aria-labelledby="prefs-theme-label">
+            <span id="prefs-theme-label" class="pref-label" data-i18n="prefs.theme"></span>
+            <span class="pref-options">
+              <span class="pref-option"><input type="radio" id="prefs-theme-auto" name="theme" value="auto" /><label for="prefs-theme-auto" data-i18n="theme.auto"></label></span>
+              <span class="pref-option"><input type="radio" id="prefs-theme-light" name="theme" value="light" /><label for="prefs-theme-light" data-i18n="theme.light"></label></span>
+              <span class="pref-option"><input type="radio" id="prefs-theme-dark" name="theme" value="dark" /><label for="prefs-theme-dark" data-i18n="theme.dark"></label></span>
+            </span>
+          </div>
+          <div class="pref-row" role="radiogroup" aria-labelledby="prefs-font-label">
+            <span id="prefs-font-label" class="pref-label" data-i18n="prefs.font"></span>
+            <span class="pref-options">
+              <span class="pref-option"><input type="radio" id="prefs-font-sans" name="font" value="sans" /><label for="prefs-font-sans">Sans</label></span>
+              <span class="pref-option"><input type="radio" id="prefs-font-serif" name="font" value="serif" /><label for="prefs-font-serif">Serif</label></span>
+              <span class="pref-option"><input type="radio" id="prefs-font-mono" name="font" value="mono" /><label for="prefs-font-mono">Mono</label></span>
+            </span>
+          </div>
+          <div class="pref-row" role="radiogroup" aria-labelledby="prefs-width-label">
+            <span id="prefs-width-label" class="pref-label" data-i18n="prefs.width"></span>
+            <span class="pref-options">
+              <span class="pref-option"><input type="radio" id="prefs-width-narrow" name="width" value="narrow" /><label for="prefs-width-narrow" data-i18n="width.narrow"></label></span>
+              <span class="pref-option"><input type="radio" id="prefs-width-normal" name="width" value="normal" /><label for="prefs-width-normal" data-i18n="width.normal"></label></span>
+              <span class="pref-option"><input type="radio" id="prefs-width-wide" name="width" value="wide" /><label for="prefs-width-wide" data-i18n="width.wide"></label></span>
+            </span>
+          </div>
+          <div class="pref-row" role="group" aria-labelledby="prefs-zoom-label">
+            <span id="prefs-zoom-label" class="pref-label" data-i18n="prefs.zoom"></span>
+            <span class="pref-options pref-zoom">
+              <button id="prefs-zoom-out" type="button" class="text" data-i18n-title="prefs.zoomOut" data-shortcut="zoom-out" data-i18n-aria-label="prefs.zoomOutLabel">−</button>
+              <output id="prefs-zoom-value" for="prefs-zoom-out prefs-zoom-in prefs-zoom-reset" aria-live="polite">100 %</output>
+              <button id="prefs-zoom-in" type="button" class="text" data-i18n-title="prefs.zoomIn" data-shortcut="zoom-in" data-i18n-aria-label="prefs.zoomInLabel">+</button>
+              <button id="prefs-zoom-reset" type="button" class="text" data-i18n-title="prefs.zoomReset" data-shortcut="zoom-reset" data-i18n="prefs.zoomResetShort"></button>
+            </span>
+          </div>
+        </section>
+
+        <section class="pref-group" aria-labelledby="prefs-g-read">
+          <h3 id="prefs-g-read" data-i18n="prefs.reading"></h3>
+          <div class="pref-check"><input type="checkbox" id="prefs-toc" name="toc" /><label for="prefs-toc" data-i18n="prefs.tocOpen"></label></div>
+          <div class="pref-check"><input type="checkbox" id="prefs-restore-scroll" name="restore-scroll" /><label for="prefs-restore-scroll" data-i18n="prefs.restoreScroll"></label></div>
+          <div class="pref-check"><input type="checkbox" id="prefs-restore-tabs" name="restore-tabs" /><label for="prefs-restore-tabs" data-i18n="prefs.restoreTabs"></label></div>
+        </section>
+
+        <section class="pref-group" aria-labelledby="prefs-g-privacy">
+          <h3 id="prefs-g-privacy" data-i18n="prefs.privacy"></h3>
+          <div class="pref-check"><input type="checkbox" id="prefs-remote" name="remote" /><label for="prefs-remote" data-i18n="prefs.remote"></label></div>
+          <p class="muted" data-i18n="prefs.remoteHint"></p>
+          <div class="pref-actions">
+            <button id="prefs-clear-recent" type="button" class="text" data-i18n="prefs.clearRecent"></button>
+            <button id="prefs-forget-grants" type="button" class="text" data-i18n="prefs.forget"></button>
+          </div>
+          <p class="muted" data-i18n="prefs.forgetHint"></p>
+        </section>
+
+        <section class="pref-group" aria-labelledby="prefs-g-updates">
+          <h3 id="prefs-g-updates" data-i18n="prefs.updates"></h3>
+          <div class="pref-check"><input type="checkbox" id="prefs-auto-update" name="auto-update" /><label for="prefs-auto-update" data-i18n="prefs.autoUpdate"></label></div>
+          <p class="muted" data-i18n="prefs.autoUpdateHint"></p>
+          <div class="pref-actions">
+            <button id="prefs-check-update" type="button" class="text" data-i18n="update.check"></button>
+          </div>
+        </section>
+
+        <form method="dialog" class="prefs-footer">
+          <span class="pref-links">
+            <button id="prefs-shortcuts" type="button" class="link" data-i18n-title="prefs.shortcuts" data-shortcut="shortcuts" data-i18n="prefs.shortcuts"></button>
+            <button id="prefs-about" type="button" class="link" data-i18n="prefs.about"></button>
+            <button id="prefs-reset" type="button" class="link" data-i18n="prefs.reset"></button>
+          </span>
+          <button class="text" data-i18n="common.close"></button>
+        </form>
+      </dialog>
+
+      <dialog id="shortcuts" class="sheet" aria-labelledby="shortcuts-title">
+        <h2 id="shortcuts-title" data-i18n="shortcuts.title"></h2>
+        <dl id="shortcuts-list" class="keys"></dl>
+        <form method="dialog"><button class="text" data-i18n="common.close"></button></form>
+      </dialog>
+    </div>
+  </body>
+</html>

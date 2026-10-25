@@ -1,0 +1,37 @@
+[package]
+name = "leve"
+version = "0.2.0"
+description = "A lightweight Markdown viewer"
+authors = ["Moralia"]
+license = "MIT"
+edition = "2024"
+
+[lib]
+name = "leve_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-window-state = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+notify = "8"
+notify-debouncer-mini = "0.6"
+sys-locale = "0.3"
+tauri-plugin-process = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-updater = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+# "z" e não "s": 17% menor (5,30 → 4,42 MB medidos em 2026-10-23). O Rust só lê arquivo, confere
+# concessão e vigia pasta; o trabalho pesado é do WebView, então a perda de velocidade não aparece.
+opt-level = "z"
+panic = "abort"
+strip = true

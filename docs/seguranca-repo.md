@@ -3,13 +3,13 @@
 Configuração de `moraliasp/leve` no GitHub: o que existe, o que deveria existir e o risco de cada diferença.
 O que se protege, em ordem: **a chave do atualizador** (`TAURI_SIGNING_PRIVATE_KEY`, environment `release`; quem a tiver publica atualização para todo Leve instalado), a capacidade de **publicar release**, e a **`main`**.
 
-Auditoria de 2026-10-25, lida por `gh api` com a conta `eclbrz` (admin do repositório, owner da org); a parte da org relida no mesmo dia com `admin:org` e `admin:org_hook`. Status: ✅ ok ou aplicado · ⏳ pronto para aplicar (comando abaixo) · ❓ decisão do Eduardo · 👁 conferir na tela (a API não mostra).
+Auditoria de 2026-10-25, lida por `gh api` com a conta `eclbrz` (admin do repositório, owner da org); a parte da org relida no mesmo dia com `admin:org` e `admin:org_hook`. Status: ✅ ok ou aplicado · ⏳ decidido, aplica com `scripts/aplicar-seguranca.sh` · ✋ decidido, passo manual na tela · ⏸ decidido não aplicar agora · 👁 conferir na tela (a API não mostra).
 
 ## Resumo
 
 - **A chave não vazou.** Nunca esteve no histórico git; nos logs dos 4 runs do `release.yml` (`v0.2.0-rc.1`, `v0.2.0-rc.2`, `v0.2.1-rc.1`, `v0.2.0`) aparece só mascarada (`***`); nenhum alerta de secret scanning. Não precisa rotacionar.
 - **O que já segurava:** environment `release` só aceita tag `v*` (branch não chega à chave), `GITHUB_TOKEN` somente leitura, bot sem permissão de aprovar PR, ruleset na `main` sem bypass, actions pinadas por SHA, `pull_request_target`/`workflow_run` ausentes.
-- **Buracos que restam até aplicar a seção ⏳:** (1) qualquer conta com escrita cria tag `v*` e dispara o release sem clique de ninguém; (2) o app **Claude** (GitHub App) está instalado em **todos** os repositórios da org com `contents`, `workflows` e `actions` em escrita, ou seja, pode criar essa tag; (3) o release usava cache que a `main` grava (cache poisoning, achado **alto** do zizmor, corrigido no PR).
+- **Buracos que restam até rodar `scripts/aplicar-seguranca.sh` e o passo ✋:** (1) qualquer conta com escrita cria tag `v*` e dispara o release sem clique de ninguém; (2) o app **Claude** (GitHub App) está instalado em **todos** os repositórios da org com `contents`, `workflows` e `actions` em escrita, ou seja, pode criar essa tag; (3) o release usava cache que a `main` grava (cache poisoning, achado **alto** do zizmor, corrigido no PR).
 - **Fora do repositório:** a chave e a senha estão juntas em texto puro em `~/.tauri/` (`leve.key` e `leve.key.password`, modo 600). Qualquer processo com o usuário do Mac, inclusive uma sessão de agente, lê as duas.
 
 ## Org `moraliasp`
@@ -19,12 +19,12 @@ Plano Free. Repositórios: `leve` (público) e `mfo` (privado). O que vale para 
 | Item | Atual | Recomendado | Risco | Status |
 |---|---|---|---|---|
 | Owners | `eclbrz`, único membro (`role: admin`); sem convites pendentes, sem security managers, sem bloqueios | 1 ou 2 owners, cada um com passkey | baixo | ✅ |
-| 2FA obrigatório | **desligado** (a conta `eclbrz` tem 2FA) | ligado | médio: um membro futuro sem 2FA vira porta de entrada | ❓ |
+| 2FA obrigatório | **desligado** (a conta `eclbrz` tem 2FA) | ligado | médio: um membro futuro sem 2FA vira porta de entrada | ⏳ (se a API recusar, ✋ pela tela) |
 | Permissão base dos membros | `read` | `read` ou `none` | baixo | ✅ |
 | Membros criam repo | público, privado e Pages (público e privado) | só owner | baixo enquanto só há o Eduardo | ⏳ |
 | Membros apagam repo, mudam visibilidade, convidam colaborador externo, criam time | sim (padrão do GitHub) | não | baixo enquanto só há o Eduardo; vira médio com o segundo membro | ⏳ |
 | Times / colaboradores externos | nenhum | — | — | ✅ |
-| Apps instalados | só o **Claude** (`claude`, app 1236702), instalado em **todos** os repositórios (`leve` e `mfo`), ativo; escrita em `contents`, `workflows`, `actions`, `pull_requests`, `issues`, `checks`, `discussions`, `repository_hooks`; leitura em `administration`, `members` | só nos repositórios onde é usado; fora do `leve` | **alto**: cria tag `v*`, mexe em workflow e webhook, abre e mergeia PR (o ruleset aceita 0 aprovação) | ❓ |
+| Apps instalados | só o **Claude** (`claude`, app 1236702), instalado em **todos** os repositórios (`leve` e `mfo`), ativo; escrita em `contents`, `workflows`, `actions`, `pull_requests`, `issues`, `checks`, `discussions`, `repository_hooks`; leitura em `administration`, `members` | só nos repositórios onde é usado; fora do `leve` | **alto**: cria tag `v*`, mexe em workflow e webhook, abre e mergeia PR (o ruleset aceita 0 aprovação) | ✋ |
 | Webhooks da org | nenhum | nenhum | — | ✅ |
 | Secrets e variáveis da org (Actions, Dependabot) | nenhum | nenhum (a chave fica só no environment) | — | ✅ |
 | Runners próprios | nenhum; grupo padrão não aceita repositório público | só hospedados pelo GitHub | — | ✅ |
@@ -47,10 +47,10 @@ Plano Free. Repositórios: `leve` (público) e `mfo` (privado). O que vale para 
 | Merge | só squash; auto-delete de branch ligado | idem | — | ✅ |
 | "Atualizar branch" no PR | desligado → **ligado** | ligado (necessário com CI "atualizado") | — | ✅ aplicado |
 | Wiki, Projects, Discussions | desligados | desligados | — | ✅ |
-| Releases imutáveis | desligado | ligado | médio: com token de escrita, dá para trocar o `latest.json` ou um pacote de uma release já publicada (a assinatura minisign barra pacote falso, mas não um downgrade para versão antiga e vulnerável) | ❓ |
+| Releases imutáveis | desligado | ligado | médio: com token de escrita, dá para trocar o `latest.json` ou um pacote de uma release já publicada (a assinatura minisign barra pacote falso, mas não um downgrade para versão antiga e vulnerável) | ⏳ |
 | Ruleset `main` | PR, CI `check`, sem force-push nem delete, só squash, **sem bypass** | + histórico linear, + conversas resolvidas, + CI atualizado com a `main` | baixo | ⏳ |
-| Aprovação no PR | 0 aprovações | 1 aprovação com bypass do admin só via PR | médio: hoje quem tem escrita (o app Claude) mergeia sozinho | ❓ |
-| Commits assinados | não exigido; o Eduardo **não assina** localmente (`commit.gpgsign` vazio, `2ea2dbf` "unsigned"). Os squash merges feitos pelo GitHub saem assinados ("valid") | exigir na `main` | baixo | ❓ |
+| Aprovação no PR | 0 aprovações | 1 aprovação com bypass do admin só via PR | médio: hoje quem tem escrita (o app Claude) mergeia sozinho | ⏳ |
+| Commits assinados | não exigido; o Eduardo **não assina** localmente (`commit.gpgsign` vazio, `2ea2dbf` "unsigned"). Os squash merges feitos pelo GitHub saem assinados ("valid") | exigir na `main` | baixo | ⏸ |
 | Ruleset de tags `v*` | **não existe** | criação só por admin; update e delete bloqueados para todos | **alto**: tag `v*` dispara o release, que usa a chave | ⏳ |
 
 ## Actions
@@ -72,7 +72,7 @@ Plano Free. Repositórios: `leve` (público) e `mfo` (privado). O que vale para 
 | Quem dispara | quem cria tag `v*` (hoje: qualquer um com escrita, inclusive o app Claude) | só admin (ruleset de tags) | alto | ⏳ |
 | Required reviewers | **nenhum** | `eclbrz`, auto-aprovação permitida (é ele quem cria a tag) | **alto**: o release lê a chave sem ninguém olhar | ⏳ |
 | Wait timer | 0 | 0 | — | ✅ |
-| Admins podem pular | **sim** | não | médio: com sim, um token de admin vazado pula a aprovação | ❓ |
+| Admins podem pular | **sim** | não | médio: com sim, um token de admin vazado pula a aprovação | ⏳ |
 
 ## Segurança (Code security)
 
@@ -81,7 +81,7 @@ Plano Free. Repositórios: `leve` (público) e `mfo` (privado). O que vale para 
 | Secret scanning + push protection | ligados | ligados | — | ✅ |
 | Validity checks, padrões genéricos | desligados | ligados | baixo | — a API aceitou e ignorou: exige GitHub Secret Protection (pago) em repositório de org |
 | Dependabot alerts e security updates | ligados; 0 alertas abertos | ligados | — | ✅ |
-| CodeQL | não configurado | default setup só de **Actions** (pega injeção em workflow); JS/TS fica de fora por decisão (`docs/decisoes.md`, "Repositório público enxuto") | baixo | ⏳ (Actions) / ❓ (JS/TS) |
+| CodeQL | não configurado | default setup só de **Actions** (pega injeção em workflow); JS/TS fica de fora por decisão (`docs/decisoes.md`, "Repositório público enxuto") | baixo | ⏳ (Actions) / ⏸ (JS/TS) |
 | Private vulnerability reporting | ligado; `SECURITY.md` aponta para ele | ligado | — | ✅ |
 | OpenSSF Scorecard | ausente | `scorecard.yml` com SARIF e publicação (grátis em repositório público) | baixo | PR |
 
@@ -119,47 +119,34 @@ repo                                     {"allow_update_branch":true}
 
 Desfazer: `gh api -X PUT repos/moraliasp/leve/actions/permissions -F enabled=true -f allowed_actions=all -F sha_pinning_required=false` e `gh api -X PUT repos/moraliasp/leve/actions/permissions/fork-pr-contributor-approval -f approval_policy=first_time_contributors`.
 
-## ⏳ Pronto para aplicar
+## ⏳ Aplicar
 
-Seguro e reversível, mas a sessão que fez a auditoria não teve permissão para gravar rulesets e environment. Rodar da raiz do repositório (ou autorizar o agente a rodar):
+Tudo o que foi decidido e tem API está em [`scripts/aplicar-seguranca.sh`](../scripts/aplicar-seguranca.sh). O script é idempotente, imprime cada passo e relê tudo no fim. O agente não grava configuração; quem roda é o Eduardo, da raiz do repositório, com o `gh` dele (escopos `repo` e `admin:org`):
 
 ```bash
-R=repos/moraliasp/leve
-# Tags v*: só admin cria
-gh api -X POST $R/rulesets --input - <<'EOF'
-{"name":"tags v* — criação só por admin","target":"tag","enforcement":"active",
- "conditions":{"ref_name":{"include":["refs/tags/v*"],"exclude":[]}},
- "rules":[{"type":"creation"}],
- "bypass_actors":[{"actor_id":5,"actor_type":"RepositoryRole","bypass_mode":"always"}]}
-EOF
-# Tags v*: depois de criada, não muda nem some (sem bypass; para apagar tag de teste, desligar e religar)
-gh api -X POST $R/rulesets --input - <<'EOF'
-{"name":"tags v* — imutáveis","target":"tag","enforcement":"active",
- "conditions":{"ref_name":{"include":["refs/tags/v*"],"exclude":[]}},
- "rules":[{"type":"update"},{"type":"deletion"},{"type":"non_fast_forward"}],
- "bypass_actors":[]}
-EOF
-# main: + histórico linear, conversas resolvidas, CI atualizado com a main
-gh api -X PUT $R/rulesets/25837657 --input - <<'EOF'
-{"name":"main","target":"branch","enforcement":"active",
- "conditions":{"ref_name":{"include":["~DEFAULT_BRANCH"],"exclude":[]}},
- "bypass_actors":[],
- "rules":[{"type":"deletion"},{"type":"non_fast_forward"},{"type":"required_linear_history"},
-  {"type":"pull_request","parameters":{"required_approving_review_count":0,"dismiss_stale_reviews_on_push":false,"required_reviewers":[],"require_code_owner_review":false,"require_last_push_approval":false,"required_review_thread_resolution":true,"allowed_merge_methods":["squash"]}},
-  {"type":"required_status_checks","parameters":{"strict_required_status_checks_policy":true,"do_not_enforce_on_create":false,"required_status_checks":[{"context":"check","integration_id":15368}]}}]}
-EOF
-# Environment release: aprovação do Eduardo (bypass de admin fica até ele decidir)
-gh api -X PUT $R/environments/release --input - <<'EOF'
-{"wait_timer":0,"prevent_self_review":false,"reviewers":[{"type":"User","id":84853851}],"can_admins_bypass":true,
- "deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}
-EOF
-# CodeQL default setup só para Actions
-gh api -X PATCH $R/code-scanning/default-setup -f state=configured -f 'languages[]=actions' -f query_suite=default
+bash scripts/aplicar-seguranca.sh
 ```
 
-Conferir depois: `gh api $R/rulesets --jq '.[].name'`, `gh api $R/environments/release --jq '{can_admins_bypass, rules: [.protection_rules[].type]}'` (esperado: `required_reviewers` e `branch_policy`), `gh api $R/code-scanning/default-setup --jq .state`.
+O que o script faz:
 
-Org (precisa de `admin:org`; vale também para o `mfo`, então conferir que os workflows dele usam só actions do GitHub ou da allowlist, pinadas por SHA, antes de ligar a segunda linha):
+1. Ruleset "tags v* — criação só por admin": criar tag `v*` só com papel admin.
+2. Ruleset "tags v* — imutáveis": tag `v*` não muda, não é apagada, sem bypass. Para apagar uma tag de teste: desligar o ruleset, apagar, religar.
+3. Ruleset `main`: 1 aprovação (some depois de push novo), o admin passa só pelo botão de merge do PR (`bypass_mode: pull_request`), histórico linear, conversas resolvidas, CI `check` atualizado com a `main`, só squash, sem force-push nem delete.
+4. Environment `release`: revisor `eclbrz` (pode aprovar o próprio run), só tags `v*`, **sem bypass de admin**.
+5. Releases imutáveis.
+6. CodeQL default setup só de Actions.
+7. 2FA obrigatório na org. Se a API não aceitar, o fim do script imprime o link da tela.
+
+Desfazer, se algo travar: rulesets em `https://github.com/moraliasp/leve/settings/rules` (desligar o ruleset é imediato); environment em `https://github.com/moraliasp/leve/settings/environments`; releases imutáveis com `gh api -X DELETE repos/moraliasp/leve/immutable-releases` (as releases publicadas enquanto ligado continuam imutáveis).
+
+### ✋ Manual
+
+- **App Claude fora do `leve`:** https://github.com/organizations/moraliasp/settings/installations/129415688 › *Repository access* › *Only select repositories* › deixar só os repositórios que usam o app (o `mfo`, se usar) › *Save*. Não desinstalar da org. As sessões locais seguem pelo `gh` do Eduardo.
+- **2FA na org**, só se o script disser que a API não ligou: https://github.com/organizations/moraliasp/settings/security › *Require two-factor authentication* › *Save*.
+
+### ⏳ Org: política de Actions e permissões de membro
+
+Recomendado, fora do script porque vale também para o `mfo`: antes de rodar a segunda linha, conferir que os workflows dele usam só actions do GitHub ou da allowlist, pinadas por SHA.
 
 ```bash
 gh api -X PATCH orgs/moraliasp -F members_can_create_public_repositories=false -F members_can_create_public_pages=false -F members_can_delete_repositories=false -F members_can_change_repo_visibility=false -F members_can_invite_outside_collaborators=false -F dependabot_alerts_enabled_for_new_repositories=true -F dependency_graph_enabled_for_new_repositories=true -F secret_scanning_enabled_for_new_repositories=true -F secret_scanning_push_protection_enabled_for_new_repositories=true
@@ -170,15 +157,15 @@ gh api -X PUT orgs/moraliasp/actions/permissions/fork-pr-contributor-approval -f
 
 Conferir depois: `gh api orgs/moraliasp --jq '{members_can_create_public_repositories, secret_scanning_enabled_for_new_repositories}'`, `gh api orgs/moraliasp/actions/permissions`. Desfazer as Actions da org: `gh api -X PUT orgs/moraliasp/actions/permissions -f enabled_repositories=all -f allowed_actions=all -F sha_pinning_required=false`.
 
-## ❓ Decisões do Eduardo
+## Decisões (Eduardo, 2026-10-25: "sigo suas recomendações")
 
-1. **App Claude no `leve`.** Tirar o `leve` da instalação (Settings da org › GitHub Apps › Claude › Repository access › Only select repositories; deixar só o `mfo`, se for usado lá). Ganho: some a única identidade além do Eduardo com escrita no repositório. Custo: Claude Code na web e `@claude` em issue param de funcionar aqui; sessões locais seguem usando o `gh` do Eduardo.
-2. **Bypass de admin no environment `release`** (`can_admins_bypass: false`). Ganho: nem um token de admin vazado pula a aprovação. Custo: se a conta do Eduardo estiver fora (perda de 2FA), não há release até recuperar; sendo o único revisor, ele aprova o próprio run normalmente.
-3. **1 aprovação no PR da `main` com bypass do admin só via PR.** Ganho: outra conta com escrita não mergeia sozinha. Custo: o Eduardo marca "merge sem aprovação" em todo PR dele (é o único mantenedor); o bypass também dispensa o CI quando usado.
-4. **2FA obrigatório na org.** Hoje sem efeito colateral (o único membro é o Eduardo, com 2FA ligado na conta); vale como trava para quem entrar depois. Membro sem 2FA é removido na hora.
-5. **Commits assinados na `main`.** Os merges pelo GitHub já saem assinados, então ligar não muda o fluxo atual; quebra só push direto (já proibido) e merge local. Para assinar também os commits de branch: `git config --global gpg.format ssh`, `git config --global user.signingkey ~/.ssh/id_ed25519.pub`, `git config --global commit.gpgsign true` e cadastrar a mesma chave como *Signing key* em github.com/settings/keys.
-6. **Releases imutáveis.** Ganho: release publicada não troca de arquivo nem de tag. Custo: tag de release publicada fica queimada para sempre (rc de teste incluída; usar rascunho para testar o que não precisa ser publicado).
-7. **CodeQL de JS/TS.** A decisão registrada é ficar de fora; reabrir só se quiser.
+1. **App Claude:** sai do `leve`; a instalação fica restrita aos repositórios que usam o app, sem desinstalar da org. ✋
+2. **Bypass de admin no environment `release`:** desligado. Nem token de admin vazado pula a aprovação; se a conta do Eduardo estiver fora, não há release até recuperar. ⏳
+3. **`main`:** 1 aprovação, admin passa só via PR. Outra conta com escrita não mergeia sozinha; o Eduardo marca o bypass no merge dos PRs dele (o bypass também dispensa o CI naquele merge, então só usar com o `check` verde). ⏳
+4. **2FA obrigatório na org.** ⏳ / ✋
+5. **Commits assinados:** não exigir agora. ⏸ Os merges pelo GitHub já saem assinados. Para assinar também os commits de branch: `git config --global gpg.format ssh`, `git config --global user.signingkey ~/.ssh/id_ed25519.pub`, `git config --global commit.gpgsign true` e cadastrar a mesma chave como *Signing key* em github.com/settings/keys. Depois, se quiser exigir, acrescentar `{"type":"required_signatures"}` às regras do ruleset `main` no script.
+6. **Releases imutáveis:** ligar. Release publicada não troca de arquivo nem de tag, e a tag fica queimada; para testar, usar release em rascunho (o `release.yml` já cria rascunho). ⏳
+7. **CodeQL:** só Actions. JS/TS segue fora (`docs/decisoes.md`, "Repositório público enxuto"). ⏳ / ⏸
 
 ## Para o Eduardo fazer (fora do alcance do agente)
 

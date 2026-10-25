@@ -1,0 +1,195 @@
+name: release
+# Tag `vX.Y.Z` publica a versão X.Y.Z; `vX.Y.Z-rc.N` compila a mesma X.Y.Z como pre-release de
+# teste (o atualizador ignora pre-release). Mac universal e Windows (NSIS + MSI) com os pacotes do
+# atualizador assinados; o job `publish` gera latest.json, SHA256SUMS.txt, a attestation de
+# proveniência e a release em rascunho. Nada é publicado sem alguém revisar o rascunho.
+on:
+  push:
+    tags: ["v*"]
+permissions: {}
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    permissions:
+      contents: read
+      # Token OIDC para o azure/login. Só é usado quando a assinatura Windows está ligada.
+      id-token: write
+    # Segredos e variáveis de assinatura vivem no environment "release" (com revisor),
+    # nunca no repositório nem em pull_request. O environment vale para o job inteiro, então
+    # com revisor configurado os dois jobs da matriz (macOS e Windows) esperam a aprovação.
+    # Ver docs/assinatura.md.
+    environment: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            targets: aarch64-apple-darwin x86_64-apple-darwin
+            args: --target universal-apple-darwin
+            bundle: src-tauri/target/universal-apple-darwin/release/bundle
+            sign: false
+          - platform: windows-latest
+            targets: ""
+            args: ""
+            bundle: src-tauri/target/release/bundle
+            sign: true
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 60
+    env:
+      # A assinatura Windows liga sozinha quando a variável WINDOWS_SIGN_PROVIDER existe no
+      # environment ("esigner" ou "artifact-signing"). Sem ela, o build sai igual ao de hoje.
+      SIGN_WINDOWS: ${{ matrix.sign && vars.WINDOWS_SIGN_PROVIDER != '' }}
+      WINDOWS_SIGN_PROVIDER: ${{ vars.WINDOWS_SIGN_PROVIDER }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Conferir versão
+        shell: bash
+        run: |
+          EXPECTED="${GITHUB_REF_NAME#v}"
+          EXPECTED="${EXPECTED%-rc.*}"
+          ACTUAL="$(node scripts/version.mjs)" || {
+            echo "::error::Os arquivos de versão divergem entre si. Rode 'pnpm version:set $EXPECTED' e refaça a tag."
+            exit 1
+          }
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::A tag ${GITHUB_REF_NAME} pede a versão $EXPECTED, mas os arquivos estão em $ACTUAL. Rode 'pnpm version:set $EXPECTED', faça o commit e refaça a tag."
+            exit 1
+          fi
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Rust stable (+ targets)
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal && rustup default stable
+          if [ -n "${{ matrix.targets }}" ]; then rustup target add ${{ matrix.targets }}; fi
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-release-
+      - run: pnpm install --frozen-lockfile
+      - name: Ferramentas de assinatura (CodeSignTool do SSL.com ou signtool + dlib do Artifact Signing)
+        if: env.SIGN_WINDOWS == 'true'
+        shell: pwsh
+        env:
+          AZURE_SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          AZURE_SIGNING_PROFILE: ${{ vars.AZURE_SIGNING_PROFILE }}
+        run: ./scripts/install-sign-tools.ps1
+      # Os dois passos abaixo só valem para o Artifact Signing: o token do Azure dura pouco,
+      # então compila antes do login e empacota logo depois.
+      - name: Compilar antes do login no Azure
+        if: env.SIGN_WINDOWS == 'true' && env.WINDOWS_SIGN_PROVIDER == 'artifact-signing'
+        run: pnpm tauri build --no-bundle
+      - name: Entrar no Azure (OIDC federado, sem segredo de longa duração)
+        if: env.SIGN_WINDOWS == 'true' && env.WINDOWS_SIGN_PROVIDER == 'artifact-signing'
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Build
+        # A CLI do Tauri lê as variáveis APPLE_* sozinha. Descomentar quando a conta
+        # Apple Developer estiver aprovada (ver docs/assinatura.md).
+        # No Windows, com SIGN_WINDOWS, o --config liga o signCommand (scripts/sign-windows.ps1).
+        # Os segredos ESIGNER_* só entram no ambiente do build Windows com o provedor esigner;
+        # no macOS e sem assinatura ficam vazios. TAURI_SIGNING_* assina os pacotes do atualizador.
+        env:
+          CI: "true"
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          ESIGNER_USERNAME: ${{ env.SIGN_WINDOWS == 'true' && env.WINDOWS_SIGN_PROVIDER == 'esigner' && secrets.ESIGNER_USERNAME || '' }}
+          ESIGNER_PASSWORD: ${{ env.SIGN_WINDOWS == 'true' && env.WINDOWS_SIGN_PROVIDER == 'esigner' && secrets.ESIGNER_PASSWORD || '' }}
+          ESIGNER_CREDENTIAL_ID: ${{ env.SIGN_WINDOWS == 'true' && env.WINDOWS_SIGN_PROVIDER == 'esigner' && secrets.ESIGNER_CREDENTIAL_ID || '' }}
+          ESIGNER_TOTP_SECRET: ${{ env.SIGN_WINDOWS == 'true' && env.WINDOWS_SIGN_PROVIDER == 'esigner' && secrets.ESIGNER_TOTP_SECRET || '' }}
+          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          # APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
+        shell: bash
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::Falta o segredo TAURI_SIGNING_PRIVATE_KEY no environment release (chave do atualizador)."
+            exit 1
+          fi
+          # Pacotes do atualizador (.app.tar.gz, .sig) só aqui: o build local não precisa da chave.
+          pnpm tauri build ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":true}}' ${{ env.SIGN_WINDOWS == 'true' && '--config src-tauri/tauri.sign.conf.json' || '' }}
+      # Nomes estáveis por versão e plataforma; o .app.tar.gz do macOS sai como "Leve.app.tar.gz".
+      - name: Juntar pacotes
+        shell: bash
+        env:
+          BUNDLE: ${{ matrix.bundle }}
+        run: |
+          V="$(node scripts/version.mjs)"
+          mkdir -p out
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            cp "$BUNDLE"/dmg/*.dmg out/
+            cp "$BUNDLE/macos/Leve.app.tar.gz" "out/Leve_${V}_universal.app.tar.gz"
+            cp "$BUNDLE/macos/Leve.app.tar.gz.sig" "out/Leve_${V}_universal.app.tar.gz.sig"
+          else
+            cp "$BUNDLE"/nsis/*-setup.exe "$BUNDLE"/nsis/*-setup.exe.sig "$BUNDLE"/msi/*.msi "$BUNDLE"/msi/*.msi.sig out/
+          fi
+          ls -l out
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: leve-${{ runner.os }}
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: leve-*
+          path: release
+          merge-multiple: true
+      - name: latest.json e SHA256SUMS.txt
+        run: |
+          node scripts/latest-json.mjs release "$GITHUB_REF_NAME"
+          cd release && sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      # Attestation de proveniência (SLSA): prova que cada arquivo saiu deste workflow, desta tag.
+      # Em repositório privado do plano Free o GitHub não emite attestation; aí o passo é pulado.
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        if: github.event.repository.visibility == 'public'
+        with:
+          subject-path: |
+            release/*.dmg
+            release/*.app.tar.gz
+            release/*.exe
+            release/*.msi
+            release/latest.json
+            release/SHA256SUMS.txt
+      - name: Release em rascunho
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          TAG="$GITHUB_REF_NAME"
+          PRE=""
+          case "$TAG" in *-*) PRE="--prerelease" ;; esac
+          gh release view "$TAG" >/dev/null 2>&1 \
+            || gh release create "$TAG" --draft $PRE --verify-tag --title "Leve $TAG" --generate-notes
+          gh release upload "$TAG" release/* --clobber

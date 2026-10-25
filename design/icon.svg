@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Quadrado arredondado estilo macOS (824 px de conteúdo, raio ~22 %), fundo transparente ao redor.
+       Paleta Moralia: roxo #431A60, texto #F3ECFA, destaque lilás #C9A6F2. -->
+  <rect x="100" y="100" width="824" height="824" rx="184" fill="#431A60"/>
+  <text x="300" y="630" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" font-size="360" letter-spacing="-12" fill="#F3ECFA">md</text>
+  <rect x="204" y="560" width="76" height="76" rx="19" fill="#C9A6F2"/>
+</svg>

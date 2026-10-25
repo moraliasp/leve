@@ -5,13 +5,16 @@ on:
   pull_request:
   push:
     branches: [main]
-permissions:
-  contents: read
+permissions: {}
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   check:
+    # O nome do job ("check") é o status exigido pelo ruleset da main: não renomear.
+    # Cache de PR fica no escopo do PR; o release.yml não usa cache.
+    permissions:
+      contents: read # ler o código
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

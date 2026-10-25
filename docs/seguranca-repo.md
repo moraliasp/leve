@@ -3,13 +3,14 @@
 Configuração de `moraliasp/leve` no GitHub: o que existe, o que deveria existir e o risco de cada diferença.
 O que se protege, em ordem: **a chave do atualizador** (`TAURI_SIGNING_PRIVATE_KEY`, environment `release`; quem a tiver publica atualização para todo Leve instalado), a capacidade de **publicar release**, e a **`main`**.
 
-Auditoria de 2026-10-25, lida por `gh api` com a conta `eclbrz` (admin do repositório, owner da org); a parte da org relida no mesmo dia com `admin:org` e `admin:org_hook`. Status: ✅ ok ou aplicado · ⏳ decidido, aplica com `scripts/aplicar-seguranca.sh` · ✋ decidido, passo manual na tela · ⏸ decidido não aplicar agora · 👁 conferir na tela (a API não mostra).
+Auditoria de 2026-10-25, lida por `gh api` com a conta `eclbrz` (admin do repositório, owner da org); a parte da org relida no mesmo dia com `admin:org` e `admin:org_hook`. Status: ✅ ok ou aplicado (conferido por API) · ⏳ recomendado, ainda não aplicado · ✋ decidido, falta o passo manual na tela · ⏸ decidido não aplicar agora · 👁 conferir na tela (a API não mostra).
 
 ## Resumo
 
 - **A chave não vazou.** Nunca esteve no histórico git; nos logs dos 4 runs do `release.yml` (`v0.2.0-rc.1`, `v0.2.0-rc.2`, `v0.2.1-rc.1`, `v0.2.0`) aparece só mascarada (`***`); nenhum alerta de secret scanning. Não precisa rotacionar.
 - **O que já segurava:** environment `release` só aceita tag `v*` (branch não chega à chave), `GITHUB_TOKEN` somente leitura, bot sem permissão de aprovar PR, ruleset na `main` sem bypass, actions pinadas por SHA, `pull_request_target`/`workflow_run` ausentes.
-- **Buracos que restam até rodar `scripts/aplicar-seguranca.sh` e o passo ✋:** (1) qualquer conta com escrita cria tag `v*` e dispara o release sem clique de ninguém; (2) o app **Claude** (GitHub App) está instalado em **todos** os repositórios da org com `contents`, `workflows` e `actions` em escrita, ou seja, pode criar essa tag; (3) o release usava cache que a `main` grava (cache poisoning, achado **alto** do zizmor, corrigido no PR).
+- **Estado final (2026-10-25, depois de `scripts/aplicar-seguranca.sh`):** nenhum release usa a chave sem aprovação do Eduardo (environment `release` com revisor, sem bypass de admin, só tag `v*`); só admin cria tag `v*`, e tag `v*` não muda nem some; a `main` exige 1 aprovação (admin passa só via PR); releases imutáveis. O cache poisoning do release (achado **alto** do zizmor) sai com este PR.
+- **Falta (✋, manual na tela):** tirar o app **Claude** do `leve` (ainda instalado em todos os repositórios com escrita) e ligar o 2FA obrigatório da org (a API não liga).
 - **Fora do repositório:** a chave e a senha estão juntas em texto puro em `~/.tauri/` (`leve.key` e `leve.key.password`, modo 600). Qualquer processo com o usuário do Mac, inclusive uma sessão de agente, lê as duas.
 
 ## Org `moraliasp`
@@ -19,7 +20,7 @@ Plano Free. Repositórios: `leve` (público) e `mfo` (privado). O que vale para 
 | Item | Atual | Recomendado | Risco | Status |
 |---|---|---|---|---|
 | Owners | `eclbrz`, único membro (`role: admin`); sem convites pendentes, sem security managers, sem bloqueios | 1 ou 2 owners, cada um com passkey | baixo | ✅ |
-| 2FA obrigatório | **desligado** (a conta `eclbrz` tem 2FA) | ligado | médio: um membro futuro sem 2FA vira porta de entrada | ⏳ (se a API recusar, ✋ pela tela) |
+| 2FA obrigatório | **desligado** (a conta `eclbrz` tem 2FA); a API aceitou o pedido e não mudou | ligado | médio: um membro futuro sem 2FA vira porta de entrada | ✋ |
 | Permissão base dos membros | `read` | `read` ou `none` | baixo | ✅ |
 | Membros criam repo | público, privado e Pages (público e privado) | só owner | baixo enquanto só há o Eduardo | ⏳ |
 | Membros apagam repo, mudam visibilidade, convidam colaborador externo, criam time | sim (padrão do GitHub) | não | baixo enquanto só há o Eduardo; vira médio com o segundo membro | ⏳ |
@@ -47,11 +48,11 @@ Plano Free. Repositórios: `leve` (público) e `mfo` (privado). O que vale para 
 | Merge | só squash; auto-delete de branch ligado | idem | — | ✅ |
 | "Atualizar branch" no PR | desligado → **ligado** | ligado (necessário com CI "atualizado") | — | ✅ aplicado |
 | Wiki, Projects, Discussions | desligados | desligados | — | ✅ |
-| Releases imutáveis | desligado | ligado | médio: com token de escrita, dá para trocar o `latest.json` ou um pacote de uma release já publicada (a assinatura minisign barra pacote falso, mas não um downgrade para versão antiga e vulnerável) | ⏳ |
-| Ruleset `main` | PR, CI `check`, sem force-push nem delete, só squash, **sem bypass** | + histórico linear, + conversas resolvidas, + CI atualizado com a `main` | baixo | ⏳ |
-| Aprovação no PR | 0 aprovações | 1 aprovação com bypass do admin só via PR | médio: hoje quem tem escrita (o app Claude) mergeia sozinho | ⏳ |
+| Releases imutáveis | **ligado** | ligado | médio: com token de escrita, dá para trocar o `latest.json` ou um pacote de uma release já publicada (a assinatura minisign barra pacote falso, mas não um downgrade para versão antiga e vulnerável) | ✅ |
+| Ruleset `main` (#25837657) | PR, CI `check` **atualizado com a `main`**, sem force-push nem delete, só squash, **histórico linear**, **conversas resolvidas** | idem | — | ✅ |
+| Aprovação no PR | **1 aprovação**, descartada em push novo; admin passa só via PR (`RepositoryRole:5:pull_request`) | idem | — | ✅ |
 | Commits assinados | não exigido; o Eduardo **não assina** localmente (`commit.gpgsign` vazio, `2ea2dbf` "unsigned"). Os squash merges feitos pelo GitHub saem assinados ("valid") | exigir na `main` | baixo | ⏸ |
-| Ruleset de tags `v*` | **não existe** | criação só por admin; update e delete bloqueados para todos | **alto**: tag `v*` dispara o release, que usa a chave | ⏳ |
+| Rulesets de tags `v*` | "criação só por admin" (#25841546, bypass admin) e "imutáveis" (#25841549: update, deletion, non_fast_forward; sem bypass) | idem | — | ✅ |
 
 ## Actions
 
@@ -69,10 +70,10 @@ Plano Free. Repositórios: `leve` (público) e `mfo` (privado). O que vale para 
 |---|---|---|---|---|
 | Secrets | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (gravados 2026-10-25 20:54Z); nenhum secret de repositório ou Dependabot | só no environment | — | ✅ |
 | Deployment policy | só tag `v*` | só tag `v*` | — | ✅ |
-| Quem dispara | quem cria tag `v*` (hoje: qualquer um com escrita, inclusive o app Claude) | só admin (ruleset de tags) | alto | ⏳ |
-| Required reviewers | **nenhum** | `eclbrz`, auto-aprovação permitida (é ele quem cria a tag) | **alto**: o release lê a chave sem ninguém olhar | ⏳ |
+| Quem dispara | quem cria tag `v*`: só admin (ruleset de tags) | idem | — | ✅ |
+| Required reviewers | `eclbrz`, auto-aprovação permitida (é ele quem cria a tag) | idem | — | ✅ |
 | Wait timer | 0 | 0 | — | ✅ |
-| Admins podem pular | **sim** | não | médio: com sim, um token de admin vazado pula a aprovação | ⏳ |
+| Admins podem pular | **não** | não | — | ✅ |
 
 ## Segurança (Code security)
 
@@ -81,7 +82,7 @@ Plano Free. Repositórios: `leve` (público) e `mfo` (privado). O que vale para 
 | Secret scanning + push protection | ligados | ligados | — | ✅ |
 | Validity checks, padrões genéricos | desligados | ligados | baixo | — a API aceitou e ignorou: exige GitHub Secret Protection (pago) em repositório de org |
 | Dependabot alerts e security updates | ligados; 0 alertas abertos | ligados | — | ✅ |
-| CodeQL | não configurado | default setup só de **Actions** (pega injeção em workflow); JS/TS fica de fora por decisão (`docs/decisoes.md`, "Repositório público enxuto") | baixo | ⏳ (Actions) / ⏸ (JS/TS) |
+| CodeQL | default setup de **Actions** ligado (`languages: ["actions"]`); 1ª análise da `main` em 2026-10-25, 0 alertas. JS/TS fora por decisão (`docs/decisoes.md`, "Repositório público enxuto") | idem | — | ✅ |
 | Private vulnerability reporting | ligado; `SECURITY.md` aponta para ele | ligado | — | ✅ |
 | OpenSSF Scorecard | ausente | `scorecard.yml` com SARIF e publicação (grátis em repositório público) | baixo | PR |
 
@@ -134,7 +135,7 @@ O que o script faz:
 3. Ruleset `main`: 1 aprovação (some depois de push novo), o admin passa só pelo botão de merge do PR (`bypass_mode: pull_request`), histórico linear, conversas resolvidas, CI `check` atualizado com a `main`, só squash, sem force-push nem delete.
 4. Environment `release`: revisor `eclbrz` (pode aprovar o próprio run), só tags `v*`, **sem bypass de admin**.
 5. Releases imutáveis.
-6. CodeQL default setup só de Actions.
+6. CodeQL default setup só de Actions. A resposta logo depois do pedido mostra `languages: []`; as linguagens aparecem quando o run "CodeQL Setup" termina (cerca de 1 min).
 7. 2FA obrigatório na org. Se a API não aceitar, o fim do script imprime o link da tela.
 
 Desfazer, se algo travar: rulesets em `https://github.com/moraliasp/leve/settings/rules` (desligar o ruleset é imediato); environment em `https://github.com/moraliasp/leve/settings/environments`; releases imutáveis com `gh api -X DELETE repos/moraliasp/leve/immutable-releases` (as releases publicadas enquanto ligado continuam imutáveis).
@@ -160,12 +161,12 @@ Conferir depois: `gh api orgs/moraliasp --jq '{members_can_create_public_reposit
 ## Decisões (Eduardo, 2026-10-25: "sigo suas recomendações")
 
 1. **App Claude:** sai do `leve`; a instalação fica restrita aos repositórios que usam o app, sem desinstalar da org. ✋
-2. **Bypass de admin no environment `release`:** desligado. Nem token de admin vazado pula a aprovação; se a conta do Eduardo estiver fora, não há release até recuperar. ⏳
-3. **`main`:** 1 aprovação, admin passa só via PR. Outra conta com escrita não mergeia sozinha; o Eduardo marca o bypass no merge dos PRs dele (o bypass também dispensa o CI naquele merge, então só usar com o `check` verde). ⏳
-4. **2FA obrigatório na org.** ⏳ / ✋
+2. **Bypass de admin no environment `release`:** desligado. Nem token de admin vazado pula a aprovação; se a conta do Eduardo estiver fora, não há release até recuperar. ✅
+3. **`main`:** 1 aprovação, admin passa só via PR. Outra conta com escrita não mergeia sozinha; o Eduardo marca o bypass no merge dos PRs dele (o bypass também dispensa o CI naquele merge, então só usar com o `check` verde). ✅
+4. **2FA obrigatório na org.** ✋ (a API não liga)
 5. **Commits assinados:** não exigir agora. ⏸ Os merges pelo GitHub já saem assinados. Para assinar também os commits de branch: `git config --global gpg.format ssh`, `git config --global user.signingkey ~/.ssh/id_ed25519.pub`, `git config --global commit.gpgsign true` e cadastrar a mesma chave como *Signing key* em github.com/settings/keys. Depois, se quiser exigir, acrescentar `{"type":"required_signatures"}` às regras do ruleset `main` no script.
-6. **Releases imutáveis:** ligar. Release publicada não troca de arquivo nem de tag, e a tag fica queimada; para testar, usar release em rascunho (o `release.yml` já cria rascunho). ⏳
-7. **CodeQL:** só Actions. JS/TS segue fora (`docs/decisoes.md`, "Repositório público enxuto"). ⏳ / ⏸
+6. **Releases imutáveis:** ligar. Release publicada não troca de arquivo nem de tag, e a tag fica queimada; para testar, usar release em rascunho (o `release.yml` já cria rascunho). ✅
+7. **CodeQL:** só Actions. JS/TS segue fora (`docs/decisoes.md`, "Repositório público enxuto"). ✅ / ⏸
 
 ## Para o Eduardo fazer (fora do alcance do agente)
 

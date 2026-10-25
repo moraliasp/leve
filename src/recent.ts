@@ -1,13 +1,13 @@
 /**
- * Recentes e pontos de leitura em localStorage (`mdview.recent`, `mdview.scroll`). Só lista o que o
+ * Recentes e pontos de leitura em localStorage (`leve.recent`, `leve.scroll`). Só lista o que o
  * leitor abriu; apagar daqui não tira a concessão de leitura do Rust (`grants.json`), que continua
  * valendo para as abas salvas.
  */
 
 import { readJson } from "./prefs";
 
-export const RECENT_KEY = "mdview.recent";
-export const SCROLL_KEY = "mdview.scroll";
+export const RECENT_KEY = "leve.recent";
+export const SCROLL_KEY = "leve.scroll";
 /** Quantos ficam na lista do estado vazio. */
 export const RECENT_MAX = 12;
 

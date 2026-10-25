@@ -3,7 +3,7 @@
  * `pt` é a referência; `en` tem o mesmo conjunto de chaves por tipo, então chave faltando ou a
  * mais quebra o `tsc`. Texto com parâmetro usa `{nome}`, trocado por `t(chave, { nome })`.
  *
- * Idioma: preferência `mdview.lang` ("auto", "pt-BR" ou "en"); "auto" segue o sistema
+ * Idioma: preferência `leve.lang` ("auto", "pt-BR" ou "en"); "auto" segue o sistema
  * (`navigator.languages`): qualquer português vira pt-BR, o resto vira inglês. O menu nativo e as
  * mensagens do Rust recebem o idioma resolvido por `set_locale` (lib.rs). No HTML, `data-i18n`
  * (texto), `data-i18n-html` (texto do dicionário com marcação), `data-i18n-title`,

@@ -1,10 +1,33 @@
-# Leve
+<p align="center">
+  <img src="design/icon-1024.png" width="128" height="128" alt="Leve">
+</p>
 
-**Visualizador leve de Markdown para macOS e Windows.** Duplo-clique num `.md` abre; salve no editor e o Leve recarrega.
+<h1 align="center">Leve</h1>
 
-[English](README.md)
+<p align="center">
+  <strong>Duplo-clique num <code>.md</code> e pronto: o Markdown aparece bonito, na hora.</strong><br>
+  Um visualizador de Markdown pequeno, rápido e privado para macOS e Windows. Salve no editor e o Leve recarrega.
+</p>
 
-![Leve mostrando um documento Markdown com sumário](docs/screenshot.png)
+<p align="center">
+  <a href="https://github.com/moraliasp/leve/releases/latest"><img alt="versão" src="https://img.shields.io/github/v/release/moraliasp/leve?label=vers%C3%A3o&color=431A60"></a>
+  <img alt="macOS · Windows" src="https://img.shields.io/badge/plataforma-macOS%20%C2%B7%20Windows-431A60">
+  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/licen%C3%A7a-MIT-C9A6F2"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/moraliasp/leve/releases/latest"><strong>Baixar</strong></a> ·
+  <a href="#primeira-abertura">Primeira abertura</a> ·
+  <a href="docs/exemplo.md">Documento de exemplo</a> ·
+  <a href="README.md">English</a>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/screenshot-pt-BR-dark.png">
+    <img src="docs/img/screenshot-pt-BR-light.png" width="860" alt="O Leve mostrando um documento com sumário lateral, diagrama Mermaid e alertas no estilo do GitHub">
+  </picture>
+</p>
 
 ## Download
 

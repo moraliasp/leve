@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { RECENT_KEY, RECENT_MAX, SCROLL_KEY, addRecent, clearRecent, readRecent, removeRecent, splitPath } from "../src/recent";
+import { TABS_KEY } from "../src/prefs";
 
 describe("recentes", () => {
   beforeEach(() => localStorage.clear());
@@ -33,11 +34,11 @@ describe("recentes", () => {
   it("limpar apaga a lista e todos os pontos de leitura", () => {
     addRecent("/a.md");
     localStorage.setItem(SCROLL_KEY, JSON.stringify({ "/a.md": { top: 10 } }));
-    localStorage.setItem("mdview.tabs", "x");
+    localStorage.setItem(TABS_KEY, "x");
     clearRecent();
     expect(localStorage.getItem(RECENT_KEY)).toBeNull();
     expect(localStorage.getItem(SCROLL_KEY)).toBeNull();
-    expect(localStorage.getItem("mdview.tabs")).toBe("x");
+    expect(localStorage.getItem(TABS_KEY)).toBe("x");
     expect(readRecent()).toEqual([]);
   });
 

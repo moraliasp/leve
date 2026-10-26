@@ -81,6 +81,7 @@ const pt = {
   "remote.placeholderLabel": "Imagem remota bloqueada{alt}; carregar de {host}",
 
   "doc.reloaded": "Recarregado",
+  "sample.title": "Guia de Markdown",
   "doc.onlyMarkdown": "Só arquivos Markdown (.md)",
   "doc.browserOpen": "Abrir arquivo só no app; no navegador use ?file=",
   "doc.notFound": "Não encontrado: {path}",
@@ -149,6 +150,7 @@ const pt = {
   "prefs.tocOpen": "Sumário visível ao abrir",
   "prefs.restoreScroll": "Restaurar a posição de leitura ao reabrir",
   "prefs.restoreTabs": "Reabrir as abas ao iniciar",
+  "prefs.sample": "Mostrar documento de exemplo ao abrir",
   "prefs.privacy": "Privacidade",
   "prefs.remote": "Carregar imagens remotas",
   "prefs.remoteHint": "Desligado, imagens de outros sites só carregam quando você pedir, documento a documento.",
@@ -269,6 +271,7 @@ const en: Dict = {
   "remote.placeholderLabel": "Remote image blocked{alt}; load from {host}",
 
   "doc.reloaded": "Reloaded",
+  "sample.title": "Markdown Primer",
   "doc.onlyMarkdown": "Markdown files only (.md)",
   "doc.browserOpen": "Opening files works only in the app; in the browser use ?file=",
   "doc.notFound": "Not found: {path}",
@@ -337,6 +340,7 @@ const en: Dict = {
   "prefs.tocOpen": "Show contents when opening",
   "prefs.restoreScroll": "Restore reading position when reopening",
   "prefs.restoreTabs": "Reopen tabs at startup",
+  "prefs.sample": "Show sample document at startup",
   "prefs.privacy": "Privacy",
   "prefs.remote": "Load remote images",
   "prefs.remoteHint": "When off, images from other sites load only when you ask, one document at a time.",

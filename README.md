@@ -56,6 +56,7 @@ Updates are signed separately and verified by the app before installing: *Leve â
 - Print or export to PDF; export a self-contained HTML file (offline, no scripts) or copy it as HTML
 - English and Portuguese, following your system or your choice in *Settings*
 - Large documents (up to 20 MB) open in a lighter mode
+- A built-in Markdown primer opens when you start Leve with nothing else to show (*Help â€º Sample Document*; can be turned off in *Settings*)
 
 ## Privacy
 

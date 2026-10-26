@@ -68,7 +68,7 @@ describe("acessibilidade", () => {
         expect(names.size, g.outerHTML.slice(0, 80)).toBe(1);
         expect(g.querySelectorAll("input[type=radio]").length).toBe(3);
       }
-      expect(prefs.querySelectorAll("input[type=checkbox]").length).toBe(5);
+      expect(prefs.querySelectorAll("input[type=checkbox]").length).toBe(6);
       const submits = Array.from(prefs.querySelectorAll("button")).filter((b) => b.type !== "button");
       expect(submits.map((b) => b.textContent)).toEqual(["Fechar"]);
       // Zoom: o valor anuncia a mudança e aponta para os botões que o mudam.

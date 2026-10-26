@@ -20,9 +20,10 @@ import type { ExportResult, ImageEmbed } from "./export";
 import { MD_EXT, collectWikilinkTargets, markWikilinks } from "./wikilinks";
 import { applyTooltips, detectPlatform, shortcutRows, tooltip } from "./shortcuts";
 import { SCROLL_KEY, addRecent, clearRecent, readRecent, removeRecent, splitPath } from "./recent";
-import { PREF_KEYS, TABS_KEY, TIP_KEY, boolPref, readJson, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "./prefs";
+import { PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, readJson, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "./prefs";
 import { applyI18n, detectLang, lang, langPref, setLangPref, t, type Key, type LangPref } from "./i18n";
 import { checkForUpdates, maybeDailyCheck, type UpdateUi } from "./updater";
+import { SAMPLE_SESSION_KEY, SESSION_KEY, isSample, sampleOnLaunch, samplePath, sampleText, sampleToReplace } from "./sample";
 import { installErrorReporting } from "./errors";
 
 // Erro não tratado (promessa com `void`, exceção em callback) aparece na barra, não só no console.
@@ -84,7 +85,14 @@ let tabs: Tab[] = [];
 let active: Tab | null = null;
 let tabSeq = 0;
 
-const baseName = (p: string): string => p.split(/[\\/]/).pop() ?? p;
+const baseName = (p: string): string => (isSample(p) ? t("sample.title") : (p.split(/[\\/]/).pop() ?? p));
+
+/**
+ * Aba do exemplo (`sample:*`) aberta sozinha na abertura direta, enquanto o leitor não mexeu nela:
+ * rolar a área do documento ou clicar nela zera a marca. Se um arquivo chegar do SO e ela for a
+ * única aba, sai para dar lugar a ele (`sampleToReplace`).
+ */
+let sampleAuto: Tab | null = null;
 
 function newTab(path: string, afterActive = true): Tab {
   const t: Tab = { id: ++tabSeq, path, name: baseName(path), hist: [path], histIdx: 0, anchor: null };
@@ -93,10 +101,12 @@ function newTab(path: string, afterActive = true): Tab {
   return t;
 }
 
+/** O exemplo não é arquivo: fica fora de `leve.tabs` (na recarga da página volta por `SAMPLE_SESSION_KEY`). */
 function saveTabs(): void {
+  const files = tabs.filter((t) => !isSample(t.path));
   localStorage.setItem(
     TABS_KEY,
-    JSON.stringify({ paths: tabs.map((t) => t.path), active: active ? tabs.indexOf(active) : -1 }),
+    JSON.stringify({ paths: files.map((t) => t.path), active: active ? files.indexOf(active) : -1 }),
   );
 }
 
@@ -113,7 +123,7 @@ function renderTabs(): void {
     el.tabIndex = t === active ? 0 : -1;
     el.id = `tab-${t.id}`;
     el.setAttribute("aria-controls", "main");
-    el.title = t.path;
+    el.title = isSample(t.path) ? t.name : t.path;
     const name = document.createElement("span");
     name.className = "tab-name";
     name.textContent = t.name;
@@ -151,7 +161,7 @@ function renderTabs(): void {
 function rememberActive(): void {
   if (!active || !current) return;
   active.anchor = captureAnchor(els.main, els.content);
-  saveScroll(current.path, active.anchor);
+  if (!isSample(current.path)) saveScroll(current.path, active.anchor);
 }
 
 /** Troca para a aba e relê o arquivo (pode ter mudado enquanto ela estava em segundo plano). */
@@ -161,25 +171,26 @@ async function activateTab(t: Tab): Promise<void> {
   active = t;
   renderTabs();
   const ok = await loadDoc(t.path, { push: false, anchor: t.anchor ?? undefined });
-  if (!ok && tabs.includes(t)) closeTab(t);
+  if (!ok && tabs.includes(t)) await closeTab(t);
 }
 
-function closeTab(t: Tab): void {
+/** Resolve quando a aba seguinte (se houver) terminou de abrir: a abertura espera a cadeia toda. */
+function closeTab(t: Tab): Promise<void> {
   const i = tabs.indexOf(t);
-  if (i < 0) return;
+  if (i < 0) return Promise.resolve();
+  if (t === sampleAuto) sampleAuto = null;
   if (t === active) rememberActive();
   tabs.splice(i, 1);
   if (t !== active) {
     renderTabs();
-    return;
+    return Promise.resolve();
   }
   active = null;
   const next = tabs[i] ?? tabs[i - 1];
-  if (next) void activateTab(next);
-  else {
-    renderTabs();
-    showEmpty();
-  }
+  if (next) return activateTab(next);
+  renderTabs();
+  showEmpty();
+  return Promise.resolve();
 }
 
 function cycleTab(delta: number): void {
@@ -493,6 +504,8 @@ interface LoadOpts {
 }
 
 async function readDoc(path: string): Promise<Doc> {
+  // Exemplo: texto do bundle, sem passar pelo Rust (nada a conceder nem a ler do disco).
+  if (isSample(path)) return { path, dir: "", name: t("sample.title"), content: await sampleText(path) };
   if (IS_TAURI) return invoke<Doc>("read_markdown", { path });
   const res = await fetch(path);
   if (!res.ok) throw new Error(`${path}: ${res.status}`);
@@ -574,7 +587,8 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   }
   const tab = active;
   const prevAnchor = current ? captureAnchor(els.main, els.content) : null;
-  if (current && prevAnchor && current.path !== doc.path) saveScroll(current.path, prevAnchor);
+  if (current && prevAnchor && current.path !== doc.path && !isSample(current.path)) saveScroll(current.path, prevAnchor);
+  const sample = isSample(doc.path);
   current = doc;
 
   // Marcas de desempenho (DevTools › Performance, ou performance.getEntriesByType("measure")).
@@ -596,7 +610,9 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   await hydrateImages(els.content, doc.dir, IS_TAURI);
   decorateCodeBlocks(els.content);
   const wikiTargets = collectWikilinkTargets(els.content);
-  if (wikiTargets.length > 0) {
+  // O exemplo não tem pasta: seus wikilinks para outras notas aparecem como não encontrados.
+  if (sample) markWikilinks(els.content, {});
+  else if (wikiTargets.length > 0) {
     const content = els.content;
     void resolveWikilinks(doc.dir, wikiTargets)
       .then((r) => {
@@ -614,7 +630,7 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   els.empty.hidden = true;
   els.content.hidden = false;
   els.title.textContent = doc.name;
-  els.title.title = doc.path;
+  els.title.title = sample ? doc.name : doc.path;
   setWindowTitle(`${doc.name} — Leve`);
 
   if (opts.push !== false) {
@@ -627,13 +643,16 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   tab.anchor = null;
   renderTabs();
   updateNavButtons();
-  addRecent(doc.path);
-  if (IS_TAURI) invoke("watch_file", { path: doc.path }).catch((e) => flash(String(e), true));
+  // O exemplo não é arquivo: fora dos Recentes e sem vigia.
+  if (!sample) {
+    addRecent(doc.path);
+    if (IS_TAURI) invoke("watch_file", { path: doc.path }).catch((e) => flash(String(e), true));
+  }
 
   if (opts.hash) pending = { hash: opts.hash };
   else if (opts.anchor) pending = { anchor: opts.anchor };
   else if (opts.keepScroll && prevAnchor) pending = { anchor: prevAnchor };
-  else pending = { anchor: restoreScroll(doc.path) };
+  else pending = { anchor: sample ? TOP : restoreScroll(doc.path) };
   applyPending();
   performance.measure("leve:layout", "leve:start");
 
@@ -848,7 +867,7 @@ const actions: Record<string, () => void> = {
   open: () => void pickAndOpen(),
   reload: reloadCurrent,
   reveal: () => {
-    if (current) void invoke("reveal_in_folder", { path: current.path });
+    if (current && !isSample(current.path)) void invoke("reveal_in_folder", { path: current.path });
   },
   print: () => window.print(),
   "export-html": () => openExport("file"),
@@ -879,6 +898,8 @@ const actions: Record<string, () => void> = {
   about: openAbout,
   "check-updates": checkUpdatesNow,
   shortcuts: openShortcuts,
+  // Ajuda › Documento de exemplo: aba nova, ou foca a que já está aberta.
+  sample: () => void loadDoc(samplePath(lang()), { target: "new" }),
   preferences: openPreferences,
   // Preferência global (Exibir): liga/desliga e reaplica ao documento aberto, com o ponto de leitura.
   "remote-auto": () => {
@@ -917,6 +938,7 @@ function syncPrefsUI(): void {
   $<HTMLInputElement>("prefs-toc").checked = boolPref(PREF_KEYS.toc, true);
   $<HTMLInputElement>("prefs-restore-scroll").checked = boolPref(PREF_KEYS.restoreScroll, true);
   $<HTMLInputElement>("prefs-restore-tabs").checked = boolPref(PREF_KEYS.restoreTabs, true);
+  $<HTMLInputElement>("prefs-sample").checked = boolPref(PREF_KEYS.sample, true);
   $<HTMLInputElement>("prefs-remote").checked = remoteAuto;
   $<HTMLInputElement>("prefs-auto-update").checked = boolPref(PREF_KEYS.autoUpdate, false);
   choose("lang", langPref());
@@ -976,7 +998,7 @@ async function askForgetGrants(): Promise<void> {
   if (!ok) return;
   if (IS_TAURI) {
     try {
-      await invoke("forget_grants", { keep: tabs.map((t) => t.path) });
+      await invoke("forget_grants", { keep: tabs.map((t) => t.path).filter((p) => !isSample(p)) });
     } catch (e) {
       flash(String(e), true);
       return;
@@ -1009,6 +1031,9 @@ function wirePreferences(): void {
         break;
       case "restore-tabs":
         setBoolPref(PREF_KEYS.restoreTabs, t.checked);
+        break;
+      case "sample":
+        setBoolPref(PREF_KEYS.sample, t.checked);
         break;
       case "remote":
         if (t.checked !== remoteAuto) actions["remote-auto"]();
@@ -1235,12 +1260,19 @@ function wire(): void {
   });
   // Sobreposição fecha ao tocar no documento ou ao voltar a janela larga.
   els.main.addEventListener("click", closeTocPeek);
+  // Clique no documento (link ou não) conta como mexer no exemplo da abertura.
+  els.main.addEventListener("click", () => {
+    if (active === sampleAuto) sampleAuto = null;
+  });
   narrowMq.addEventListener("change", closeTocPeek);
 
   let raf = 0;
   els.main.addEventListener("scroll", () => {
     // Rolagem que não foi nossa: o leitor assumiu, para de reaplicar a âncora.
-    if (pending && els.main.scrollTop !== lastSetTop) pending = null;
+    if (els.main.scrollTop !== lastSetTop) {
+      if (pending) pending = null;
+      if (active === sampleAuto) sampleAuto = null;
+    }
     if (raf) return;
     raf = requestAnimationFrame(() => {
       raf = 0;
@@ -1250,6 +1282,9 @@ function wire(): void {
   window.addEventListener("beforeunload", () => {
     rememberActive();
     saveTabs();
+    // Troca de idioma recarrega a página: o exemplo aberto volta, no idioma novo.
+    const sample = tabs.find((t) => isSample(t.path));
+    session.set(SAMPLE_SESSION_KEY, sample ? (sample === active ? "active" : "open") : null);
   });
 
   theme.onChange((dark) => {
@@ -1262,7 +1297,7 @@ function wire(): void {
 
 async function wireTauri(): Promise<void> {
   await listen<string>("menu", ({ payload }) => runAction(payload));
-  await listen<string>("open-file", ({ payload }) => void loadDoc(payload, { target: "new" }));
+  await listen<string>("open-file", ({ payload }) => void openFromSystem(payload));
   await listen<string>("file-changed", ({ payload }) => {
     if (current && payload === current.path) {
       reloadCurrent();
@@ -1283,6 +1318,73 @@ async function wireTauri(): Promise<void> {
       else flash(tr("doc.onlyMarkdown"), true);
     }
   });
+}
+
+/**
+ * Arquivo pedido pelo SO com o app aberto (2ª instância, duplo-clique no macOS, inclusive o que
+ * chega depois de a abertura assentar). Se o exemplo da abertura ainda é a única aba e o leitor
+ * não mexeu nele, ele sai e o arquivo fica sozinho.
+ */
+async function openFromSystem(path: string): Promise<void> {
+  const replace = sampleToReplace(tabs, sampleAuto);
+  const ok = await loadDoc(path, { target: "new" });
+  if (ok && replace && active !== replace) void closeTab(replace);
+}
+
+/** sessionStorage com tolerância a falha (modo privado, armazenamento bloqueado). */
+const session = {
+  get(k: string): string | null {
+    try {
+      return sessionStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set(k: string, v: string | null): void {
+    try {
+      if (v === null) sessionStorage.removeItem(k);
+      else sessionStorage.setItem(k, v);
+    } catch {
+      /* ignora */
+    }
+  },
+};
+
+/**
+ * Abertura: arquivo pedido pelo SO (ou `?file=`), abas salvas e, sem nenhum dos dois, o exemplo
+ * (`sampleOnLaunch`). No app, `launch_open` só responde depois de a abertura assentar no Rust:
+ * no macOS o duplo-clique pode chegar depois de a página carregar (docs/decisoes.md).
+ */
+async function openAtLaunch(): Promise<void> {
+  const reload = session.get(SESSION_KEY) === "1";
+  session.set(SESSION_KEY, "1");
+  const sampleBefore = session.get(SAMPLE_SESSION_KEY);
+  session.set(SAMPLE_SESSION_KEY, null);
+  const file = IS_TAURI
+    ? await invoke<string | null>("launch_open")
+    : new URLSearchParams(location.search).get("file");
+  const restored = restoreTabs();
+  renderTabs();
+  if (file) await loadDoc(file, { target: "new" });
+  else if (restored) await activateTab(restored);
+  const showSample = sampleOnLaunch({
+    fileArrived: Boolean(file),
+    restoredTabs: tabs.length > 0,
+    prefOn: boolPref(PREF_KEYS.sample, true),
+    reload,
+    sampleWasOpen: sampleBefore !== null,
+  });
+  if (!showSample) return;
+  const path = samplePath(lang());
+  if (reload && sampleBefore !== "active" && active) {
+    // Estava aberto em segundo plano: volta como aba, sem tirar o foco da ativa.
+    newTab(path, false);
+    renderTabs();
+    return;
+  }
+  await loadDoc(path, { target: "new" });
+  // Pela identidade, não por `active`: um arquivo que chegue durante o `await` vira a ativa.
+  if (!reload) sampleAuto = tabs.find((t) => t.path === path) ?? null;
 }
 
 function wireBrowserShortcuts(): void {
@@ -1323,13 +1425,7 @@ async function main(): Promise<void> {
     // Modo navegador: ações do menu nativo ficam acessíveis no console para prova manual.
     (window as unknown as { leveActions: typeof actions }).leveActions = actions;
   }
-  const pending = IS_TAURI
-    ? await invoke<string | null>("take_pending_open")
-    : new URLSearchParams(location.search).get("file");
-  const restored = restoreTabs();
-  renderTabs();
-  if (pending) await loadDoc(pending, { target: "new" });
-  else if (restored) await activateTab(restored);
+  await openAtLaunch();
   if (!active) showEmpty();
   await loadAppInfo();
   if (IS_TAURI) {

@@ -322,6 +322,15 @@ describe("Copiar como texto formatado: seleção e limite (richCopyJob)", () => 
     c.remove();
   });
 
+  it("plainText: imagem do Mermaid entra pelo alt (\"Diagrama Mermaid\")", async () => {
+    const root = cloneContent(content("Antes.\n\n```mermaid\ngraph TD; A-->B\n```\n\nDepois."));
+    const pre = root.querySelector<HTMLElement>("pre.mermaid")!;
+    pre.dataset.src = "graph TD; A-->B";
+    pre.innerHTML = '<svg viewBox="0 0 100 50"></svg>';
+    await mermaidToImages(root, async () => ({ data: "data:image/png;base64,AAAA", width: 100, height: 50 }));
+    expect(toRichHtml(root).text).toBe("Antes.\nDiagrama Mermaid\nDepois.");
+  });
+
   it("plainText: blocos, células com tabulação e listas numeradas", () => {
     const d = document.createElement("div");
     d.innerHTML = "<h2>T</h2>\n<table><tr><td>a</td><td>b</td></tr></table>\n<ol><li>x</li><li>y</li></ol><pre>  if (a)\n    b</pre>";

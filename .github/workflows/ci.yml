@@ -81,14 +81,18 @@ jobs:
           package-manager-cache: false
       - run: rustup toolchain install stable --profile minimal && rustup default stable
       - run: pnpm install --frozen-lockfile
+      - name: Ferramentas do AppImage conferidas por hash
+        run: scripts/linux-tools.sh
+      # Mesmo script do release.yml: compila com rede e empacota sem rede.
       - name: Build (deb + AppImage, chave descartável)
         env:
           CI: "true"
         run: |
           pnpm tauri signer generate --ci -w "$RUNNER_TEMP/descartavel.key" -p "" >/dev/null
-          TAURI_SIGNING_PRIVATE_KEY="$(cat "$RUNNER_TEMP/descartavel.key")" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="" \
-            pnpm tauri build --bundles deb,appimage --config '{"bundle":{"createUpdaterArtifacts":true}}'
+          TAURI_SIGNING_PRIVATE_KEY="$(cat "$RUNNER_TEMP/descartavel.key")"
           rm -f "$RUNNER_TEMP/descartavel.key"
+          export TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+          scripts/bundle-linux.sh --bundles deb,appimage --config '{"bundle":{"createUpdaterArtifacts":true}}'
       - name: Conferir pacotes
         run: |
           B=src-tauri/target/release/bundle
@@ -101,12 +105,38 @@ jobs:
           dpkg-deb --contents "$DEB"
           mkdir -p "$RUNNER_TEMP/deb" && dpkg-deb -x "$DEB" "$RUNNER_TEMP/deb"
           cat "$RUNNER_TEMP"/deb/usr/share/applications/*.desktop
+          # Sem %F/%U no Exec, abrir um .md pelo gerenciador de arquivos abre o Leve vazio.
+          grep -Eq '^Exec=[^ ]+ %[FU]$' "$RUNNER_TEMP"/deb/usr/share/applications/Leve.desktop \
+            || { echo "::error::Exec do .desktop do .deb sem %F/%U"; exit 1; }
+          grep -qx 'MimeType=text/markdown' "$RUNNER_TEMP"/deb/usr/share/applications/Leve.desktop \
+            || { echo "::error::MimeType do .desktop do .deb sem text/markdown"; exit 1; }
           # glibc mais nova que o binário exige (a do runner é o teto).
           objdump -T "$RUNNER_TEMP/deb/usr/bin/leve" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1
-          ldd --version | head -1
+          ldd --version | head -1 || true
+          # O AppImage leva o mesmo .desktop (o bundler reusa os dados do .deb).
+          APPIMAGE="$(ls "$PWD"/out/*.AppImage)"
+          (cd "$RUNNER_TEMP" && "$APPIMAGE" --appimage-extract '*.desktop' >/dev/null)
+          cat "$RUNNER_TEMP"/squashfs-root/*.desktop
+          grep -Eq '^Exec=[^ ]+ %[FU]$' "$RUNNER_TEMP"/squashfs-root/*.desktop \
+            || { echo "::error::Exec do .desktop do AppImage sem %F/%U"; exit 1; }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: leve-linux-prova
           path: out/*
           if-no-files-found: error
           retention-days: 7
+      # Fumaça sem tela: o AppImage sobe com um documento e continua de pé por 15 s. Não prova a
+      # interface (sem leitor, sem clique), só que abre, carrega WebKitGTK e não cai.
+      - name: Fumaça do AppImage (xvfb)
+        run: |
+          sudo apt-get install -y --no-install-recommends xvfb xauth dbus-x11
+          APPIMAGE="$(ls "$PWD"/out/*.AppImage)"
+          set +e
+          xvfb-run -a dbus-run-session -- timeout 15 \
+            "$APPIMAGE" --appimage-extract-and-run "$PWD/docs/exemplo.md" > "$RUNNER_TEMP/fumaca.log" 2>&1
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/fumaca.log"
+          # 124 = o `timeout` encerrou o processo aos 15 s, ou seja, ele ficou de pé até lá.
+          if [ "$rc" -ne 124 ]; then echo "::error::o AppImage saiu antes dos 15 s (código $rc)"; exit 1; fi
+          echo "AppImage ficou de pé por 15 s"

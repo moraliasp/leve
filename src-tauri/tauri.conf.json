@@ -58,6 +58,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "linux": {
+      "deb": {
+        "desktopTemplate": "linux/leve.desktop"
+      }
+    },
     "macOS": {
       "minimumSystemVersion": "11.0"
     },

@@ -92,6 +92,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libxdo-dev libssl-dev build-essential file patchelf
       - run: pnpm install --frozen-lockfile
+      # Ferramentas do AppImage (AppRun, linuxdeploy e o plugin dele) baixadas aqui, sem a chave,
+      # conferidas por hash fixado no repositório e postas no cache do bundler; o Build empacota
+      # sem rede (scripts/bundle-linux.sh), então não baixa nada.
+      - name: Ferramentas do AppImage conferidas por hash (Linux)
+        if: runner.os == 'Linux'
+        run: scripts/linux-tools.sh
       - name: Ferramentas de assinatura (CodeSignTool do SSL.com ou signtool + dlib do Artifact Signing)
         if: env.SIGN_WINDOWS == 'true'
         shell: pwsh
@@ -144,7 +150,11 @@ jobs:
           read -ra ARGS <<< "$BUILD_ARGS"
           ARGS+=(--config '{"bundle":{"createUpdaterArtifacts":true}}')
           if [ "$SIGN_WINDOWS" = "true" ]; then ARGS+=(--config src-tauri/tauri.sign.conf.json); fi
-          pnpm tauri build "${ARGS[@]}"
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            scripts/bundle-linux.sh "${ARGS[@]}"
+          else
+            pnpm tauri build "${ARGS[@]}"
+          fi
       # Nomes estáveis por versão e plataforma; o .app.tar.gz do macOS sai como "Leve.app.tar.gz".
       - name: Juntar pacotes
         shell: bash

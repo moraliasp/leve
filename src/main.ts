@@ -804,13 +804,11 @@ function copyRich(): void {
   }
   const sel = window.getSelection();
   const range = sel && !sel.isCollapsed && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
-  const selText = range ? (sel?.toString() ?? "") : "";
   const rich = import("./rich");
   const job = rich.then((m) =>
     m.richCopyJob({
       content: els.content,
       range,
-      selText,
       source: doc.content,
       large: isLargeDoc(doc.content),
       readImages: (rels, max) => readExportImages(doc.dir, rels, max),

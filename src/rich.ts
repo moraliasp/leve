@@ -1,6 +1,6 @@
 import { EXPORT_IMAGE_MAX_BYTES, localImageRels, prepareClone, type ImageEmbed } from "./export";
 import { highlightAll } from "./highlight";
-import { renderMermaid } from "./render";
+import { renderMermaid, type MermaidLike } from "./render";
 import { t } from "./i18n";
 
 /**
@@ -91,8 +91,24 @@ const TAG_STYLE: Record<string, string> = {
   mark: "background-color:#fff8c5",
 };
 
-/** Esquema explícito (`https:`, `mailto:`): só esses links continuam link depois de colados. */
-const ABSOLUTE = /^[a-z][a-z0-9+.-]*:/i;
+/**
+ * Destino de link que continua link depois de colado: allowlist por `new URL` sem base. Só
+ * `http:`/`https:` com `//` e host, e `mailto:`; devolve a URL normalizada (`HTTPS://a.com` →
+ * `https://a.com/`). O resto (`javascript:`, `data:`, `file:`, `ftp:`, `tel:`, `asset:`, relativo,
+ * `#âncora`, `http:foo` sem `//`) devolve `null` e vira texto.
+ */
+export function safeHref(href: string): string | null {
+  const raw = href.trim();
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (u.protocol === "mailto:") return u.href;
+  if ((u.protocol === "http:" || u.protocol === "https:") && /^https?:\/\//i.test(raw) && u.host) return u.href;
+  return null;
+}
 
 /** Uma linha só: quebras e espaços repetidos da fonte TeX viram um espaço. */
 const oneLine = (s: string): string => s.replace(/\s+/g, " ").trim();
@@ -227,15 +243,16 @@ function taskBoxes(root: HTMLElement): void {
   for (const li of root.querySelectorAll(".task-list-item")) addStyle(li, "list-style-type:none");
 }
 
-/** Links: só os absolutos (`https:`, `mailto:`) continuam; âncora interna e caminho relativo viram texto. */
+/** Links: só os que `safeHref` aceita continuam; âncora interna, caminho relativo e outros esquemas viram texto. */
 function links(root: HTMLElement): void {
   for (const a of root.querySelectorAll("a")) {
     if (a.classList.contains("footnote-backref") || a.classList.contains("header-anchor")) {
       a.remove();
       continue;
     }
-    const href = a.getAttribute("href") ?? "";
-    if (!ABSOLUTE.test(href) || /^(javascript|data|vbscript):/i.test(href)) unwrap(a);
+    const href = safeHref(a.getAttribute("href") ?? "");
+    if (href) a.setAttribute("href", href);
+    else unwrap(a);
   }
 }
 
@@ -286,6 +303,52 @@ export interface RichResult {
   html: string;
   /** Imagens locais acima do limite, que ficaram com o caminho relativo. */
   oversized: number;
+  /** Texto puro do fragmento já limpo (sem rótulo de linguagem nem botões): o `text/plain` da seleção. */
+  text: string;
+}
+
+const BLOCKS = new Set(["p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "pre", "blockquote", "table", "thead", "tbody", "tfoot", "tr", "hr", "section", "dl", "dt", "dd", "figure", "article"]);
+
+/**
+ * Texto puro de um fragmento, com quebra entre blocos, tabulação entre células, `- `/`1. ` nos
+ * itens e o código como está. Espaço do HTML fora de `<pre>` vira um espaço só.
+ */
+export function plainText(root: Node): string {
+  const kept: string[] = [];
+  let out = "";
+  const walk = (n: Node): void => {
+    if (n.nodeType === 3) {
+      const text = (n.nodeValue ?? "").replace(/\s+/g, " ");
+      // Espaço entre blocos (quebras do HTML) não abre linha.
+      if (text !== " " || (out !== "" && !out.endsWith("\n"))) out += text;
+      return;
+    }
+    if (n.nodeType !== 1) return;
+    const el = n as Element;
+    const tag = el.tagName.toLowerCase();
+    if (tag === "br") out += "\n";
+    else if (tag === "img") out += el.getAttribute("alt") ?? "";
+    else if (tag === "td" || tag === "th") {
+      if (el.previousElementSibling) out += "\t";
+      el.childNodes.forEach(walk);
+    } else if (tag === "pre") {
+      if (out && !out.endsWith("\n")) out += "\n";
+      // Código fica intacto: guardado à parte e devolvido depois de aparar as linhas.
+      out += `\u0000${kept.push((el.textContent ?? "").replace(/\n$/, "")) - 1}\u0000\n`;
+    } else {
+      const block = BLOCKS.has(tag);
+      if (block && out && !out.endsWith("\n")) out += "\n";
+      if (tag === "li") out += el.parentElement?.tagName.toLowerCase() === "ol" ? `${Array.prototype.indexOf.call(el.parentElement.children, el) + 1}. ` : "- ";
+      el.childNodes.forEach(walk);
+      if (block && !out.endsWith("\n")) out += "\n";
+    }
+  };
+  walk(root);
+  return out
+    .replace(/^ +| +$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .replace(/\u0000(\d+)\u0000/g, (_, i: string) => kept[Number(i)]);
 }
 
 /**
@@ -305,7 +368,7 @@ export function toRichHtml(root: HTMLElement, images: Record<string, ImageEmbed>
   scrub(root);
   const div = retag(root, "div");
   div.setAttribute("style", `font-family:${SANS};font-size:16px;line-height:1.5;color:${FG}`);
-  return { html: `<meta charset="utf-8">${div.outerHTML}`, oversized };
+  return { html: `<meta charset="utf-8">${div.outerHTML}`, oversized, text: plainText(div) };
 }
 
 /**
@@ -368,10 +431,11 @@ export interface CopyJob extends RichResult {
 export async function richCopyJob(o: {
   content: HTMLElement;
   range: Range | null;
-  selText: string;
   source: string;
   large: boolean;
   readImages: (rels: string[], max: number) => Promise<Record<string, ImageEmbed>>;
+  /** Para teste: Mermaid falso (senão o de verdade, sob demanda). */
+  mermaid?: MermaidLike;
 }): Promise<CopyJob> {
   const range = docRange(o.content, o.range);
   const root = o.content.ownerDocument.createElement("article");
@@ -379,11 +443,25 @@ export async function richCopyJob(o: {
   else root.append(...Array.from(o.content.childNodes, (n) => n.cloneNode(true)));
   if (!o.large) await highlightAll(root);
   if (root.querySelector("pre.mermaid")) {
-    await renderMermaid(root, false, undefined, { htmlLabels: false });
+    await renderMermaid(root, false, o.mermaid, { htmlLabels: false });
     await mermaidToImages(root, (svg) => svgToPng(svg));
   }
-  const rich = toRichHtml(root, await o.readImages(localImageRels(root), EXPORT_IMAGE_MAX_BYTES));
-  return { ...rich, plain: range ? o.selText : o.source, partial: range !== null };
+  const images = capImages(await o.readImages(localImageRels(root), EXPORT_IMAGE_MAX_BYTES), EXPORT_IMAGE_MAX_BYTES);
+  const rich = toRichHtml(root, images);
+  return { ...rich, plain: range ? rich.text : o.source, partial: range !== null };
+}
+
+/**
+ * Segunda trava do limite de imagem: data URI que passe de `max` bytes (estimado pelo base64) não
+ * entra, mesmo que a leitura (Rust ou `fetch`) tenha deixado passar; fica com o caminho relativo.
+ */
+export function capImages(images: Record<string, ImageEmbed>, max: number): Record<string, ImageEmbed> {
+  const out: Record<string, ImageEmbed> = {};
+  for (const [rel, img] of Object.entries(images)) {
+    const b64 = img.data ? img.data.slice(img.data.indexOf(",") + 1) : "";
+    out[rel] = img.data && Math.floor((b64.length * 3) / 4) > max ? { data: null, tooBig: true } : img;
+  }
+  return out;
 }
 
 /**

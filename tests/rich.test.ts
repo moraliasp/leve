@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { render } from "../src/render";
 import { decorateCodeBlocks } from "../src/code";
 import { makeTabbable } from "../src/a11y";
-import { cloneContent } from "../src/export";
-import { ALERT_COLORS, MERMAID_MAX_WIDTH, mermaidToImages, toRichHtml } from "../src/rich";
+import { EXPORT_IMAGE_MAX_BYTES, cloneContent } from "../src/export";
+import { ALERT_COLORS, MERMAID_MAX_WIDTH, docRange, mermaidToImages, plainText, richCopyJob, safeHref, toRichHtml } from "../src/rich";
+import { render, renderMermaid, type MermaidLike } from "../src/render";
+import { loadRemote } from "../src/remote-ui";
 
 /** `#content` como o app deixa: render, botões de copiar, tabindex, imagens locais marcadas. */
 function content(md: string): HTMLElement {
@@ -100,7 +101,7 @@ describe("Copiar como texto formatado", () => {
   it("links: absolutos ficam (com cor), âncora interna e caminho relativo viram texto", () => {
     const { dom } = richOf("[site](https://example.com) [mail](mailto:a@b.c) [sec](#um) [pdf](docs/a.pdf) [nota](outra.md)");
     const hrefs = Array.from(dom.querySelectorAll("a")).map((a) => a.getAttribute("href"));
-    expect(hrefs).toEqual(["https://example.com", "mailto:a@b.c"]);
+    expect(hrefs).toEqual(["https://example.com/", "mailto:a@b.c"]);
     expect(style(dom.querySelector("a"))).toMatch(/color:#0969da/);
     expect(dom.textContent).toContain("sec");
     expect(dom.textContent).toContain("pdf");
@@ -193,5 +194,137 @@ describe("Copiar como texto formatado", () => {
     expect(html).toContain('src="data:image/png;base64,QQ=="');
     expect(html).not.toContain("x.example/y.png");
     expect(html).toContain("x.example");
+  });
+
+  it("links: allowlist por new URL; esquema fora de http(s)/mailto vira texto (segunda camada, DOM montado à mão)", () => {
+    // Montado à mão: o DOMPurify do render já tiraria alguns destes; aqui se exercita `links()`.
+    const hrefs = [
+      "ftp://h/x",
+      "tel:123",
+      "http:foo",
+      "javascript:alert(1)",
+      "JaVaScRiPt:alert(1)",
+      "data:text/html,x",
+      "file:///etc/passwd",
+      "asset://x",
+      "vbscript:x",
+      "https:\\\\evil.com",
+      "HTTPS://ok.com",
+      "http://a.example/p?q=1",
+      "mailto:a@b.c",
+    ];
+    const root = document.createElement("article");
+    for (const h of hrefs) {
+      const a = document.createElement("a");
+      a.setAttribute("href", h);
+      a.textContent = `t-${h}`;
+      root.appendChild(a);
+    }
+    const out = document.createElement("div");
+    out.innerHTML = toRichHtml(root).html;
+    const kept = Array.from(out.querySelectorAll("a")).map((a) => a.getAttribute("href"));
+    expect(kept).toEqual(["https://ok.com/", "http://a.example/p?q=1", "mailto:a@b.c"]);
+    // O texto dos links recusados fica.
+    expect(out.textContent).toContain("t-ftp://h/x");
+    expect(out.textContent).toContain("t-tel:123");
+    expect(safeHref("http:foo")).toBeNull();
+    expect(safeHref(" HTTPS://ok.com ")).toBe("https://ok.com/");
+  });
+
+  it("imagem remota: bloqueada não leva o src remoto; carregada pelo leitor leva (como no Exportar HTML)", () => {
+    const md = "![a](https://img.example/a.png)\n\n![b](https://img.example/b.png)";
+    const el = content(md);
+    const [, second] = el.querySelectorAll<HTMLElement>("[data-remote]");
+    // O leitor carregou só a segunda.
+    loadRemote(second);
+    const { html } = toRichHtml(cloneContent(el));
+    expect(html).not.toContain("https://img.example/a.png");
+    expect(html).toContain("img.example");
+    expect(html).toContain('src="https://img.example/b.png"');
+  });
+
+  it("htmlLabels: a tela desenha com rótulos HTML, a cópia sem (config entregue ao Mermaid)", async () => {
+    const configs: Record<string, unknown>[] = [];
+    const mock: MermaidLike = {
+      initialize: (c) => void configs.push(c),
+      render: async () => ({ svg: '<svg viewBox="0 0 10 10"></svg>' }),
+    };
+    const page = content("```mermaid\ngraph TD; A-->B\n```");
+    await renderMermaid(page, false, mock);
+    expect(configs[configs.length - 1]?.htmlLabels).toBe(true);
+
+    const c = content("```mermaid\ngraph TD; A-->B\n```");
+    document.body.appendChild(c);
+    await richCopyJob({ content: c, range: null, source: "src", large: true, readImages: async () => ({}), mermaid: mock });
+    c.remove();
+    expect(configs[configs.length - 1]?.htmlLabels).toBe(false);
+  });
+});
+
+describe("Copiar como texto formatado: seleção e limite (richCopyJob)", () => {
+  const md = "# Título\n\nAntes do código.\n\n```js\nconst a = 1;\n```\n\n- um\n- dois\n\nFim.";
+  const job = (c: HTMLElement, range: Range | null, images: Record<string, { data: string | null; tooBig: boolean }> = {}) =>
+    richCopyJob({ content: c, range, source: md, large: true, readImages: async () => images });
+
+  it("seleção fora do documento: docRange devolve null e copia o documento inteiro com a fonte", async () => {
+    const c = content(md);
+    const outside = document.createElement("p");
+    outside.textContent = "barra do app";
+    document.body.append(outside, c);
+    const r = document.createRange();
+    r.setStart(outside.firstChild!, 2);
+    r.setEnd(c.querySelector("p")!.firstChild!, 3);
+    expect(docRange(c, r.cloneRange())).toBeNull();
+    const j = await job(c, r);
+    expect(j.partial).toBe(false);
+    expect(j.plain).toBe(md);
+    expect(j.html).toContain("Título");
+    outside.remove();
+    c.remove();
+  });
+
+  it("seleção parcial: partial, e o text/plain sai do clone limpo (sem rótulo da linguagem nem botão)", async () => {
+    const c = content(md);
+    document.body.appendChild(c);
+    const r = document.createRange();
+    r.setStartBefore(c.querySelector("p")!);
+    r.setEndAfter(c.querySelector("ul")!);
+    const j = await job(c, r);
+    expect(j.partial).toBe(true);
+    expect(j.plain).toBe("Antes do código.\nconst a = 1;\n- um\n- dois");
+    expect(j.plain).not.toMatch(/\bjs\b/);
+    expect(j.html).not.toContain("Título");
+    expect(j.html).not.toContain("Fim.");
+    c.remove();
+  });
+
+  it("seleção dentro de uma fórmula é ampliada para a fórmula inteira", () => {
+    const c = content("texto $a+b$ fim");
+    document.body.appendChild(c);
+    const m = c.querySelector(".math")!;
+    const r = document.createRange();
+    r.setStart(m.firstChild!, 1);
+    r.setEnd(m.firstChild!, 2);
+    const got = docRange(c, r)!;
+    expect(got.toString()).toBe("a+b");
+    c.remove();
+  });
+
+  it("imagem local acima de 5 MB não é embutida, mesmo que a leitura a devolva", async () => {
+    const c = content("![grande](big.png)\n\n![pequena](small.png)");
+    document.body.appendChild(c);
+    const big = "data:image/png;base64," + "A".repeat(Math.ceil(((EXPORT_IMAGE_MAX_BYTES + 1024) * 4) / 3));
+    const j = await job(c, null, { "big.png": { data: big, tooBig: false }, "small.png": { data: "data:image/png;base64,QQ==", tooBig: false } });
+    expect(j.oversized).toBe(1);
+    expect(j.html).not.toContain(big.slice(0, 64) + "AAAA");
+    expect(j.html).toContain('src="big.png"');
+    expect(j.html).toContain('src="data:image/png;base64,QQ=="');
+    c.remove();
+  });
+
+  it("plainText: blocos, células com tabulação e listas numeradas", () => {
+    const d = document.createElement("div");
+    d.innerHTML = "<h2>T</h2>\n<table><tr><td>a</td><td>b</td></tr></table>\n<ol><li>x</li><li>y</li></ol><pre>  if (a)\n    b</pre>";
+    expect(plainText(d)).toBe("T\na\tb\n1. x\n2. y\n  if (a)\n    b");
   });
 });

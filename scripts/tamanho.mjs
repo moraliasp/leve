@@ -8,16 +8,16 @@ import { gzipSync } from "node:zlib";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 /**
- * Limites em bytes, ~10% acima do medido em 2026-10-25 (main 8b5bff0). Aqui é o único lugar a
- * ajustar: tirar o ELK do Mermaid baixa `total`, `totalGzip` e `maior`; CSS embutido no chunk de
- * exportação mexe em `total`, e em `abertura` só se o chunk de abertura crescer.
+ * Limites em bytes, ~10% acima do medido em 2026-10-25, já sem o layout ELK do Mermaid. Aqui é o
+ * único lugar a ajustar: CSS embutido no chunk de exportação mexe em `total`, e em `abertura` só se
+ * o chunk de abertura crescer. Tamanho que cai de verdade leva o limite junto.
  */
 export const ORCAMENTO = {
-  total: 6_500_000, // medido 5.902.406
-  totalGzip: 2_080_000, // medido 1.891.608 (gzip nível 9, arquivo a arquivo)
-  abertura: 431_000, // JS + CSS de dist/index.html; medido 391.746 (375.812 JS + 15.934 CSS)
-  aberturaGzip: 137_000, // medido 124.358
-  maior: 1_610_000, // maior arquivo (elk-*.js); medido 1.462.860
+  total: 4_880_000, // medido 4.438.557
+  totalGzip: 1_590_000, // medido 1.442.173 (gzip nível 9, arquivo a arquivo)
+  abertura: 431_000, // JS + CSS de dist/index.html; medido 391.347 (375.413 JS + 15.934 CSS)
+  aberturaGzip: 137_000, // medido 124.186
+  maior: 692_000, // maior arquivo (chunk-*.js do Mermaid); medido 629.043
 };
 
 const ROTULOS = {

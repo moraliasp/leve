@@ -97,8 +97,8 @@ Decisão estrutural nova entra aqui, no fim, no mesmo formato.
 ## Orçamento de tamanho no CI
 
 - **Contexto:** o chunk de abertura já caiu de 500 para 346 KB tirando Mermaid, KaTeX e highlight.js do caminho crítico, mas nada impedia um import estático novo de trazer tudo de volta, nem uma dependência de inchar o `dist/` (o aviso de chunk do Vite é esperado e ninguém lê).
-- **Decisão:** `scripts/tamanho.mjs` (`pnpm size`, passo do CI logo depois do `pnpm build`) mede o `dist/`: total bruto e gzip, chunk de abertura (o `<script type="module">` e o CSS linkados em `dist/index.html`) bruto e gzip, e o maior arquivo. Os limites ficam num objeto só, `ORCAMENTO`, com ~10% de folga sobre o medido em 2026-10-25 (`dist` 5,90 MB / 1,89 MB gzip; abertura 391,7 kB / 124,4 kB gzip; maior arquivo o `elk-*.js` do Mermaid, 1,46 MB). Estourar sai com erro dizendo o que e por quanto.
-- **Consequência:** subir um limite é decisão no mesmo PR, com o motivo. Quando o tamanho cai de verdade (o ELK sair do Mermaid, por exemplo), o limite desce junto, senão a folga vira espaço para regressão. O gzip é por arquivo, nível 9, só como referência de transferência: o app lê do disco.
+- **Decisão:** `scripts/tamanho.mjs` (`pnpm size`, passo do CI logo depois do `pnpm build`) mede o `dist/`: total bruto e gzip, chunk de abertura (o `<script type="module">`, o CSS e os `modulepreload` linkados em `dist/index.html`) bruto e gzip, e o maior arquivo. Os limites ficam num objeto só, `ORCAMENTO`, com ~10% de folga sobre o medido em 2026-10-25, já sem o layout ELK do Mermaid (`dist` 4,44 MB / 1,44 MB gzip; abertura 391,3 kB / 124,2 kB gzip; maior arquivo um chunk do Mermaid, 629 kB). Estourar sai com erro dizendo o que e por quanto.
+- **Consequência:** subir um limite é decisão no mesmo PR, com o motivo. Quando o tamanho cai de verdade, o limite desce junto, senão a folga vira espaço para regressão: foi o que aconteceu quando o ELK saiu (−1,46 MB) e o orçamento, montado antes sobre 5,90 MB, foi refeito sobre o `dist` novo. O gzip é por arquivo, nível 9, só como referência de transferência: o app lê do disco.
 
 ## Leitura tolerante, com limite
 

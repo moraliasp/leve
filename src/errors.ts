@@ -13,6 +13,9 @@ export const MIN_INTERVAL_MS = 3000;
 /** A mesma mensagem não volta a aparecer dentro desta janela. */
 export const DEDUPE_MS = 30000;
 
+/** Avisos do navegador sem objeto de erro e sem nada que o leitor possa usar. */
+const NOISE = /^(ResizeObserver loop\b|Script error\.?$)/i;
+
 export function describeError(reason: unknown): string {
   let msg: string;
   if (reason instanceof Error) msg = reason.message || reason.name;
@@ -51,7 +54,10 @@ export function installErrorReporting(report: (msg: string) => void, win: Window
     // Erro de script chega como ErrorEvent; erro de recurso é Event simples, disparado no elemento
     // e sem bolha (só chegaria aqui em captura, que não usamos).
     if (!(ev instanceof ErrorEvent)) return;
-    show(ev.error ?? ev.message);
+    // Sem `error` e sem mensagem útil (ex.: "ResizeObserver loop…", "Script error."): ruído, só console.
+    const message = (ev.message ?? "").trim();
+    if (ev.error == null && (!message || NOISE.test(message))) return;
+    show(ev.error ?? message);
   };
 
   win.addEventListener("unhandledrejection", onRejection);

@@ -43,6 +43,16 @@ describe("installErrorReporting", () => {
     img.remove();
   });
 
+  it("ErrorEvent sem error e sem mensagem útil é ruído", () => {
+    window.dispatchEvent(new ErrorEvent("error", { message: "ResizeObserver loop completed with undelivered notifications." }));
+    window.dispatchEvent(new ErrorEvent("error", { message: "Script error." }));
+    window.dispatchEvent(new ErrorEvent("error", { message: "  " }));
+    expect(report).not.toHaveBeenCalled();
+    // Sem `error` mas com mensagem de verdade ainda chega ao leitor.
+    window.dispatchEvent(new ErrorEvent("error", { message: "x is not defined" }));
+    expect(report).toHaveBeenCalledWith("Erro inesperado: x is not defined");
+  });
+
   it("limita a frequência: um aviso a cada intervalo", () => {
     for (let i = 0; i < 10; i++) window.dispatchEvent(rejection(new Error(`e${i}`)));
     expect(report).toHaveBeenCalledTimes(1);

@@ -21,7 +21,11 @@ import { SCROLL_KEY, addRecent, clearRecent, readRecent, removeRecent, splitPath
 import { PREF_KEYS, TABS_KEY, TIP_KEY, boolPref, readJson, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "./prefs";
 import { applyI18n, detectLang, lang, langPref, setLangPref, t, type Key, type LangPref } from "./i18n";
 import { checkForUpdates, maybeDailyCheck, type UpdateUi } from "./updater";
+import { installErrorReporting } from "./errors";
 
+// Erro não tratado (promessa com `void`, exceção em callback) aparece na barra, não só no console.
+// Instalado antes de tudo; `reportUnexpected` cobre o erro que chega antes de `els` existir.
+installErrorReporting(reportUnexpected);
 installIcons();
 // Textos da interface antes de qualquer evento ligado (troca `innerHTML` de alguns trechos).
 applyI18n(document);
@@ -259,6 +263,19 @@ function flash(msg: string, isError = false, sticky = isError): void {
   window.clearTimeout(flashTimer);
   // Mensagem passageira some e devolve a barra ao aviso do documento, se houver.
   if (msg && !sticky) flashTimer = window.setTimeout(() => flash(docNotice.msg, docNotice.isError, true), 2500);
+}
+
+/** Erro inesperado: passageiro (a barra volta ao aviso do documento). Antes de `els`, escreve direto. */
+function reportUnexpected(msg: string): void {
+  try {
+    flash(msg, true, false);
+  } catch {
+    const status = document.getElementById("status");
+    if (status) {
+      status.textContent = msg;
+      status.classList.add("error");
+    }
+  }
 }
 
 /** Troca o aviso do documento. Sem aviso novo, só limpa a barra se ela mostrava aviso ou erro. */
@@ -583,7 +600,11 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
       .then((r) => {
         if (current?.path === doc.path) markWikilinks(content, r);
       })
-      .catch((e) => console.warn("wikilinks:", e));
+      .catch((e) => {
+        // O erro do Rust pode trazer caminho do sistema: ao leitor, só a mensagem genérica.
+        console.warn("wikilinks:", e);
+        if (current?.path === doc.path) flash(t("doc.wikilinksFailed"), true);
+      });
   }
   tocItems = buildToc(els.content, els.toc, large ? LARGE_TOC_MAX_LEVEL : undefined);
   // Sem foco em lugar nenhum (abriu pelo menu ou pelo sistema): foco no documento, setas já rolam.

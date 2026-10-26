@@ -27,6 +27,8 @@ for (const p of meta.packages) if (p.name !== "leve") count[p.license ?? "?"] = 
 // Licenças com obrigação de aviso: EPL/MPL/CDLA sem alternativa permissiva (`OR`). Dupla com alternativa
 // só entra quando a escolha está registrada em `escolhas` (e em THIRD_PARTY_NOTICES.md).
 const escolhas = { dompurify: "Apache-2.0 escolhida; texto e fonte em THIRD_PARTY_NOTICES.md" };
+// Instalados como dependência de produção, mas cortados do bundle: não são distribuídos, então não pedem aviso.
+const foraDoBundle = { elkjs: "layout ELK do Mermaid, cortado pelo plugin `mermaidSemElk` do `vite.config.ts`" };
 const temAviso = (l) => /\b(EPL|MPL|CDLA)-/.test(l);
 const temAlternativa = (l) => /\bOR\b/.test(l);
 const avisos = [
@@ -34,6 +36,7 @@ const avisos = [
   ...meta.packages.filter((p) => p.name !== "leve").map((p) => ({ name: p.name, version: p.version, license: p.license ?? "", url: p.repository ?? "", origem: "crate" })),
 ]
   .filter((r) => temAviso(r.license))
+  .filter((r) => !foraDoBundle[r.name])
   .filter((r) => {
     if (!temAlternativa(r.license)) return true;
     if (escolhas[r.name]) return true;
@@ -46,20 +49,24 @@ const tabelaAvisos = [
   "|---|---|---|---|---|",
   ...avisos.map((r) => `| ${r.url ? `[${r.name}](${r.url})` : r.name} | ${r.version} | ${r.origem} | ${r.license} | ${escolhas[r.name] ?? "sem alternativa permissiva; texto e fonte em THIRD_PARTY_NOTICES.md"} |`),
 ].join("\n");
+const notaFora = rows
+  .filter((r) => foraDoBundle[r.name])
+  .map((r) => `- ${r.name} ${r.version} (${r.license}): ${foraDoBundle[r.name]}.`)
+  .join("\n");
 
 const table = (xs) =>
   ["| Pacote | Versão | Licença |", "|---|---|---|", ...xs.map((r) => `| ${r.url ? `[${r.name}](${r.url})` : r.name} | ${r.version} | ${r.license} |`)].join("\n");
 
 const out = `# Terceiros
 
-Gerado por \`node scripts/third-party.mjs\` em ${new Date().toISOString().slice(0, 10)}. Textos completos das licenças com obrigação de aviso (Lucide, elkjs, DOMPurify, crates MPL-2.0) em \`THIRD_PARTY_NOTICES.md\`.
+Gerado por \`node scripts/third-party.mjs\` em ${new Date().toISOString().slice(0, 10)}. Textos completos das licenças com obrigação de aviso (Lucide, DOMPurify, crates MPL-2.0, webpki-root-certs) em \`THIRD_PARTY_NOTICES.md\`.
 
 ## Licenças com obrigação de aviso (EPL/MPL/CDLA)
 
 Pacotes npm de produção e crates do grafo do Rust cuja licença é EPL ou MPL sem alternativa permissiva, mais os de licença dupla com escolha registrada. Cada um precisa de um título com o nome em \`THIRD_PARTY_NOTICES.md\` (conferido por \`tests/notices.test.ts\`). Revisão do jurídico antes da release.
 
 ${tabelaAvisos}
-
+${notaFora ? `\nFora do bundle (dependência instalada, não distribuída no app):\n\n${notaFora}\n` : ""}
 ## npm (produção, ${rows.length} pacotes incluindo transitivos)
 
 ${table(rows)}

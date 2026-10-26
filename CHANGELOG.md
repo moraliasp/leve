@@ -4,6 +4,10 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Changed
+
+- Mermaid no longer ships the ELK layout engine (elkjs), the largest asset in the app (1.4 MB). Diagrams that ask for `layout: elk` or `flowchart-elk` render with the default dagre layout.
+
 ## [0.2.0] - 2026-10-25
 
 First public release.

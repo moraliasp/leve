@@ -7,6 +7,7 @@
  * Até a 0.2.0 as chaves eram `mdview.*`; `migrateLegacyKeys` as renomeia ao carregar este módulo.
  */
 import type { ScrollAnchor } from "./scroll";
+import { type SavedTabs, parseSavedTabs } from "./tabs";
 
 export const PREF_KEYS = {
   theme: "leve.theme",
@@ -96,9 +97,7 @@ export function savedAnchor(path: string): ScrollAnchor {
 }
 
 /** Abas da última sessão, ou nenhuma com "Reabrir abas ao iniciar" desligado. */
-export function savedTabs(): { paths: string[]; active: number } {
+export function savedTabs(): SavedTabs {
   if (!boolPref(PREF_KEYS.restoreTabs, true)) return { paths: [], active: 0 };
-  const saved = readJson<{ paths?: unknown; active?: unknown }>(TABS_KEY, {});
-  const paths = Array.isArray(saved.paths) ? saved.paths.filter((p): p is string => typeof p === "string") : [];
-  return { paths, active: typeof saved.active === "number" ? saved.active : 0 };
+  return parseSavedTabs(readJson<unknown>(TABS_KEY, {}));
 }

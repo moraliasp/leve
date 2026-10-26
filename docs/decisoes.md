@@ -64,6 +64,12 @@ Decisão estrutural nova entra aqui, no fim, no mesmo formato.
 - **Decisão:** cada aba guarda caminho, histórico e âncora de rolagem, não o conteúdo. Ativar a aba relê o arquivo, e o Rust confere a concessão de novo.
 - **Consequência:** abrir muitas abas custa pouco memória. Abas restauradas só são lidas quando ativadas.
 
+## Estado das abas fora de main.ts
+
+- **Contexto:** abas, histórico, fechamento, ciclo, "abrir em nova ou focar" e o filtro do exemplo em `leve.tabs` moravam em `main.ts`, que não tem teste: tirar um guarda de persistência ali deixava a suíte verde.
+- **Decisão:** a decisão vive em `src/tabs.ts`, puro (sem DOM, `invoke` nem localStorage) e testado em `tests/tabs.test.ts`; `main.ts` guarda `tabs`/`active` e faz os efeitos (`renderTabs`, `activateTab`, `loadDoc`, `saveTabs`). `leve.tabs` continua `{"paths":[...],"active":n}`, escrito por `serializeTabs` e lido por `parseSavedTabs` (via `savedTabs`).
+- **Consequência:** regra nova de aba entra em `tabs.ts` com teste; `main.ts` só aplica. Mudar o formato de `leve.tabs` exige ler o antigo, senão o usuário perde as abas salvas.
+
 ## Rolagem guardada como âncora
 
 - **Contexto:** Mermaid, KaTeX e imagens mudam a altura depois do render. Pixel salvo cai no lugar errado.

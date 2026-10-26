@@ -23,6 +23,7 @@ import { SCROLL_KEY, addRecent, clearRecent, readRecent, removeRecent, splitPath
 import { PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, readJson, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "./prefs";
 import { applyI18n, detectLang, lang, langPref, setLangPref, t, type Key, type LangPref } from "./i18n";
 import { checkForUpdates, maybeDailyCheck, type UpdateUi } from "./updater";
+import { type Tab, canGoBack, canGoForward, commitDoc, cycleTarget, findTab, insertTab, removeTab, restoreSaved, serializeTabs, stepHistory, tabFactory } from "./tabs";
 import { SAMPLE_SESSION_KEY, SESSION_KEY, isSample, sampleOnLaunch, samplePath, sampleText, sampleToReplace } from "./sample";
 import { installErrorReporting } from "./errors";
 
@@ -71,19 +72,10 @@ let tocItems: TocItem[] = [];
 
 // ---------- abas: cada uma com seu documento, histórico e ponto de leitura ----------
 
-interface Tab {
-  id: number;
-  path: string;
-  name: string;
-  hist: string[];
-  histIdx: number;
-  /** Ponto de leitura ao sair da aba; reaplicado ao voltar. */
-  anchor: ScrollAnchor | null;
-}
-
+// Decisões (onde entra, qual fica ativa, ciclo, histórico, `leve.tabs`) em src/tabs.ts; aqui, os efeitos.
 let tabs: Tab[] = [];
 let active: Tab | null = null;
-let tabSeq = 0;
+const makeTab = tabFactory();
 
 const baseName = (p: string): string => (isSample(p) ? t("sample.title") : (p.split(/[\\/]/).pop() ?? p));
 
@@ -95,19 +87,14 @@ const baseName = (p: string): string => (isSample(p) ? t("sample.title") : (p.sp
 let sampleAuto: Tab | null = null;
 
 function newTab(path: string, afterActive = true): Tab {
-  const t: Tab = { id: ++tabSeq, path, name: baseName(path), hist: [path], histIdx: 0, anchor: null };
-  const at = afterActive && active ? tabs.indexOf(active) + 1 : tabs.length;
-  tabs.splice(at, 0, t);
+  const t = makeTab(path, baseName(path));
+  insertTab(tabs, t, active, afterActive);
   return t;
 }
 
 /** O exemplo não é arquivo: fica fora de `leve.tabs` (na recarga da página volta por `SAMPLE_SESSION_KEY`). */
 function saveTabs(): void {
-  const files = tabs.filter((t) => !isSample(t.path));
-  localStorage.setItem(
-    TABS_KEY,
-    JSON.stringify({ paths: files.map((t) => t.path), active: active ? files.indexOf(active) : -1 }),
-  );
+  localStorage.setItem(TABS_KEY, serializeTabs(tabs, active));
 }
 
 function renderTabs(): void {
@@ -176,27 +163,24 @@ async function activateTab(t: Tab): Promise<void> {
 
 /** Resolve quando a aba seguinte (se houver) terminou de abrir: a abertura espera a cadeia toda. */
 function closeTab(t: Tab): Promise<void> {
-  const i = tabs.indexOf(t);
-  if (i < 0) return Promise.resolve();
+  const removed = removeTab(tabs, t, active);
+  if (!removed) return Promise.resolve();
   if (t === sampleAuto) sampleAuto = null;
   if (t === active) rememberActive();
-  tabs.splice(i, 1);
   if (t !== active) {
     renderTabs();
     return Promise.resolve();
   }
   active = null;
-  const next = tabs[i] ?? tabs[i - 1];
-  if (next) return activateTab(next);
+  if (removed.next) return activateTab(removed.next);
   renderTabs();
   showEmpty();
   return Promise.resolve();
 }
 
 function cycleTab(delta: number): void {
-  if (!active || tabs.length < 2) return;
-  const i = (tabs.indexOf(active) + delta + tabs.length) % tabs.length;
-  void activateTab(tabs[i]);
+  const to = cycleTarget(tabs, active, delta);
+  if (to) void activateTab(to);
 }
 
 /**
@@ -204,9 +188,7 @@ function cycleTab(delta: number): void {
  * Com "Reabrir abas ao iniciar" desligado (`savedTabs`), nenhuma volta.
  */
 function restoreTabs(): Tab | null {
-  const { paths, active: idx } = savedTabs();
-  for (const p of paths) if (!tabs.some((t) => t.path === p)) newTab(p, false);
-  return tabs[idx] ?? tabs[0] ?? null;
+  return restoreSaved(tabs, savedTabs(), (p) => makeTab(p, baseName(p)));
 }
 let zoom = Number(localStorage.getItem(PREF_KEYS.zoom) ?? "1") || 1;
 
@@ -351,8 +333,8 @@ function scrollToAnchor(raw: string): void {
 }
 
 function updateNavButtons(): void {
-  els.btnBack.disabled = !active || active.histIdx <= 0;
-  els.btnFwd.disabled = !active || active.histIdx >= active.hist.length - 1;
+  els.btnBack.disabled = !canGoBack(active);
+  els.btnFwd.disabled = !canGoForward(active);
 }
 
 function showEmpty(): void {
@@ -575,7 +557,7 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
     return false;
   }
   if (opts.target === "new" || !active) {
-    const open = tabs.find((t) => t.path === doc.path);
+    const open = findTab(tabs, doc.path);
     if (open) {
       if (open !== active) await activateTab(open);
       if (opts.hash) scrollToAnchor(opts.hash);
@@ -633,14 +615,7 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   els.title.title = sample ? doc.name : doc.path;
   setWindowTitle(`${doc.name} — Leve`);
 
-  if (opts.push !== false) {
-    tab.hist.splice(tab.histIdx + 1);
-    tab.hist.push(doc.path);
-    tab.histIdx = tab.hist.length - 1;
-  }
-  tab.path = doc.path;
-  tab.name = doc.name;
-  tab.anchor = null;
+  commitDoc(tab, doc.path, doc.name, opts.push !== false);
   renderTabs();
   updateNavButtons();
   // O exemplo não é arquivo: fora dos Recentes e sem vigia.
@@ -683,10 +658,8 @@ async function pickAndOpen(): Promise<void> {
 
 function go(delta: number): void {
   if (!active) return;
-  const i = active.histIdx + delta;
-  if (i < 0 || i >= active.hist.length) return;
-  active.histIdx = i;
-  void loadDoc(active.hist[i], { push: false });
+  const path = stepHistory(active, delta);
+  if (path !== null) void loadDoc(path, { push: false });
 }
 
 // ---------- Exportar HTML / Copiar como HTML (src/export.ts) ----------

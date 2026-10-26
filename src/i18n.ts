@@ -53,6 +53,16 @@ const pt = {
   "empty.tipClose": "Entendi",
   "empty.tipCloseLabel": "Fechar dica",
   "empty.drop": "Solte para abrir",
+  "empty.clipboardLead": "Copiou um texto?",
+  "empty.clipboard": "Abra da área de transferência",
+
+  "untitled.name": "Sem título",
+  "untitled.notice": "Não salvo",
+  "untitled.emptyClipboard": "A área de transferência não tem texto",
+  "untitled.alreadySaved": "Este documento já está salvo",
+  "untitled.saveBrowser": "Salvar só no app",
+  "untitled.saved": "Salvo: {name}",
+  "untitled.noFolder": "Documento não salvo: links relativos só abrem depois de salvar",
 
   "tab.close": "Fechar aba",
   "tab.closeNamed": "Fechar {name}",
@@ -163,6 +173,8 @@ const pt = {
 
   "shortcuts.title": "Atalhos",
   "shortcuts.open": "Abrir…",
+  "shortcuts.openClipboard": "Abrir da área de transferência",
+  "shortcuts.save": "Salvar documento não salvo",
   "shortcuts.reload": "Recarregar",
   "shortcuts.revealMac": "Mostrar no Finder",
   "shortcuts.revealPc": "Mostrar no Explorer",
@@ -222,6 +234,16 @@ const en: Dict = {
   "empty.tipClose": "Got it",
   "empty.tipCloseLabel": "Dismiss tip",
   "empty.drop": "Drop to open",
+  "empty.clipboardLead": "Copied some text?",
+  "empty.clipboard": "Open it from the clipboard",
+
+  "untitled.name": "Untitled",
+  "untitled.notice": "Not saved",
+  "untitled.emptyClipboard": "The clipboard has no text",
+  "untitled.alreadySaved": "This document is already saved",
+  "untitled.saveBrowser": "Saving works only in the app",
+  "untitled.saved": "Saved: {name}",
+  "untitled.noFolder": "Unsaved document: relative links open only after saving",
 
   "tab.close": "Close Tab",
   "tab.closeNamed": "Close {name}",
@@ -332,6 +354,8 @@ const en: Dict = {
 
   "shortcuts.title": "Keyboard Shortcuts",
   "shortcuts.open": "Open…",
+  "shortcuts.openClipboard": "Open from Clipboard",
+  "shortcuts.save": "Save Unsaved Document",
   "shortcuts.reload": "Reload",
   "shortcuts.revealMac": "Show in Finder",
   "shortcuts.revealPc": "Show in Explorer",

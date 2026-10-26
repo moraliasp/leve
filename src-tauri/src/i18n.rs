@@ -46,6 +46,10 @@ pub struct Strings {
     pub go: &'static str,
     pub help: &'static str,
     pub open: &'static str,
+    pub open_clipboard: &'static str,
+    pub save: &'static str,
+    /// Nome sugerido no diálogo de salvar do documento não salvo.
+    pub untitled_file: &'static str,
     pub reload: &'static str,
     pub reveal: &'static str,
     pub clear_recent: &'static str,
@@ -96,6 +100,8 @@ pub struct Strings {
     /// `{size}` e `{max}` em MB.
     pub too_big: &'static str,
     pub no_parent: &'static str,
+    /// `{path}`: arquivo que já existe (salvar não sobrescreve sem o diálogo confirmar).
+    pub exists: &'static str,
 }
 
 const PT: Strings = Strings {
@@ -105,6 +111,9 @@ const PT: Strings = Strings {
     go: "Ir",
     help: "Ajuda",
     open: "Abrir…",
+    open_clipboard: "Abrir da área de transferência",
+    save: "Salvar…",
+    untitled_file: "Sem título.md",
     reload: "Recarregar",
     reveal: "Mostrar no Finder / Explorer",
     clear_recent: "Limpar recentes…",
@@ -145,6 +154,7 @@ const PT: Strings = Strings {
     not_utf8: "O arquivo não está em UTF-8: caracteres ilegíveis aparecem como �.",
     too_big: "Arquivo grande demais para abrir ({size} MB; o limite é {max} MB).",
     no_parent: "O arquivo não tem pasta.",
+    exists: "Já existe um arquivo com esse nome: {path}",
 };
 
 const EN: Strings = Strings {
@@ -154,6 +164,9 @@ const EN: Strings = Strings {
     go: "Go",
     help: "Help",
     open: "Open…",
+    open_clipboard: "Open from Clipboard",
+    save: "Save…",
+    untitled_file: "Untitled.md",
     reload: "Reload",
     reveal: "Show in Finder / Explorer",
     clear_recent: "Clear Recent…",
@@ -194,6 +207,7 @@ const EN: Strings = Strings {
     not_utf8: "The file isn't UTF-8: unreadable characters show as �.",
     too_big: "File too large to open ({size} MB; the limit is {max} MB).",
     no_parent: "The file has no parent folder.",
+    exists: "A file with that name already exists: {path}",
 };
 
 pub fn strings_for(lang: Lang) -> &'static Strings {
@@ -225,10 +239,11 @@ mod tests {
     fn mensagens_com_parametro_nos_dois_idiomas() {
         for l in [Lang::Pt, Lang::En] {
             let s = strings_for(l);
-            for msg in [s.denied, s.absolute, s.not_found] {
+            for msg in [s.denied, s.absolute, s.not_found, s.exists] {
                 assert!(msg.contains("{path}"), "{msg}");
             }
             assert!(s.too_big.contains("{size}") && s.too_big.contains("{max}"));
+            assert!(s.untitled_file.ends_with(".md"));
         }
     }
 }

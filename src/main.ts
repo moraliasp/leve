@@ -16,11 +16,12 @@ import { applyAnchor, captureAnchor, onImagesSettled, type ScrollAnchor } from "
 import { decorateCodeBlocks } from "./code";
 import { renderMath } from "./math";
 import { MD_EXT, collectWikilinkTargets, markWikilinks } from "./wikilinks";
-import { applyTooltips, detectPlatform, shortcutRows, tooltip } from "./shortcuts";
+import { applyTooltips, detectPlatform, keysFor, shortcutRows, tooltip } from "./shortcuts";
 import { SCROLL_KEY, addRecent, clearRecent, readRecent, removeRecent, splitPath } from "./recent";
 import { PREF_KEYS, TABS_KEY, TIP_KEY, boolPref, readJson, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "./prefs";
 import { applyI18n, detectLang, lang, langPref, setLangPref, t, type Key, type LangPref } from "./i18n";
 import { checkForUpdates, maybeDailyCheck, type UpdateUi } from "./updater";
+import { clipboardDoc, isUntitled, persistableTabs, replaceInHistory, untitledId, untitledName } from "./untitled";
 
 installIcons();
 // Textos da interface antes de qualquer evento ligado (troca `innerHTML` de alguns trechos).
@@ -35,7 +36,13 @@ interface Doc {
   content: string;
   /** Aviso de leitura do Rust (ex.: UTF-8 inválido substituído). Abre mesmo assim. */
   warning?: string | null;
+  /** Documento só em memória (área de transferência): `path` é `untitled:N`, `dir` vazio. */
+  unsaved?: boolean;
 }
+
+/** Texto dos documentos não salvos, por id `untitled:N` (src/untitled.ts). Sai ao fechar a aba ou salvar. */
+const untitledDocs = new Map<string, string>();
+let untitledSeq = 0;
 
 /** Fora do Tauri (vite no navegador) o app roda em modo leitura via `?file=/docs/x.md`. */
 const IS_TAURI = "__TAURI_INTERNALS__" in window;
@@ -88,10 +95,12 @@ function newTab(path: string, afterActive = true): Tab {
 }
 
 function saveTabs(): void {
-  localStorage.setItem(
-    TABS_KEY,
-    JSON.stringify({ paths: tabs.map((t) => t.path), active: active ? tabs.indexOf(active) : -1 }),
+  // Aba não salva não volta ao reabrir: o texto só existia em memória.
+  const saved = persistableTabs(
+    tabs.map((t) => t.path),
+    active ? tabs.indexOf(active) : -1,
   );
+  localStorage.setItem(TABS_KEY, JSON.stringify(saved));
 }
 
 function renderTabs(): void {
@@ -107,7 +116,7 @@ function renderTabs(): void {
     el.tabIndex = t === active ? 0 : -1;
     el.id = `tab-${t.id}`;
     el.setAttribute("aria-controls", "main");
-    el.title = t.path;
+    el.title = isUntitled(t.path) ? t.name : t.path;
     const name = document.createElement("span");
     name.className = "tab-name";
     name.textContent = t.name;
@@ -163,6 +172,8 @@ function closeTab(t: Tab): void {
   if (i < 0) return;
   if (t === active) rememberActive();
   tabs.splice(i, 1);
+  // O id `untitled:N` só existe no histórico desta aba: fechar descarta o texto.
+  for (const p of t.hist) if (isUntitled(p)) untitledDocs.delete(p);
   if (t !== active) {
     renderTabs();
     return;
@@ -222,6 +233,7 @@ const finder = new Finder(els.content, els.main, els.findCount, $("find-live"));
 type ScrollStore = Record<string, ScrollAnchor | number>;
 
 function saveScroll(path: string, anchor: ScrollAnchor): void {
+  if (isUntitled(path)) return;
   const map = readJson<ScrollStore>(SCROLL_KEY, {});
   map[path] = anchor;
   const keys = Object.keys(map);
@@ -474,11 +486,19 @@ interface LoadOpts {
 }
 
 async function readDoc(path: string): Promise<Doc> {
+  if (isUntitled(path)) return untitledDoc(path);
   if (IS_TAURI) return invoke<Doc>("read_markdown", { path });
   const res = await fetch(path);
   if (!res.ok) throw new Error(`${path}: ${res.status}`);
   const name = path.split("/").pop() ?? path;
   return { path, dir: path.slice(0, path.length - name.length - 1) || "/", name, content: await res.text() };
+}
+
+/** Documento não salvo a partir do texto em memória. */
+function untitledDoc(id: string): Doc {
+  const content = untitledDocs.get(id);
+  if (content === undefined) throw new Error(t("doc.notFound", { path: t("untitled.name") }));
+  return { path: id, dir: "", name: untitledName(id, t("untitled.name")), content, unsaved: true };
 }
 
 /**
@@ -542,6 +562,14 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
     flash(String(e), true);
     return false;
   }
+  return showDoc(doc, opts);
+}
+
+/**
+ * Mostra um documento já lido (do disco ou da memória) na aba ativa ou numa nova. Documento não
+ * salvo (`unsaved`) não tem pasta, vigia, Recentes nem ponto de leitura guardado.
+ */
+async function showDoc(doc: Doc, opts: LoadOpts = {}): Promise<boolean> {
   if (opts.target === "new" || !active) {
     const open = tabs.find((t) => t.path === doc.path);
     if (open) {
@@ -572,12 +600,18 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   }
   performance.measure("leve:dom", "leve:start");
   // Aviso de leitura e de modo grande ficam até o próximo documento; documento sem aviso limpa o anterior.
-  setDocNotice([doc.warning, large ? t("doc.large") : ""].filter(Boolean).join(" · "), Boolean(doc.warning));
+  setDocNotice(
+    [doc.unsaved ? t("untitled.notice") : "", doc.warning, large ? t("doc.large") : ""].filter(Boolean).join(" · "),
+    Boolean(doc.warning),
+  );
   applyRemote(doc);
-  await hydrateImages(els.content, doc.dir, IS_TAURI);
+  // Sem pasta, imagem relativa não tem de onde vir: aparece como não encontrada.
+  await hydrateImages(els.content, doc.unsaved ? null : doc.dir, IS_TAURI);
   decorateCodeBlocks(els.content);
   const wikiTargets = collectWikilinkTargets(els.content);
-  if (wikiTargets.length > 0) {
+  if (doc.unsaved) {
+    if (wikiTargets.length > 0) markWikilinks(els.content, Object.fromEntries(wikiTargets.map((w) => [w, null])));
+  } else if (wikiTargets.length > 0) {
     const content = els.content;
     void resolveWikilinks(doc.dir, wikiTargets)
       .then((r) => {
@@ -591,7 +625,7 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   els.empty.hidden = true;
   els.content.hidden = false;
   els.title.textContent = doc.name;
-  els.title.title = doc.path;
+  els.title.title = doc.unsaved ? doc.name : doc.path;
   setWindowTitle(`${doc.name} — Leve`);
 
   if (opts.push !== false) {
@@ -604,8 +638,10 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   tab.anchor = null;
   renderTabs();
   updateNavButtons();
-  addRecent(doc.path);
-  if (IS_TAURI) invoke("watch_file", { path: doc.path }).catch((e) => flash(String(e), true));
+  if (!doc.unsaved) {
+    addRecent(doc.path);
+    if (IS_TAURI) invoke("watch_file", { path: doc.path }).catch((e) => flash(String(e), true));
+  }
 
   if (opts.hash) pending = { hash: opts.hash };
   else if (opts.anchor) pending = { anchor: opts.anchor };
@@ -637,6 +673,68 @@ async function pickAndOpen(): Promise<void> {
   } catch (e) {
     flash(String(e), true);
   }
+}
+
+/** Lê o clipboard: no app pelo Rust (`read_clipboard`); no navegador, só para prova manual. */
+async function readClipboard(): Promise<string | null> {
+  if (IS_TAURI) return invoke<string | null>("read_clipboard");
+  return navigator.clipboard.readText();
+}
+
+/** Arquivo › Abrir da área de transferência: o texto vira documento "Sem título" numa aba nova. */
+async function openClipboard(): Promise<void> {
+  let text: string | null;
+  try {
+    text = clipboardDoc(await readClipboard());
+  } catch (e) {
+    // No navegador, permissão negada ou conteúdo não-texto: mesmo aviso do clipboard vazio.
+    if (IS_TAURI) {
+      flash(String(e), true);
+      return;
+    }
+    text = null;
+  }
+  if (text === null) {
+    flash(t("untitled.emptyClipboard"));
+    return;
+  }
+  const id = untitledId(++untitledSeq);
+  untitledDocs.set(id, text);
+  await showDoc(untitledDoc(id), { target: "new" });
+}
+
+/**
+ * Salvar (Mod+S): só a aba não salva tem o que salvar. O diálogo e a escrita ficam no Rust
+ * (`save_markdown_as`), que concede o caminho escolhido; depois disso a aba vira documento normal.
+ */
+async function saveUntitled(): Promise<void> {
+  const tab = active;
+  const id = current?.path;
+  if (!tab || !id || !isUntitled(id)) {
+    if (current) flash(t("untitled.alreadySaved"));
+    return;
+  }
+  if (!IS_TAURI) {
+    flash(t("untitled.saveBrowser"), true);
+    return;
+  }
+  const text = untitledDocs.get(id);
+  if (text === undefined) return;
+  let saved: string | null;
+  try {
+    saved = await invoke<string | null>("save_markdown_as", { text });
+  } catch (e) {
+    flash(String(e), true);
+    return;
+  }
+  if (!saved) return;
+  untitledDocs.delete(id);
+  tab.hist = replaceInHistory(tab.hist, id, saved);
+  tab.path = saved;
+  flash(t("untitled.saved", { name: baseName(saved) }));
+  // Relê do disco na própria aba: vigia, Recentes e título passam a valer.
+  if (tab === active && current?.path === id) await loadDoc(saved, { push: false, keepScroll: true });
+  else renderTabs();
 }
 
 function go(delta: number): void {
@@ -697,9 +795,14 @@ function reloadCurrent(): void {
 
 const actions: Record<string, () => void> = {
   open: () => void pickAndOpen(),
-  reload: reloadCurrent,
+  "open-clipboard": () => void openClipboard(),
+  save: () => void saveUntitled(),
+  // Documento não salvo não tem arquivo para reler nem pasta para mostrar.
+  reload: () => {
+    if (!current?.unsaved) reloadCurrent();
+  },
   reveal: () => {
-    if (current) void invoke("reveal_in_folder", { path: current.path });
+    if (current && !current.unsaved) void invoke("reveal_in_folder", { path: current.path });
   },
   print: () => window.print(),
   find: openFind,
@@ -825,7 +928,7 @@ async function askForgetGrants(): Promise<void> {
   if (!ok) return;
   if (IS_TAURI) {
     try {
-      await invoke("forget_grants", { keep: tabs.map((t) => t.path) });
+      await invoke("forget_grants", { keep: tabs.map((t) => t.path).filter((p) => !isUntitled(p)) });
     } catch (e) {
       flash(String(e), true);
       return;
@@ -995,6 +1098,8 @@ function wire(): void {
   $("btn-theme").addEventListener("click", actions["cycle-theme"]);
   $("btn-open").addEventListener("click", actions.open);
   $("empty-open").addEventListener("click", actions.open);
+  $("empty-clipboard").addEventListener("click", actions["open-clipboard"]);
+  $("empty-clipboard-keys").textContent = `(${keysFor("open-clipboard", PLATFORM)})`;
   $("find-prev").addEventListener("click", () => finder.prev());
   $("find-next").addEventListener("click", () => finder.next());
   $("find-close").addEventListener("click", closeFind);
@@ -1059,6 +1164,10 @@ function wire(): void {
     }
     if (!current) return;
     const [rel, hash] = href.split("#");
+    if (current.unsaved) {
+      flash(t("untitled.noFolder"));
+      return;
+    }
     let relDecoded = rel;
     try {
       relDecoded = decodeURIComponent(rel);
@@ -1143,6 +1252,9 @@ function wireBrowserShortcuts(): void {
     "]": "forward",
     "/": "shortcuts",
     ",": "preferences",
+    // Com Shift a tecla chega maiúscula; Mod+V sozinho continua sendo colar.
+    V: "open-clipboard",
+    s: "save",
   };
   window.addEventListener("keydown", (ev) => {
     if (!(ev.metaKey || ev.ctrlKey)) return;

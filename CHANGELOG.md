@@ -4,6 +4,10 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Added
+
+- *File › Open from Clipboard* (Cmd/Ctrl+Shift+V) opens the copied text as an unsaved "Untitled" document in a new tab, without touching the disk; Cmd/Ctrl+S saves it as `.md` (Documents folder suggested), after which it reloads on change and joins Recent files like any other document.
+
 ## [0.2.0] - 2026-10-25
 
 First public release.

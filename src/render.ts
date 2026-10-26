@@ -207,9 +207,10 @@ export function markBrokenImage(img: HTMLImageElement, shown: string): void {
 /**
  * Reaponta imagens relativas para a pasta do arquivo. No Tauri, pede ao backend que libere
  * cada imagem no asset protocol (arquivo por arquivo, nunca a pasta); imagem recusada ou
- * ausente dispara `error` e vira o aviso com o caminho tentado.
+ * ausente dispara `error` e vira o aviso com o caminho tentado. `dir` nulo (documento não salvo,
+ * sem pasta): imagem relativa vira o aviso direto, sem pedir nada a ninguém.
  */
-export async function hydrateImages(container: HTMLElement, dir: string, viaAsset = true): Promise<void> {
+export async function hydrateImages(container: HTMLElement, dir: string | null, viaAsset = true): Promise<void> {
   const pending: { img: HTMLImageElement; rel: string }[] = [];
   for (const img of container.querySelectorAll<HTMLImageElement>("img[src]")) {
     const src = img.getAttribute("src") ?? "";
@@ -227,6 +228,10 @@ export async function hydrateImages(container: HTMLElement, dir: string, viaAsse
     pending.push({ img, rel });
   }
   if (pending.length === 0) return;
+  if (dir === null) {
+    for (const { img, rel } of pending) markBrokenImage(img, rel);
+    return;
+  }
   if (!viaAsset) {
     for (const { img, rel } of pending) {
       const abs = joinPath(dir, rel);

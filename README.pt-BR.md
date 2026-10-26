@@ -54,12 +54,13 @@ Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações t
 - Sumário, busca no documento, abas, voltar/avançar
 - Tema claro e escuro, três larguras de leitura, três fontes, zoom
 - Imprimir ou exportar PDF
+- Abrir um texto copiado como documento não salvo (*Arquivo › Abrir da área de transferência*, Cmd/Ctrl+Shift+V) e salvar como `.md` com Cmd/Ctrl+S
 - Português e inglês, pelo idioma do sistema ou pela escolha nas *Preferências*
 - Documentos grandes (até 20 MB) abrem num modo mais leve
 
 ## Privacidade
 
-Sem telemetria. O Leve só lê arquivos que você abriu (diálogo, duplo-clique, arrastar) e os que um documento aberto aponta por caminho relativo. Imagens remotas ficam bloqueadas até você pedir. A rede só é usada nos links que você abre, nas imagens remotas que você pedir e para procurar atualizações.
+Sem telemetria. O Leve só lê arquivos que você abriu (diálogo, duplo-clique, arrastar) e os que um documento aberto aponta por caminho relativo. Lê a área de transferência só quando você escolhe *Abrir da área de transferência*, e só grava o arquivo que você escolher no diálogo de salvar. Imagens remotas ficam bloqueadas até você pedir. A rede só é usada nos links que você abre, nas imagens remotas que você pedir e para procurar atualizações.
 
 ## Build
 

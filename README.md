@@ -54,12 +54,13 @@ Updates are signed separately and verified by the app before installing: *Leve â
 - Table of contents, find in document, tabs, back/forward
 - Light and dark themes, three reading widths, three fonts, zoom
 - Print or export to PDF
+- Open copied text as an unsaved document (*File â€º Open from Clipboard*, Cmd/Ctrl+Shift+V) and save it as `.md` with Cmd/Ctrl+S
 - English and Portuguese, following your system or your choice in *Settings*
 - Large documents (up to 20 MB) open in a lighter mode
 
 ## Privacy
 
-No telemetry. Leve reads only files you open (dialog, double-click, drag and drop) and files an open document links to with a relative path. Remote images are blocked until you load them. The network is used only for links you open, remote images you ask for, and update checks.
+No telemetry. Leve reads only files you open (dialog, double-click, drag and drop) and files an open document links to with a relative path. It reads the clipboard only when you choose *Open from Clipboard*, and writes only the file you pick in the save dialog. Remote images are blocked until you load them. The network is used only for links you open, remote images you ask for, and update checks.
 
 ## Build
 

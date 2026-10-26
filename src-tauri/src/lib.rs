@@ -14,6 +14,7 @@ use tauri::{
     AppHandle, Emitter, Manager, State, Url, Wry,
     menu::{CheckMenuItem, CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder},
 };
+use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
@@ -468,6 +469,81 @@ async fn pick_markdown(app: AppHandle) -> Result<Option<String>, String> {
     Ok(Some(c.to_string_lossy().into_owned()))
 }
 
+/// Texto do clipboard → documento não salvo. Vazio (ou só espaço) e não-texto viram `None`; acima
+/// de `MAX_DOC_BYTES` é recusado como arquivo grande demais.
+fn clipboard_text(read: Result<String, String>) -> Result<Option<String>, String> {
+    let Ok(text) = read else {
+        return Ok(None);
+    };
+    if text.trim().is_empty() {
+        return Ok(None);
+    }
+    let len = text.len() as u64;
+    if len > MAX_DOC_BYTES {
+        return Err(fill(
+            i18n::s().too_big,
+            &[
+                ("size", &format!("{:.0}", len as f64 / 1_048_576.0)),
+                ("max", &(MAX_DOC_BYTES / 1_048_576).to_string()),
+            ],
+        ));
+    }
+    Ok(Some(text))
+}
+
+/// Arquivo › Abrir da área de transferência: lê o texto aqui, no Rust, só quando o usuário pede.
+/// O frontend não tem permissão do plugin de clipboard; só este comando lê.
+#[tauri::command]
+fn read_clipboard(app: AppHandle) -> Result<Option<String>, String> {
+    clipboard_text(app.clipboard().read_text().map_err(|e| e.to_string()))
+}
+
+/// Nome escolhido no diálogo de salvar sem extensão Markdown ganha `.md` (o filtro nem sempre
+/// a acrescenta, ex. no Linux). `Some(caminho novo)` só quando mudou.
+fn with_md_ext(path: &Path) -> Option<PathBuf> {
+    if is_markdown(path) {
+        return None;
+    }
+    let mut name = path.file_name()?.to_os_string();
+    name.push(".md");
+    Some(path.with_file_name(name))
+}
+
+/// Salvar o documento não salvo (aba da área de transferência): o diálogo nativo roda aqui, o
+/// texto só é escrito no caminho escolhido nele, e esse caminho é concedido para leitura. O
+/// frontend nunca passa caminho para escrita. `None` = cancelou.
+#[tauri::command]
+async fn save_markdown_as(app: AppHandle, text: String) -> Result<Option<String>, String> {
+    let mut dialog = app
+        .dialog()
+        .file()
+        .add_filter("Markdown", &["md"])
+        .set_file_name(i18n::s().untitled_file);
+    if let Ok(docs) = app.path().document_dir() {
+        dialog = dialog.set_directory(docs);
+    }
+    let picked = tauri::async_runtime::spawn_blocking(move || dialog.blocking_save_file())
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(p) = picked else {
+        return Ok(None);
+    };
+    let mut path = p.into_path().map_err(|e| e.to_string())?;
+    if let Some(fixed) = with_md_ext(&path) {
+        // O diálogo confirmou a sobrescrita do nome que mostrou, não deste: não sobrescrever.
+        if fixed.exists() {
+            return Err(fill(
+                i18n::s().exists,
+                &[("path", &fixed.display().to_string())],
+            ));
+        }
+        path = fixed;
+    }
+    std::fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))?;
+    let c = grant(&app.state::<AppState>(), &path)?;
+    Ok(Some(c.to_string_lossy().into_owned()))
+}
+
 /// Quais caminhos ainda existem como arquivo (Recentes: o que sumiu aparece apagado). Só
 /// responde sobre caminhos já concedidos (`granted`): fora da lista é `false`, sem tocar o
 /// disco, para o comando não virar sonda de existência. Assíncrono porque um recente em volume
@@ -693,6 +769,13 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .build(app)
     };
     let open = item("open", s.open, Some("CmdOrCtrl+O"))?;
+    let open_clipboard = item(
+        "open-clipboard",
+        s.open_clipboard,
+        Some("CmdOrCtrl+Shift+V"),
+    )?;
+    // Sempre habilitado: a ação no frontend só age na aba não salva.
+    let save = item("save", s.save, Some("CmdOrCtrl+S"))?;
     let reload = item("reload", s.reload, Some("CmdOrCtrl+R"))?;
     let reveal = item("reveal", s.reveal, Some("CmdOrCtrl+Shift+R"))?;
     let clear_recent = item("clear-recent", s.clear_recent, None)?;
@@ -720,6 +803,8 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
 
     let file = SubmenuBuilder::new(app, s.file)
         .item(&open)
+        .item(&open_clipboard)
+        .item(&save)
         .separator()
         .item(&reload)
         .item(&reveal)
@@ -860,6 +945,8 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // Sem permissão no frontend (capabilities): só `read_clipboard`, no Rust, lê.
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(AppState::default())
@@ -869,6 +956,8 @@ pub fn run() {
             take_pending_open,
             resolve_path,
             pick_markdown,
+            read_clipboard,
+            save_markdown_as,
             allow_assets,
             sync_view_menu,
             sync_remote_menu,
@@ -1268,6 +1357,34 @@ mod tests {
             WatchDecision::Replace { renotify: false },
             "outro documento: troca sem avisar"
         );
+    }
+
+    #[test]
+    fn clipboard_vazio_ou_nao_texto_vira_none() {
+        assert_eq!(clipboard_text(Err("sem texto".into())), Ok(None));
+        assert_eq!(clipboard_text(Ok(String::new())), Ok(None));
+        assert_eq!(clipboard_text(Ok(" \n\t ".into())), Ok(None));
+        assert_eq!(
+            clipboard_text(Ok("# Oi\n".into())),
+            Ok(Some("# Oi\n".into()))
+        );
+        let big = "a".repeat(MAX_DOC_BYTES as usize + 1);
+        assert!(clipboard_text(Ok(big)).is_err());
+    }
+
+    #[test]
+    fn salvar_garante_extensao_markdown() {
+        assert_eq!(with_md_ext(Path::new("/d/Sem título.md")), None);
+        assert_eq!(with_md_ext(Path::new("/d/notas.MARKDOWN")), None);
+        assert_eq!(
+            with_md_ext(Path::new("/d/notas")),
+            Some(PathBuf::from("/d/notas.md"))
+        );
+        assert_eq!(
+            with_md_ext(Path::new("/d/notas.txt")),
+            Some(PathBuf::from("/d/notas.txt.md"))
+        );
+        assert_eq!(with_md_ext(Path::new("/")), None);
     }
 
     #[test]

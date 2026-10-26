@@ -53,7 +53,7 @@ Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações t
 - Frontmatter como tabela, `[[wikilinks]]`, links e imagens relativos
 - Sumário, busca no documento, abas, voltar/avançar
 - Tema claro e escuro, três larguras de leitura, três fontes, zoom
-- Imprimir ou exportar PDF
+- Imprimir ou exportar PDF; exportar um HTML autocontido (offline, sem scripts) ou copiar como HTML
 - Português e inglês, pelo idioma do sistema ou pela escolha nas *Preferências*
 - Documentos grandes (até 20 MB) abrem num modo mais leve
 

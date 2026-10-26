@@ -224,6 +224,8 @@ export async function hydrateImages(container: HTMLElement, dir: string, viaAsse
       /* mantém como veio */
     }
     img.loading = "lazy";
+    // O `src` vira asset://… abaixo; o original fica para o Exportar HTML (src/export.ts).
+    img.dataset.localSrc = src;
     pending.push({ img, rel });
   }
   if (pending.length === 0) return;

@@ -85,6 +85,17 @@
         </form>
       </dialog>
 
+      <dialog id="export" class="sheet prefs" aria-labelledby="export-title" aria-describedby="export-lead">
+        <h2 id="export-title" data-i18n="export.title"></h2>
+        <p id="export-lead" data-i18n="export.lead"></p>
+        <div class="pref-check"><input type="checkbox" id="export-md-links" name="export-md-links" /><label for="export-md-links" data-i18n="export.mdLinks"></label></div>
+        <p class="muted" data-i18n="export.mdLinksHint"></p>
+        <form method="dialog">
+          <button class="text" value="cancel" data-i18n="common.cancel"></button>
+          <button id="export-ok" class="text primary" value="ok" autofocus data-i18n="export.ok"></button>
+        </form>
+      </dialog>
+
       <dialog id="prefs" class="sheet prefs" aria-labelledby="prefs-title">
         <h2 id="prefs-title" data-i18n="prefs.title"></h2>
 

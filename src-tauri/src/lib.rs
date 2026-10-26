@@ -5,6 +5,7 @@ use std::{
     time::Duration,
 };
 
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use notify_debouncer_mini::{
     DebouncedEvent, Debouncer, new_debouncer,
     notify::{RecommendedWatcher, RecursiveMode},
@@ -515,6 +516,137 @@ fn allow_assets(
         .collect())
 }
 
+/// Exportar HTML: imagem local acima disso não entra no arquivo; o frontend mantém o caminho
+/// relativo e avisa. Mesmo valor de `EXPORT_IMAGE_MAX_BYTES` em `src/export.ts`.
+const EXPORT_IMAGE_MAX_BYTES: u64 = 5 * 1024 * 1024;
+
+/// Imagem lida para o HTML exportado: data URI, ou nada (`too_big` diz se foi pelo tamanho).
+#[derive(Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct ExportImage {
+    data: Option<String>,
+    too_big: bool,
+}
+
+fn image_mime(p: &Path) -> &'static str {
+    match ext_lower(p).as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "svg" => "image/svg+xml",
+        "webp" => "image/webp",
+        "avif" => "image/avif",
+        "bmp" => "image/bmp",
+        "ico" => "image/x-icon",
+        _ => "application/octet-stream",
+    }
+}
+
+/// Mesma regra de `allow_assets` (relativo à pasta, existe, extensão de imagem): só lê o que o
+/// documento já mostra. Acima de `max` nem lê o conteúdo.
+fn export_image(dir: &Path, rel: &str, max: u64) -> ExportImage {
+    let none = ExportImage {
+        data: None,
+        too_big: false,
+    };
+    let Some(p) = asset_candidate(dir, rel) else {
+        return none;
+    };
+    let too_big = ExportImage {
+        data: None,
+        too_big: true,
+    };
+    match std::fs::metadata(&p) {
+        Ok(m) if m.len() > max => return too_big,
+        Ok(_) => {}
+        Err(_) => return none,
+    }
+    match std::fs::read(&p) {
+        Ok(bytes) if bytes.len() as u64 > max => too_big,
+        Ok(bytes) => ExportImage {
+            data: Some(format!(
+                "data:{};base64,{}",
+                image_mime(&p),
+                BASE64.encode(bytes)
+            )),
+            too_big: false,
+        },
+        Err(_) => none,
+    }
+}
+
+/// Exportar HTML: imagens locais de um documento concedido como data URI, para o arquivo sair
+/// com elas dentro. Só a pasta de um documento concedido (`granted_dir`) e só imagem relativa.
+#[tauri::command]
+async fn export_images(
+    state: State<'_, AppState>,
+    dir: String,
+    rels: Vec<String>,
+) -> Result<HashMap<String, ExportImage>, String> {
+    let d = granted_dir(&state, &dir)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        rels.into_iter()
+            .map(|rel| {
+                let img = export_image(&d, &rel, EXPORT_IMAGE_MAX_BYTES);
+                (rel, img)
+            })
+            .collect()
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// Destino do Exportar HTML: `.html`/`.htm` como escolhido; qualquer outra extensão ganha `.html`,
+/// para o diálogo não gravar por cima do `.md` de origem (ou de outro arquivo) por engano.
+fn html_target(p: PathBuf) -> PathBuf {
+    match ext_lower(&p).as_str() {
+        "html" | "htm" => p,
+        _ => {
+            let mut s = p.into_os_string();
+            s.push(".html");
+            PathBuf::from(s)
+        }
+    }
+}
+
+/// Exportar HTML: diálogo nativo de salvar aberto AQUI, sugerindo `<nome>.html` na pasta do
+/// documento, e escrita só no caminho escolhido nele. O frontend manda o documento de origem
+/// (precisa estar concedido) e o conteúdo; nunca o destino. `None` = cancelado.
+#[tauri::command]
+async fn save_html(app: AppHandle, doc: String, html: String) -> Result<Option<String>, String> {
+    let src = granted(&app.state::<AppState>(), &doc)?;
+    let stem = src
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "documento".into());
+    let mut dialog = app
+        .dialog()
+        .file()
+        .add_filter("HTML", &["html", "htm"])
+        .set_file_name(format!("{stem}.html"));
+    if let Some(dir) = src.parent() {
+        dialog = dialog.set_directory(dir);
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(picked) = dialog.blocking_save_file() else {
+            return Ok(None);
+        };
+        let path = html_target(picked.into_path().map_err(|e| e.to_string())?);
+        std::fs::write(&path, html).map_err(|e| {
+            fill(
+                i18n::s().write_failed,
+                &[
+                    ("path", &path.display().to_string()),
+                    ("error", &e.to_string()),
+                ],
+            )
+        })?;
+        Ok(Some(path.to_string_lossy().into_owned()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// Resolve wikilinks `[[nota]]`: tenta `nota.md` na pasta do documento; se não achar e houver
 /// pasta raiz aberta, busca recursiva pelo nome do arquivo (como o Obsidian). `None` = não existe.
 #[tauri::command]
@@ -697,6 +829,8 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
     let reveal = item("reveal", s.reveal, Some("CmdOrCtrl+Shift+R"))?;
     let clear_recent = item("clear-recent", s.clear_recent, None)?;
     let print = item("print", s.print, Some("CmdOrCtrl+P"))?;
+    let export_html = item("export-html", s.export_html, None)?;
+    let copy_html = item("copy-html", s.copy_html, None)?;
     let find = item("find", s.find, Some("CmdOrCtrl+F"))?;
     let toc = item("toggle-toc", s.toc, Some("CmdOrCtrl+B"))?;
     let theme = item("cycle-theme", s.theme, Some("CmdOrCtrl+Shift+L"))?;
@@ -727,6 +861,8 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .item(&clear_recent)
         .separator()
         .item(&print)
+        .item(&export_html)
+        .item(&copy_html)
         .separator()
         .item(&close_tab)
         .item(&close_window)
@@ -870,6 +1006,8 @@ pub fn run() {
             resolve_path,
             pick_markdown,
             allow_assets,
+            export_images,
+            save_html,
             sync_view_menu,
             sync_remote_menu,
             resolve_wikilinks,
@@ -1059,6 +1197,60 @@ mod scope_tests {
         assert!(asset_candidate(&t, "img").is_none(), "pasta não é imagem");
         assert!(asset_candidate(&t, "nao-existe.png").is_none());
         let _ = std::fs::remove_dir_all(&t);
+    }
+
+    #[test]
+    fn exportar_embute_so_imagem_relativa_e_respeita_o_limite() {
+        let t = temp("export-img");
+        std::fs::create_dir_all(t.join("img")).unwrap();
+        std::fs::write(t.join("img/a.png"), [0x89, b'P', b'N', b'G']).unwrap();
+        std::fs::write(t.join("img/b.svg"), "<svg/>").unwrap();
+        std::fs::write(t.join("segredo.txt"), "x").unwrap();
+        let a = export_image(&t, "img/a.png", 1024);
+        assert_eq!(a.data.as_deref(), Some("data:image/png;base64,iVBORw=="));
+        assert!(!a.too_big);
+        assert_eq!(
+            export_image(&t, "img/b.svg", 1024).data.as_deref(),
+            Some("data:image/svg+xml;base64,PHN2Zy8+")
+        );
+        // Acima do limite: não lê, avisa pelo tamanho.
+        assert_eq!(
+            export_image(&t, "img/a.png", 3),
+            ExportImage {
+                data: None,
+                too_big: true
+            }
+        );
+        // Mesma regra do asset protocol: só imagem, só relativo, só o que existe.
+        let none = ExportImage {
+            data: None,
+            too_big: false,
+        };
+        assert_eq!(export_image(&t, "segredo.txt", 1024), none);
+        let abs = t.join("img/a.png").to_string_lossy().into_owned();
+        assert_eq!(export_image(&t, &abs, 1024), none);
+        assert_eq!(export_image(&t, "nao-existe.png", 1024), none);
+        let _ = std::fs::remove_dir_all(&t);
+    }
+
+    #[test]
+    fn destino_do_export_sempre_html() {
+        assert_eq!(
+            html_target(PathBuf::from("/x/doc.html")),
+            PathBuf::from("/x/doc.html")
+        );
+        assert_eq!(
+            html_target(PathBuf::from("/x/doc.HTM")),
+            PathBuf::from("/x/doc.HTM")
+        );
+        assert_eq!(
+            html_target(PathBuf::from("/x/doc.md")),
+            PathBuf::from("/x/doc.md.html")
+        );
+        assert_eq!(
+            html_target(PathBuf::from("/x/doc")),
+            PathBuf::from("/x/doc.html")
+        );
     }
 
     #[test]

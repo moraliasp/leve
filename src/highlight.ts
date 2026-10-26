@@ -59,6 +59,17 @@ export function cancelHighlight(): void {
   generation++;
 }
 
+/**
+ * Realça agora, de uma vez, todo bloco ainda sem realce. Para o Exportar HTML, que trabalha num
+ * clone fora da página: a fila em fatias pode não ter chegado ao fim, e o clone não é visto por ela.
+ */
+export async function highlightAll(container: ParentNode): Promise<void> {
+  const blocks = Array.from(container.querySelectorAll<HTMLElement>("pre.hljs > code")).filter((c) => codeLanguage(c) && !c.dataset.hl);
+  if (blocks.length === 0) return;
+  const hljs = await loadHljs();
+  for (const b of blocks) highlightBlock(hljs, b);
+}
+
 /** Realça os blocos de `container` em segundo plano. Chamar de novo cancela o documento anterior. */
 export async function highlightLazily(container: HTMLElement, scroller: HTMLElement, onHighlighted?: () => void): Promise<void> {
   const gen = ++generation;

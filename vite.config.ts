@@ -20,9 +20,35 @@ function katexWoff2Only(): Plugin {
   };
 }
 
+/**
+ * O Mermaid registra o layout ELK com `import()` do elkjs (EPL-2.0), o maior asset do `dist`
+ * (1.462 KB, 456 KB gzip) para um layout que o Leve não pede (`layout: "dagre"` em `render.ts`).
+ * Sem o registro, `getRegisteredLayoutAlgorithm` cai para dagre e o chunk some. Falha o build
+ * se o padrão mudar, para um upgrade do Mermaid não trazer o ELK de volta em silêncio.
+ */
+const ELK_SPREAD = /\.\.\.elkLayoutLoaders\(\)/g;
+function mermaidSemElk(): Plugin {
+  return {
+    name: "mermaid-sem-elk",
+    enforce: "pre",
+    transform(code, id) {
+      if (!/[\\/]mermaid[\\/]dist[\\/]/.test(id) || !code.includes("elkLayoutLoaders")) return null;
+      const n = code.match(ELK_SPREAD)?.length ?? 0;
+      if (n !== 1) throw new Error(`mermaid-sem-elk: esperava 1 \`...elkLayoutLoaders()\` em ${id}, achei ${n}`);
+      return { code: code.replace(ELK_SPREAD, ""), map: null };
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig(() => ({
-  plugins: [katexWoff2Only()],
+  plugins: [katexWoff2Only(), mermaidSemElk()],
+
+  // O dev server pré-empacota o Mermaid (`optimizeDeps`) sem passar pelos plugins acima; o corte
+  // do ELK precisa valer lá também, senão o modo navegador ainda carrega o elkjs.
+  optimizeDeps: {
+    rolldownOptions: { plugins: [mermaidSemElk()] },
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "test": "vitest run",
+    "size": "node scripts/tamanho.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "version:set": "node scripts/version.mjs",

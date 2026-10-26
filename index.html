@@ -85,6 +85,29 @@
         </form>
       </dialog>
 
+      <!-- Mesmo esqueleto das Preferências (cabeçalho, corpo, rodapé fixo; liga/desliga = .switch). -->
+      <dialog id="export" class="sheet prefs" aria-labelledby="export-title" aria-describedby="export-lead">
+        <header class="prefs-head">
+          <h2 id="export-title" data-i18n="export.title"></h2>
+        </header>
+        <div class="prefs-body">
+          <p id="export-lead" data-i18n="export.lead"></p>
+          <div class="pref-panel">
+            <div class="pref-row">
+              <span class="pref-text">
+                <label class="pref-label" for="export-md-links" data-i18n="export.mdLinks"></label>
+                <span id="export-md-links-hint" class="pref-hint" data-i18n="export.mdLinksHint"></span>
+              </span>
+              <input type="checkbox" role="switch" class="switch" id="export-md-links" name="export-md-links" aria-describedby="export-md-links-hint" />
+            </div>
+          </div>
+        </div>
+        <form method="dialog" class="prefs-foot">
+          <button class="text" value="cancel" data-i18n="common.cancel"></button>
+          <button id="export-ok" class="text primary" value="ok" autofocus data-i18n="export.ok"></button>
+        </form>
+      </dialog>
+
       <!-- Preferências: cabeçalho e rodapé fixos, grupos rolam no meio. Cada linha é rótulo (e dica)
            à esquerda, controle à direita; abaixo de 480 px o controle desce. Escolha única = .seg
            (rádios), liga/desliga = .switch (checkbox com role="switch"). Ids, names e values são

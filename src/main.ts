@@ -3,18 +3,20 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import "./styles.css";
+import "./document.css";
 import { icon, installIcons } from "./icons";
 import * as theme from "./theme";
 import { hydrateImages, joinPath, markBrokenImage, render, renderErrorBlock, renderMermaid, slugify } from "./render";
-import { cancelHighlight, highlightLazily } from "./highlight";
+import { cancelHighlight, highlightAll, highlightLazily } from "./highlight";
 import { LARGE_TOC_MAX_LEVEL, isLargeDoc } from "./limits";
 import { applyRemotePolicy, remotePrefEnabled, setRemotePref } from "./remote-ui";
 import { buildToc, updateActive, type TocItem } from "./toc";
 import { Finder } from "./find";
 import { keepTabbable, tabKeyTarget } from "./a11y";
 import { applyAnchor, captureAnchor, onImagesSettled, type ScrollAnchor } from "./scroll";
-import { decorateCodeBlocks } from "./code";
+import { copyText, decorateCodeBlocks } from "./code";
 import { renderMath } from "./math";
+import type { ExportResult, ImageEmbed } from "./export";
 import { MD_EXT, collectWikilinkTargets, markWikilinks } from "./wikilinks";
 import { applyTooltips, detectPlatform, shortcutRows, tooltip } from "./shortcuts";
 import { SCROLL_KEY, addRecent, clearRecent, readRecent, removeRecent, splitPath } from "./recent";
@@ -22,7 +24,11 @@ import { PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, readJson, resetPrefs, save
 import { applyI18n, detectLang, lang, langPref, setLangPref, t, type Key, type LangPref } from "./i18n";
 import { checkForUpdates, maybeDailyCheck, type UpdateUi } from "./updater";
 import { SAMPLE_SESSION_KEY, SESSION_KEY, isSample, sampleOnLaunch, samplePath, sampleText, sampleToReplace } from "./sample";
+import { installErrorReporting } from "./errors";
 
+// Erro não tratado (promessa com `void`, exceção em callback) aparece na barra, não só no console.
+// Instalado antes de tudo; `reportUnexpected` cobre o erro que chega antes de `els` existir.
+installErrorReporting(reportUnexpected);
 installIcons();
 // Textos da interface antes de qualquer evento ligado (troca `innerHTML` de alguns trechos).
 applyI18n(document);
@@ -270,6 +276,19 @@ function flash(msg: string, isError = false, sticky = isError): void {
   window.clearTimeout(flashTimer);
   // Mensagem passageira some e devolve a barra ao aviso do documento, se houver.
   if (msg && !sticky) flashTimer = window.setTimeout(() => flash(docNotice.msg, docNotice.isError, true), 2500);
+}
+
+/** Erro inesperado: passageiro (a barra volta ao aviso do documento). Antes de `els`, escreve direto. */
+function reportUnexpected(msg: string): void {
+  try {
+    flash(msg, true, false);
+  } catch {
+    const status = document.getElementById("status");
+    if (status) {
+      status.textContent = msg;
+      status.classList.add("error");
+    }
+  }
 }
 
 /** Troca o aviso do documento. Sem aviso novo, só limpa a barra se ela mostrava aviso ou erro. */
@@ -599,7 +618,11 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
       .then((r) => {
         if (current?.path === doc.path) markWikilinks(content, r);
       })
-      .catch((e) => console.warn("wikilinks:", e));
+      .catch((e) => {
+        // O erro do Rust pode trazer caminho do sistema: ao leitor, só a mensagem genérica.
+        console.warn("wikilinks:", e);
+        if (current?.path === doc.path) flash(t("doc.wikilinksFailed"), true);
+      });
   }
   tocItems = buildToc(els.content, els.toc, large ? LARGE_TOC_MAX_LEVEL : undefined);
   // Sem foco em lugar nenhum (abriu pelo menu ou pelo sistema): foco no documento, setas já rolam.
@@ -666,6 +689,132 @@ function go(delta: number): void {
   void loadDoc(active.hist[i], { push: false });
 }
 
+// ---------- Exportar HTML / Copiar como HTML (src/export.ts) ----------
+
+/** Sheet `#export` aberta para gravar arquivo ou para copiar; o botão principal decide. */
+let exportMode: "file" | "copy" = "file";
+
+/** Abre a sheet com a opção dos links `.md`. Nada é montado até o leitor confirmar. */
+function openExport(mode: "file" | "copy"): void {
+  if (!current) {
+    flash(t("export.noDoc"), true);
+    return;
+  }
+  exportMode = mode;
+  $("export-title").textContent = t(mode === "copy" ? "export.copyTitle" : "export.title");
+  $("export-ok").textContent = t(mode === "copy" ? "export.copy" : "export.ok");
+  $<HTMLInputElement>("export-md-links").checked = boolPref(PREF_KEYS.exportMdLinks, false);
+  $<HTMLDialogElement>("export").showModal();
+}
+
+/**
+ * Imagens locais do documento como data URI. No app, o Rust lê só o que `allow_assets` já liberaria
+ * (pasta de documento concedido, caminho relativo, extensão de imagem) e recusa acima de 5 MB sem ler;
+ * no navegador, `fetch` no servidor do Vite.
+ */
+async function readExportImages(dir: string, rels: string[], max: number): Promise<Record<string, ImageEmbed>> {
+  if (rels.length === 0) return {};
+  if (IS_TAURI) return invoke<Record<string, ImageEmbed>>("export_images", { dir, rels });
+  const { blobToDataUri } = await import("./export");
+  const out: Record<string, ImageEmbed> = {};
+  await Promise.all(
+    rels.map(async (rel) => {
+      out[rel] = { data: null, tooBig: false };
+      try {
+        const res = await fetch(joinPath(dir, rel));
+        const blob = await res.blob();
+        if (!res.ok || blob.type.includes("text/html")) return;
+        if (blob.size > max) out[rel].tooBig = true;
+        else out[rel].data = await blobToDataUri(blob);
+      } catch {
+        /* fica com o caminho relativo */
+      }
+    }),
+  );
+  return out;
+}
+
+/**
+ * Monta o HTML a partir de um clone do documento desenhado: realce completo (fora do modo grande),
+ * Mermaid redesenhado no tema claro se a página está no escuro ou ainda não terminou, KaTeX pendente,
+ * CSS claro com as fontes usadas e imagens locais embutidas. A página não é tocada.
+ */
+async function buildExport(doc: Doc): Promise<ExportResult> {
+  const [ex, { exportCss }] = await Promise.all([import("./export"), import("./export-css")]);
+  const root = ex.cloneContent(els.content);
+  if (!isLargeDoc(doc.content)) await highlightAll(root);
+  const unrendered = Array.from(root.querySelectorAll("pre.mermaid")).some((p) => !p.querySelector("svg") && !p.classList.contains("has-error"));
+  if (theme.isDark() || unrendered) await renderMermaid(root, false);
+  await renderMath(root);
+  const [css, images] = await Promise.all([
+    exportCss(root),
+    readExportImages(doc.dir, ex.localImageRels(root), ex.EXPORT_IMAGE_MAX_BYTES),
+  ]);
+  const mdLinks = boolPref(PREF_KEYS.exportMdLinks, false) ? "html" : "text";
+  return ex.buildExportHtml(root, { fileName: doc.name, lang: lang(), css, mdLinks, images });
+}
+
+function oversizedNotice(n: number): string {
+  return n === 0 ? "" : n === 1 ? t("export.oversizedOne") : t("export.oversizedMany", { n });
+}
+
+/** Grava pelo diálogo nativo do Rust (`save_html`): o frontend manda o documento de origem e o HTML, nunca o destino. */
+async function saveExport(doc: Doc, pending: Promise<ExportResult>): Promise<void> {
+  try {
+    const { html, oversized } = await pending;
+    let saved: string | null;
+    if (IS_TAURI) saved = await invoke<string | null>("save_html", { doc: doc.path, html });
+    else {
+      // Modo navegador: download do arquivo, para a prova manual.
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+      a.download = doc.name.replace(/\.[^.]+$/, "") + ".html";
+      a.click();
+      URL.revokeObjectURL(a.href);
+      saved = a.download;
+    }
+    if (!saved) return;
+    flash([t("export.saved", { path: saved }), oversizedNotice(oversized)].filter(Boolean).join(" · "), false, oversized > 0);
+  } catch (e) {
+    flash(t("export.failed", { error: String(e) }), true);
+  }
+}
+
+/**
+ * Copia o HTML como texto. Chamada dentro do clique do botão da sheet: o WebKit só aceita escrever
+ * na área de transferência com um gesto do leitor, e o `ClipboardItem` com promessa segura o gesto
+ * enquanto o HTML é montado. Sem `ClipboardItem`, `copyText` (Clipboard API ou `execCommand`).
+ */
+async function copyExport(pending: Promise<ExportResult>): Promise<void> {
+  try {
+    let copied = false;
+    if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+      const blob = pending.then((r) => new Blob([r.html], { type: "text/plain" }));
+      // Recusa (permissão negada pelo WebView) cai no caminho de `copyText`.
+      copied = await navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]).then(
+        () => true,
+        () => false,
+      );
+    }
+    if (!copied) await copyText((await pending).html);
+    const { oversized } = await pending;
+    flash([t("export.copied"), oversizedNotice(oversized)].filter(Boolean).join(" · "), false, oversized > 0);
+  } catch (e) {
+    flash(t("export.failed", { error: String(e) }), true);
+  }
+}
+
+function wireExport(): void {
+  $("export-ok").addEventListener("click", () => {
+    setBoolPref(PREF_KEYS.exportMdLinks, $<HTMLInputElement>("export-md-links").checked);
+    const doc = current;
+    if (!doc) return;
+    const pending = buildExport(doc);
+    if (exportMode === "copy") void copyExport(pending);
+    else void saveExport(doc, pending);
+  });
+}
+
 // ---------- ações (menu nativo + botões) ----------
 
 /** Quem tinha o foco antes da busca, para devolver ao fechar. */
@@ -721,6 +870,8 @@ const actions: Record<string, () => void> = {
     if (current && !isSample(current.path)) void invoke("reveal_in_folder", { path: current.path });
   },
   print: () => window.print(),
+  "export-html": () => openExport("file"),
+  "copy-html": () => openExport("copy"),
   find: openFind,
   "toggle-toc": toggleToc,
   "cycle-theme": () => flashTheme(theme.cycle()),
@@ -1267,6 +1418,7 @@ async function main(): Promise<void> {
   syncRemoteMenu();
   wire();
   wirePreferences();
+  wireExport();
   if (IS_TAURI) await wireTauri();
   else {
     wireBrowserShortcuts();

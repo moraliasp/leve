@@ -25,6 +25,8 @@ export const PREF_KEYS = {
   lang: "leve.lang",
   /** Procurar atualização uma vez por dia (desligado por padrão: privacidade). */
   autoUpdate: "leve.autoUpdate",
+  /** Exportar HTML: links para outros `.md` viram link para o `.html` de mesmo nome (desligado: texto). */
+  exportMdLinks: "leve.exportMdLinks",
 } as const;
 
 /** Chaves de dados que ficam fora de "Restaurar padrões". */

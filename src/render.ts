@@ -224,6 +224,8 @@ export async function hydrateImages(container: HTMLElement, dir: string, viaAsse
       /* mantém como veio */
     }
     img.loading = "lazy";
+    // O `src` vira asset://… abaixo; o original fica para o Exportar HTML (src/export.ts).
+    img.dataset.localSrc = src;
     pending.push({ img, rel });
   }
   if (pending.length === 0) return;
@@ -264,9 +266,9 @@ export async function renderMermaid(container: HTMLElement, dark: boolean, lib?:
   const nodes = Array.from(container.querySelectorAll<HTMLElement>("pre.mermaid"));
   if (nodes.length === 0) return;
   const mermaid: MermaidLike = lib ?? (await import("mermaid")).default;
-  // `layout: "dagre"`: o Mermaid 12 usa elk como padrão, e aí todo fluxograma baixa e interpreta
-  // 1,4 MB de elk. Dagre era o padrão até o 11; quem quiser elk pede no próprio diagrama
-  // (`config: layout: elk` no frontmatter dele) e ele carrega só nesse caso.
+  // `layout: "dagre"`: o Mermaid 12 usa elk como padrão, e dagre era o padrão até o 11. O elk nem
+  // entra no bundle (plugin `mermaidSemElk` do `vite.config.ts`): diagrama que pede `layout: elk`
+  // ou `flowchart-elk` cai para dagre dentro do próprio Mermaid.
   // Conteúdo remoto: o Mermaid desenha num contêiner da página antes de devolver o SVG, então
   // `themeCSS` com `url()` (diretiva ou frontmatter do diagrama; o Mermaid só confere chaves
   // balanceadas) já buscaria a URL. `secure` tira o CSS do alcance do documento; o nó-imagem é

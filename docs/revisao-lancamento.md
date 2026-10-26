@@ -66,6 +66,6 @@ Revisão feita antes do primeiro commit do repositório público `moraliasp/leve
 ## Fica para depois
 
 - Assinatura Apple e Authenticode (contas da Moralia); com elas, Homebrew cask e winget.
-- Revisão jurídica de `THIRD_PARTY_NOTICES.md` (textos EPL-2.0, MPL-2.0, Apache-2.0 e CDLA-Permissive-2.0 reproduzidos na íntegra; as escolhas são orientação técnica).
+- Revisão jurídica de `THIRD_PARTY_NOTICES.md` (textos MPL-2.0, Apache-2.0 e CDLA-Permissive-2.0 reproduzidos na íntegra; as escolhas são orientação técnica).
 - Avisos "unmaintained" da cadeia Linux do Tauri (o alerta do Dependabot sobre `glib` foi dispensado como risco tolerável: não entra nos builds de Mac e Windows).
 - Rodar o instalador Windows numa máquina Windows (instalação, associação de `.md`, atualização).

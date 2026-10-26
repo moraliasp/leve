@@ -7,10 +7,16 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 ### Added
 
 - Sample document: a Markdown primer (history, syntax, good practices, uses) in English and Portuguese that also shows what Leve renders. It opens when Leve is started directly with no tabs to restore, from *Help › Sample Document* at any time, and can be turned off with "Show sample document at startup" in Settings. It lives in memory: no file is written, read or authorized.
+- File › Export HTML… saves the document as a single self-contained `.html` file that opens offline in any browser: light theme, highlighted code, KaTeX math with its fonts, Mermaid diagrams as SVG, callouts and front matter, local images up to 5 MB embedded, no scripts. Links to other `.md` files become text or point to the sibling `.html`. File › Copy as HTML… copies the same HTML to the clipboard.
 
 ### Changed
 
 - Settings redesigned: fixed header and footer, settings grouped in panels with one row per option, segmented controls for theme, font, width and language, switches for on/off options, actions separated from preferences, and a layout that adapts to narrow windows.
+- Mermaid no longer ships the ELK layout engine (elkjs), the largest asset in the app (1.4 MB). Diagrams that ask for `layout: elk` or `flowchart-elk` render with the default dagre layout.
+
+### Fixed
+
+- Unhandled errors in the interface (rejected promises, exceptions in callbacks) now show in the status bar instead of only in the WebView console, at most one notice every 3 seconds and without repeating the same message. Failure to resolve `[[wikilinks]]` is shown too.
 
 ## [0.2.0] - 2026-10-25
 

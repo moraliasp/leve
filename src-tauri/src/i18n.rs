@@ -50,6 +50,8 @@ pub struct Strings {
     pub reveal: &'static str,
     pub clear_recent: &'static str,
     pub print: &'static str,
+    pub export_html: &'static str,
+    pub copy_html: &'static str,
     pub find: &'static str,
     pub toc: &'static str,
     pub theme: &'static str,
@@ -97,6 +99,10 @@ pub struct Strings {
     /// `{size}` e `{max}` em MB.
     pub too_big: &'static str,
     pub no_parent: &'static str,
+    /// `{path}` e `{error}`: Exportar HTML não conseguiu gravar.
+    pub write_failed: &'static str,
+    /// `{path}`: Exportar HTML recusou criar `<nome>.html` por cima de um arquivo existente.
+    pub export_exists: &'static str,
 }
 
 const PT: Strings = Strings {
@@ -110,6 +116,8 @@ const PT: Strings = Strings {
     reveal: "Mostrar no Finder / Explorer",
     clear_recent: "Limpar recentes…",
     print: "Imprimir / Exportar PDF…",
+    export_html: "Exportar HTML…",
+    copy_html: "Copiar como HTML…",
     find: "Buscar…",
     toc: "Sumário",
     theme: "Alternar tema",
@@ -147,6 +155,8 @@ const PT: Strings = Strings {
     not_utf8: "O arquivo não está em UTF-8: caracteres ilegíveis aparecem como �.",
     too_big: "Arquivo grande demais para abrir ({size} MB; o limite é {max} MB).",
     no_parent: "O arquivo não tem pasta.",
+    write_failed: "Não foi possível gravar {path}: {error}",
+    export_exists: "Já existe {path}. Para substituir, escolha um nome terminado em .html; ou escolha outro nome.",
 };
 
 const EN: Strings = Strings {
@@ -160,6 +170,8 @@ const EN: Strings = Strings {
     reveal: "Show in Finder / Explorer",
     clear_recent: "Clear Recent…",
     print: "Print / Export PDF…",
+    export_html: "Export HTML…",
+    copy_html: "Copy as HTML…",
     find: "Find…",
     toc: "Contents",
     theme: "Toggle Theme",
@@ -197,6 +209,8 @@ const EN: Strings = Strings {
     not_utf8: "The file isn't UTF-8: unreadable characters show as �.",
     too_big: "File too large to open ({size} MB; the limit is {max} MB).",
     no_parent: "The file has no parent folder.",
+    write_failed: "Couldn't save {path}: {error}",
+    export_exists: "{path} already exists. To replace it, choose a name ending in .html, or choose a different name.",
 };
 
 pub fn strings_for(lang: Lang) -> &'static Strings {
@@ -228,10 +242,11 @@ mod tests {
     fn mensagens_com_parametro_nos_dois_idiomas() {
         for l in [Lang::Pt, Lang::En] {
             let s = strings_for(l);
-            for msg in [s.denied, s.absolute, s.not_found] {
+            for msg in [s.denied, s.absolute, s.not_found, s.export_exists] {
                 assert!(msg.contains("{path}"), "{msg}");
             }
             assert!(s.too_big.contains("{size}") && s.too_big.contains("{max}"));
+            assert!(s.write_failed.contains("{path}") && s.write_failed.contains("{error}"));
         }
     }
 }

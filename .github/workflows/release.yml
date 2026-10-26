@@ -12,10 +12,10 @@ concurrency:
   cancel-in-progress: false
 jobs:
   build:
+    name: build (${{ matrix.platform }})
     permissions:
-      contents: read
-      # Token OIDC para o azure/login. Só é usado quando a assinatura Windows está ligada.
-      id-token: write
+      contents: read # ler o código da tag
+      id-token: write # OIDC do azure/login; só usado com a assinatura Windows ligada
     # Segredos e variáveis de assinatura vivem no environment "release" (com revisor),
     # nunca no repositório nem em pull_request. O environment vale para o job inteiro, então
     # com revisor configurado os dois jobs da matriz (macOS e Windows) esperam a aprovação.
@@ -60,23 +60,21 @@ jobs:
             exit 1
           fi
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      # Release compila sem cache nenhum (pnpm e cargo): o cache de Actions de uma tag pode vir
+      # do que a main gravou, e um cache envenenado entraria no binário assinado com a chave do
+      # atualizador. Custa alguns minutos por release. O ci.yml segue com cache.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: pnpm
+          package-manager-cache: false
       - name: Rust stable (+ targets)
         shell: bash
+        env:
+          TARGETS: ${{ matrix.targets }}
         run: |
           rustup toolchain install stable --profile minimal && rustup default stable
-          if [ -n "${{ matrix.targets }}" ]; then rustup target add ${{ matrix.targets }}; fi
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src-tauri/target
-          key: ${{ runner.os }}-cargo-release-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-release-
+          read -ra T <<< "$TARGETS"
+          if [ "${#T[@]}" -gt 0 ]; then rustup target add "${T[@]}"; fi
       - run: pnpm install --frozen-lockfile
       - name: Ferramentas de assinatura (CodeSignTool do SSL.com ou signtool + dlib do Artifact Signing)
         if: env.SIGN_WINDOWS == 'true'
@@ -106,6 +104,7 @@ jobs:
         # no macOS e sem assinatura ficam vazios. TAURI_SIGNING_* assina os pacotes do atualizador.
         env:
           CI: "true"
+          BUILD_ARGS: ${{ matrix.args }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           ESIGNER_USERNAME: ${{ env.SIGN_WINDOWS == 'true' && env.WINDOWS_SIGN_PROVIDER == 'esigner' && secrets.ESIGNER_USERNAME || '' }}
@@ -125,7 +124,10 @@ jobs:
             exit 1
           fi
           # Pacotes do atualizador (.app.tar.gz, .sig) só aqui: o build local não precisa da chave.
-          pnpm tauri build ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":true}}' ${{ env.SIGN_WINDOWS == 'true' && '--config src-tauri/tauri.sign.conf.json' || '' }}
+          read -ra ARGS <<< "$BUILD_ARGS"
+          ARGS+=(--config '{"bundle":{"createUpdaterArtifacts":true}}')
+          if [ "$SIGN_WINDOWS" = "true" ]; then ARGS+=(--config src-tauri/tauri.sign.conf.json); fi
+          pnpm tauri build "${ARGS[@]}"
       # Nomes estáveis por versão e plataforma; o .app.tar.gz do macOS sai como "Leve.app.tar.gz".
       - name: Juntar pacotes
         shell: bash
@@ -150,13 +152,14 @@ jobs:
           retention-days: 7
 
   publish:
+    name: publish
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
+      contents: write # criar a release em rascunho e subir os arquivos
+      id-token: write # OIDC para assinar a attestation de proveniência (Sigstore)
+      attestations: write # gravar a attestation
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

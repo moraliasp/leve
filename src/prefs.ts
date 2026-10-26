@@ -28,6 +28,8 @@ export const PREF_KEYS = {
   autoUpdate: "leve.autoUpdate",
   /** Exportar HTML: links para outros `.md` viram link para o `.html` de mesmo nome (desligado: texto). */
   exportMdLinks: "leve.exportMdLinks",
+  /** Arquivo › Abrir no editor: id da lista fechada de `src/editor.ts` (ausente: aplicativo padrão). */
+  editor: "leve.editor",
 } as const;
 
 /** Chaves de dados que ficam fora de "Restaurar padrões". */

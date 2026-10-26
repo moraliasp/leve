@@ -195,15 +195,25 @@ function embedImages(root: HTMLElement, images: Record<string, ImageEmbed>): num
 }
 
 /**
+ * Limpeza comum ao Exportar HTML e ao Copiar como texto formatado (`src/rich.ts`): remoto bloqueado
+ * continua bloqueado, imagens locais embutidas, links `.md` reescritos, interface fora. Devolve
+ * quantas imagens ficaram de fora por tamanho.
+ */
+export function prepareClone(root: HTMLElement, images: Record<string, ImageEmbed>, mdLinks: MdLinkMode): number {
+  keepRemoteBlocked(root);
+  const oversized = embedImages(root, images);
+  rewriteMdLinks(root, mdLinks);
+  stripUi(root);
+  return oversized;
+}
+
+/**
  * Monta o arquivo. `root` é o clone (`cloneContent`) já com Mermaid, KaTeX e realce, e é alterado
  * aqui: sai a interface, ficam as âncoras dos títulos (o sumário do leitor continua por `#id`).
  */
 export function buildExportHtml(root: HTMLElement, input: ExportInput): ExportResult {
   const title = pageTitle(root, input.fileName);
-  keepRemoteBlocked(root);
-  const oversized = embedImages(root, input.images);
-  rewriteMdLinks(root, input.mdLinks);
-  stripUi(root);
+  const oversized = prepareClone(root, input.images, input.mdLinks);
   const css = `${CSS_NOTICE}\n${input.css}\n${PAGE_CSS}`.replace(/<\/style/gi, "<\\/style");
   const html = `<!doctype html>
 <html lang="${escapeHtml(input.lang)}">

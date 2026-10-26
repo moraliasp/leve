@@ -64,7 +64,7 @@ No telemetry. Leve reads only files you open (dialog, double-click, drag and dro
 
 ## Size
 
-Installer size of the latest release of Leve and other Markdown viewers, as published on GitHub (asset `size` from the GitHub Releases API, `releases/latest`, queried 2026-10-26; MB = 10⁶ bytes). Architecture is as stated in each asset name. A universal macOS build carries code for both Apple silicon and Intel, so it is larger than a single-architecture build of the same app.
+Installer size of the latest release of Leve and other Markdown viewers, as published on GitHub (asset `size` from the GitHub Releases API, `releases/latest`, queried 2026-10-26; MB = 10⁶ bytes). Architecture is as stated in each asset name; that Tinta's `tinta.exe` is portable, with no installer, comes from its README. A universal macOS build carries code for both Apple silicon and Intel, so it is larger than a single-architecture build of the same app.
 
 | App | Release | macOS | Windows |
 |---|---|--:|--:|
@@ -72,7 +72,7 @@ Installer size of the latest release of Leve and other Markdown viewers, as publ
 | [Markdown Preview](https://github.com/pluk-inc/markdown-preview) | v0.0.69 (2026-10-23) | 9.0 MB `.dmg` (not stated) | — |
 | [MD Reader](https://github.com/Neilooo/md-reader) | v0.3.12 (2026-10-10) | 8.8 MB `.dmg` (universal) | 4.4 MB `.msi` · 6.5 MB portable `.exe` (x64) |
 | [MDHero](https://github.com/vaibhav-kakde-in/mdhero) | v0.2.10 (2026-09-13) | 11.5 MB `.dmg` (Apple silicon) | 5.4 MB `setup.exe` · 6.9 MB `.msi` (x64) |
-| [Tinta](https://github.com/oipoistar/tinta) | v3.9.0 (2026-10-21) | — | 2.8 MB `tinta.exe` (not stated) |
+| [Tinta](https://github.com/oipoistar/tinta) | v3.9.0 (2026-10-21) | — | 2.8 MB portable `tinta.exe`, no installer (not stated) |
 | [mdview](https://github.com/c3er/mdview) | v4.0.2 (2026-08-02) | 119.3 MB `.dmg` (Apple silicon) | 102.6 MB `.exe` · 114.9 MB `.msi` (x64) |
 | [MarkText](https://github.com/marktext/marktext) | v0.23.0 (2026-10-21) | 157.8 MB (Apple silicon) · 164.7 MB (Intel) `.dmg` | 132.4 MB `setup.exe` (x64) |
 | [Moji](https://github.com/alexishida/Moji) | v1.0.7 (2026-09-10) | 246.4 MB `.dmg` (universal) | 131.2 MB `Setup.exe` (not stated) |

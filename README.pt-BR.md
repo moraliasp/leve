@@ -64,7 +64,7 @@ Sem telemetria. O Leve só lê arquivos que você abriu (diálogo, duplo-clique,
 
 ## Tamanho
 
-Tamanho do instalador da última release do Leve e de outros visualizadores de Markdown, como publicado no GitHub (campo `size` dos assets na API de Releases do GitHub, `releases/latest`, consultada em 2026-10-26; MB = 10⁶ bytes). A arquitetura é a que consta no nome de cada asset. Um build universal do macOS leva código para Apple silicon e Intel, então é maior que um build de uma arquitetura só do mesmo app.
+Tamanho do instalador da última release do Leve e de outros visualizadores de Markdown, como publicado no GitHub (campo `size` dos assets na API de Releases do GitHub, `releases/latest`, consultada em 2026-10-26; MB = 10⁶ bytes). A arquitetura é a que consta no nome de cada asset; que o `tinta.exe` do Tinta é portátil, sem instalador, vem do README do projeto. Um build universal do macOS leva código para Apple silicon e Intel, então é maior que um build de uma arquitetura só do mesmo app.
 
 | App | Release | macOS | Windows |
 |---|---|--:|--:|
@@ -72,7 +72,7 @@ Tamanho do instalador da última release do Leve e de outros visualizadores de M
 | [Markdown Preview](https://github.com/pluk-inc/markdown-preview) | v0.0.69 (2026-10-23) | 9,0 MB `.dmg` (não informada) | — |
 | [MD Reader](https://github.com/Neilooo/md-reader) | v0.3.12 (2026-10-10) | 8,8 MB `.dmg` (universal) | 4,4 MB `.msi` · 6,5 MB `.exe` portátil (x64) |
 | [MDHero](https://github.com/vaibhav-kakde-in/mdhero) | v0.2.10 (2026-09-13) | 11,5 MB `.dmg` (Apple silicon) | 5,4 MB `setup.exe` · 6,9 MB `.msi` (x64) |
-| [Tinta](https://github.com/oipoistar/tinta) | v3.9.0 (2026-10-21) | — | 2,8 MB `tinta.exe` (não informada) |
+| [Tinta](https://github.com/oipoistar/tinta) | v3.9.0 (2026-10-21) | — | 2,8 MB `tinta.exe` portátil, sem instalador (não informada) |
 | [mdview](https://github.com/c3er/mdview) | v4.0.2 (2026-08-02) | 119,3 MB `.dmg` (Apple silicon) | 102,6 MB `.exe` · 114,9 MB `.msi` (x64) |
 | [MarkText](https://github.com/marktext/marktext) | v0.23.0 (2026-10-21) | 157,8 MB (Apple silicon) · 164,7 MB (Intel) `.dmg` | 132,4 MB `setup.exe` (x64) |
 | [Moji](https://github.com/alexishida/Moji) | v1.0.7 (2026-09-10) | 246,4 MB `.dmg` (universal) | 131,2 MB `Setup.exe` (não informada) |

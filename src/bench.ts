@@ -1,8 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
 // Gancho de benchmark (`scripts/bench.mjs`, método em docs/benchmark.md). Só o app aberto com
-// `LEVE_BENCH=1` tem `window.__LEVE_BENCH__` (plugin `bench` em lib.rs); sem ela, `reportPainted`
-// é uma leitura de propriedade e mais nada.
+// `LEVE_BENCH=1` tem `window.__LEVE_BENCH__ === true` (plugin `bench` em lib.rs); sem ela,
+// `reportPainted` é uma leitura de propriedade e mais nada.
 
 declare global {
   interface Window {
@@ -41,7 +41,9 @@ export function lastMeasures(entries: readonly { name: string; startTime: number
  * `bench.mjs` usa `layout` como marco e `paint` só quando chega.
  */
 export function reportPainted(path: string): void {
-  if (!window.__LEVE_BENCH__) return;
+  // `=== true`, não truthy: um elemento com id `__LEVE_BENCH__` no documento (DOM clobbering)
+  // aparece como `window.__LEVE_BENCH__` e não pode armar o gancho.
+  if (window.__LEVE_BENCH__ !== true) return;
   const send = (phase: "layout" | "paint") => {
     const measures = lastMeasures(performance.getEntriesByType("measure"), BENCH_MEASURES);
     invoke("bench_report", { doc: path, phase, pageMs: performance.now(), measures }).catch((e) => console.warn("bench:", e));

@@ -32,7 +32,7 @@ O `.dmg` local tem uma arquitetura só (aarch64). O da release é universal, com
 - **Memória total:** soma do `phys_footprint` (o "Memória" do Monitor de Atividade) do processo do app e dos processos do WebKit atribuídos a ele. O RSS somado conta mais de uma vez as páginas compartilhadas do WebKit e serve só de referência.
 - O documento de 5 MB passa de 2 MiB e abre em modo documento grande: sem links automáticos, sem realce e com sumário até h2 (`src/limits.ts`). O de 1 MB abre no modo normal, e o realce dele continua em segundo plano depois do layout.
 - **A memória depende de a janela estar à vista.** No 1 MB, as três execuções com quadro ficaram em 268 a 275 MB, contra 216 a 259 MB nas que não tiveram. Numa rodada de teste anterior, com a janela à vista e a memória lida 3 s depois do layout, o mesmo documento deu ~560 MB, com o realce ainda rodando, e `docs/exemplo.md` deu ~174 MB. Os números da tabela são da janela como ficou durante a medição. Não representam o pior caso.
-- Os 132,7 MB de `docs/exemplo.md` batem com os 134 MB do WebContent medidos à mão em "Modo documento grande" (`decisoes.md`). Aquela medida somava, na prática, o app inteiro.
+- Os 132,7 MB de `docs/exemplo.md` não se comparam direto com os 134 MB de "Modo documento grande" (`decisoes.md`): aqui o total soma app, WebContent, GPU e Networking (o WebContent sozinho dá 78,4 MB), e lá o registro é do WebContent sozinho, medido à mão por outro método.
 
 ## Método
 

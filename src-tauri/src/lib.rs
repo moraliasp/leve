@@ -48,9 +48,12 @@ fn app_info() -> AppInfo {
 static BENCH: OnceLock<Option<Instant>> = OnceLock::new();
 
 fn bench_started() -> Option<Instant> {
-    *BENCH.get_or_init(|| {
-        (std::env::var_os("LEVE_BENCH").is_some_and(|v| v == "1")).then(Instant::now)
-    })
+    *BENCH.get_or_init(|| bench_flag(std::env::var_os("LEVE_BENCH").as_deref()).then(Instant::now))
+}
+
+/// Só o valor exato `1` arma o gancho: `0`, vazio ou outro valor não.
+fn bench_flag(v: Option<&std::ffi::OsStr>) -> bool {
+    v.is_some_and(|v| v == "1")
 }
 
 #[derive(Deserialize, Serialize)]
@@ -1926,6 +1929,16 @@ mod bench_tests {
         assert_eq!(v["measures"][0]["name"], "leve:render");
         assert_eq!(v["measures"][0]["ms"], 12.5);
         assert_eq!(v["measures"][0]["end"], 40.0);
+    }
+
+    #[test]
+    fn so_o_valor_1_arma() {
+        use std::ffi::OsStr;
+        assert!(bench_flag(Some(OsStr::new("1"))));
+        assert!(!bench_flag(Some(OsStr::new("0"))));
+        assert!(!bench_flag(Some(OsStr::new(""))));
+        assert!(!bench_flag(Some(OsStr::new("true"))));
+        assert!(!bench_flag(None));
     }
 
     #[test]

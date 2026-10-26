@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <!-- Card de compartilhamento (GitHub social preview, Open Graph). 1280×640.
+       Conteúdo dentro de uma margem de 80 px porque cada rede corta as bordas. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2A0F3D"/>
+      <stop offset="1" stop-color="#431A60"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <!-- ícone (mesma geometria de design/icon.svg, escala 0.36) -->
+  <g transform="translate(118 158) scale(0.36)">
+    <rect x="100" y="100" width="824" height="824" rx="184" fill="#431A60" stroke="#C9A6F2" stroke-opacity="0.35" stroke-width="6"/>
+    <text x="300" y="630" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" font-size="360" letter-spacing="-12" fill="#F3ECFA">md</text>
+    <rect x="204" y="560" width="76" height="76" rx="19" fill="#C9A6F2"/>
+  </g>
+  <text x="520" y="300" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" font-size="128" letter-spacing="-3" fill="#F3ECFA">Leve</text>
+  <text x="524" y="370" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="400" font-size="38" fill="#F3ECFA" fill-opacity="0.92">A lightweight Markdown viewer</text>
+  <text x="524" y="418" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="400" font-size="38" fill="#F3ECFA" fill-opacity="0.92">for macOS and Windows.</text>
+  <text x="524" y="496" font-family="Menlo, monospace" font-weight="400" font-size="24" fill="#C9A6F2">github.com/moraliasp/leve</text>
+</svg>

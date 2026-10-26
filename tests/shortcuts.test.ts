@@ -73,10 +73,10 @@ describe("atalhos por plataforma", () => {
       "Anterior (Shift+Enter)",
       "Próximo (Enter)",
       "Fechar (Esc)",
+      "Atalhos (Ctrl+/)",
       "Diminuir (Ctrl+-)",
       "Aumentar (Ctrl+=)",
       "Tamanho padrão (Ctrl+0)",
-      "Atalhos (Ctrl+/)",
     ]);
     applyTooltips(d, detectPlatform({ platform: "MacIntel" }));
     expect(Array.from(withShortcut).map((el) => el.title)).toEqual([
@@ -88,10 +88,10 @@ describe("atalhos por plataforma", () => {
       "Anterior (⇧↩)",
       "Próximo (↩)",
       "Fechar (Esc)",
+      "Atalhos (⌘/)",
       "Diminuir (⌘-)",
       "Aumentar (⌘=)",
       "Tamanho padrão (⌘0)",
-      "Atalhos (⌘/)",
     ]);
   });
 

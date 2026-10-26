@@ -1,10 +1,12 @@
 name: ci
 # Linux é barato e basta para tipos, testes, build do frontend e lint/compilação do Rust.
 # Mac e Windows compilam no release.yml (tag), inclusive nos release candidates.
+# `bundle-linux` só roda a pedido (workflow_dispatch): ver o comentário no job.
 on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 permissions: {}
 concurrency:
   group: ci-${{ github.ref }}
@@ -48,3 +50,76 @@ jobs:
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
       - run: cargo check --manifest-path src-tauri/Cargo.toml --locked
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+
+  bundle-linux:
+    # Prova do empacotamento Linux (AppImage + .deb) sem tag nem environment, para quem mexe em
+    # tauri.conf.json, dependências do Rust ou no release.yml: `gh workflow run ci.yml --ref <branch>`.
+    # Só a pedido porque compila em release sem cache (LTO, codegen-units=1) e empacota: ~6 min de
+    # runner por disparo, contra ~2 do `check` com cache; a cada PR seria o quádruplo de minutos para
+    # provar algo que só muda quando o bundle muda. O release.yml roda os mesmos scripts de build e de
+    # conferência; só a fumaça com xvfb fica aqui.
+    # A chave do atualizador é descartável, gerada aqui (a de verdade fica só no environment
+    # release): serve para provar que os .sig do AppImage e do .deb saem. Os pacotes deste job não
+    # valem para distribuição.
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read # ler o código
+    runs-on: ubuntu-22.04 # mesmo runner do release.yml (glibc 2.35)
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: WebKitGTK e afins
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libxdo-dev libssl-dev build-essential file patchelf
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      # Sem cache, como no release.yml: o que se prova aqui é o build que a tag vai fazer.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: rustup toolchain install stable --profile minimal && rustup default stable
+      - run: pnpm install --frozen-lockfile
+      - name: Ferramentas do AppImage conferidas por hash
+        run: scripts/linux-tools.sh
+      # Mesmo script do release.yml: compila com rede e empacota sem rede.
+      - name: Build (deb + AppImage, chave descartável)
+        env:
+          CI: "true"
+        run: |
+          pnpm tauri signer generate --ci -w "$RUNNER_TEMP/descartavel.key" -p "" >/dev/null
+          TAURI_SIGNING_PRIVATE_KEY="$(cat "$RUNNER_TEMP/descartavel.key")"
+          rm -f "$RUNNER_TEMP/descartavel.key"
+          export TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+          scripts/bundle-linux.sh --bundles deb,appimage --config '{"bundle":{"createUpdaterArtifacts":true}}'
+      - name: Conferir pacotes
+        run: |
+          B=src-tauri/target/release/bundle
+          mkdir -p out
+          # Mesmo `cp` e mesmo script de conferência do release.yml.
+          cp "$B"/appimage/*.AppImage "$B"/appimage/*.AppImage.sig "$B"/deb/*.deb "$B"/deb/*.deb.sig out/
+          ls -l out
+          scripts/check-linux-packages.sh out
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: leve-linux-prova
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+      # Fumaça sem tela: o AppImage sobe com um documento e continua de pé por 15 s. Não prova a
+      # interface (sem leitor, sem clique), só que abre, carrega WebKitGTK e não cai.
+      - name: Fumaça do AppImage (xvfb)
+        run: |
+          sudo apt-get install -y --no-install-recommends xvfb xauth dbus-x11
+          APPIMAGE="$(ls "$PWD"/out/*.AppImage)"
+          set +e
+          xvfb-run -a dbus-run-session -- timeout 15 \
+            "$APPIMAGE" --appimage-extract-and-run "$PWD/docs/exemplo.md" > "$RUNNER_TEMP/fumaca.log" 2>&1
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/fumaca.log"
+          # 124 = o `timeout` encerrou o processo aos 15 s, ou seja, ele ficou de pé até lá.
+          if [ "$rc" -ne 124 ]; then echo "::error::o AppImage saiu antes dos 15 s (código $rc)"; exit 1; fi
+          echo "AppImage ficou de pé por 15 s"

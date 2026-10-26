@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
+
+PackageIdentifier: Moralia.Leve
+PackageVersion: 0.2.0
+InstallerType: nullsoft
+Scope: user
+InstallModes:
+- interactive
+- silent
+- silentWithProgress
+UpgradeBehavior: install
+FileExtensions:
+- md
+- markdown
+- mdown
+- mkd
+ReleaseDate: 2026-10-25
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/moraliasp/leve/releases/download/v0.2.0/Leve_0.2.0_x64-setup.exe
+  InstallerSha256: F843BE69F16F824D83737CEC5857AEBBF47DD2F4CC1B0B737727A14F5B1C3173
+ManifestType: installer
+ManifestVersion: 1.12.0

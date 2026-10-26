@@ -97,10 +97,10 @@ Plano Free. Repositórios: `leve` (público) e `mfo` (privado). O que vale para 
 
 | Item | Antes | Depois (PR) |
 |---|---|---|
-| `pull_request_target`, `workflow_run`, `workflow_dispatch` | ausentes | ausentes; depois, `workflow_dispatch` no `ci.yml` para o job `bundle-linux` (só quem tem escrita dispara; sem environment nem segredo, chave do atualizador descartável) |
+| `pull_request_target`, `workflow_run`, `workflow_dispatch` | ausentes | ausentes; depois, `workflow_dispatch` no `ci.yml` para o job `bundle-linux` (só quem tem escrita dispara; sem environment nem segredo, chave do atualizador descartável) e no `packaging.yml` (só quem tem escrita dispara; job só leitura, sem secrets nem environment, entrada validada por regex e passada por `env:`) |
 | Ferramentas baixadas no build da release | o bundler do Tauri baixava `AppRun`, `linuxdeploy`, o plugin de AppImage e, por dentro dele, o runtime do AppImage (os dois últimos da tag `continuous`) sem hash, no passo com a chave | `scripts/linux-tools.sh` baixa antes, sem a chave, confere por hash (`scripts/linux-tools.sha256`) e o empacotamento roda sem rede (`unshare --net`, `scripts/bundle-linux.sh`), conferindo os hashes de novo depois. O `unshare` pega download silencioso, não código hostil: o runner tem `sudo` e quem roda ali pode sair do namespace; contra ferramenta adulterada, a defesa é o hash fixado no repositório; Windows (NSIS/WiX baixados pelo bundler) segue como antes |
 | `${{ github.event.* }}` em `run:` | ausente; havia `${{ matrix.* }}` e `${{ env.* }}` em `run:` (template injection, nível help) | tudo por `env:`, argumentos em array bash |
-| `permissions` | `ci.yml` com `contents: read` no topo; `release.yml` com `{}` no topo e mínimo por job | `{}` no topo dos três; mínimo por job, cada permissão comentada na linha |
+| `permissions` | `ci.yml` com `contents: read` no topo; `release.yml` com `{}` no topo e mínimo por job | `{}` no topo de todos (o `packaging.yml` também); mínimo por job, cada permissão comentada na linha |
 | `persist-credentials` | `false` em todo checkout | idem |
 | Cache | `release.yml` restaurava cache de pnpm e cargo que a `main` grava (**alto**, cache poisoning) | release sem cache nenhum; CI segue com cache (o de PR fica no escopo do PR) |
 | Pin por SHA | todas | todas (agora exigido pelo repositório) |

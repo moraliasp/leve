@@ -48,6 +48,10 @@ pub struct Strings {
     pub open: &'static str,
     pub reload: &'static str,
     pub reveal: &'static str,
+    pub open_in_editor: &'static str,
+    /// Menu do app (macOS): instala o script `leve` (`cli.rs`).
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub install_cli: &'static str,
     pub clear_recent: &'static str,
     pub print: &'static str,
     pub export_html: &'static str,
@@ -104,6 +108,29 @@ pub struct Strings {
     pub write_failed: &'static str,
     /// `{path}`: Exportar HTML recusou criar `<nome>.html` por cima de um arquivo existente.
     pub export_exists: &'static str,
+    /// Abrir no editor: nome da opção "aplicativo padrão" e do editor de texto do sistema.
+    pub editor_system: &'static str,
+    pub editor_text: &'static str,
+    /// `{id}`: id fora da lista fechada.
+    pub editor_unknown: &'static str,
+    /// `{name}`: editor escolhido não está instalado.
+    pub editor_not_found: &'static str,
+    /// `{name}` e `{error}`: o editor não abriu.
+    pub editor_failed: &'static str,
+    pub editor_self_default: &'static str,
+    /// `{path}`: Abrir no editor só aceita Markdown.
+    pub editor_not_markdown: &'static str,
+    /// Modo administrador sem a confirmação que o precede.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub cli_admin_unconfirmed: &'static str,
+    /// `{path}`: o arquivo gravado como administrador não confere com o script.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub cli_verify_failed: &'static str,
+    /// `{path}`: já existe um `leve` que não é o script do app.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub cli_exists: &'static str,
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
+    pub cli_unsupported: &'static str,
 }
 
 const PT: Strings = Strings {
@@ -115,6 +142,8 @@ const PT: Strings = Strings {
     open: "Abrir…",
     reload: "Recarregar",
     reveal: "Mostrar no Finder / Explorer",
+    open_in_editor: "Abrir no editor",
+    install_cli: "Instalar comando 'leve' no terminal…",
     clear_recent: "Limpar recentes…",
     print: "Imprimir / Exportar PDF…",
     export_html: "Exportar HTML…",
@@ -159,6 +188,23 @@ const PT: Strings = Strings {
     no_parent: "O arquivo não tem pasta.",
     write_failed: "Não foi possível gravar {path}: {error}",
     export_exists: "Já existe {path}. Para substituir, escolha um nome terminado em .html; ou escolha outro nome.",
+    editor_system: "Aplicativo padrão para .md",
+    editor_text: if cfg!(target_os = "macos") {
+        "TextEdit"
+    } else if cfg!(windows) {
+        "Bloco de Notas"
+    } else {
+        "Editor de texto"
+    },
+    editor_unknown: "Editor desconhecido: {id}",
+    editor_not_found: "Editor não encontrado: {name}. Escolha outro em Preferências › Editor.",
+    editor_failed: "Não foi possível abrir no {name}: {error}",
+    editor_self_default: "O aplicativo padrão para .md é o próprio Leve. Escolha um editor em Preferências › Editor.",
+    cli_exists: "Já existe {path} e não foi instalado pelo Leve; nada foi alterado.",
+    editor_not_markdown: "Abrir no editor só abre arquivos Markdown: {path}",
+    cli_admin_unconfirmed: "Instalação como administrador precisa ser pedida pelo menu.",
+    cli_verify_failed: "{path} foi gravado, mas o conteúdo não confere; confira ou apague o arquivo.",
+    cli_unsupported: "O comando 'leve' só é instalado pelo app no macOS. Veja docs/instalacao.md.",
 };
 
 const EN: Strings = Strings {
@@ -170,6 +216,8 @@ const EN: Strings = Strings {
     open: "Open…",
     reload: "Reload",
     reveal: "Show in Finder / Explorer",
+    open_in_editor: "Open in Editor",
+    install_cli: "Install 'leve' Command in Terminal…",
     clear_recent: "Clear Recent…",
     print: "Print / Export PDF…",
     export_html: "Export HTML…",
@@ -214,6 +262,23 @@ const EN: Strings = Strings {
     no_parent: "The file has no parent folder.",
     write_failed: "Couldn't save {path}: {error}",
     export_exists: "{path} already exists. To replace it, choose a name ending in .html, or choose a different name.",
+    editor_system: "Default app for .md",
+    editor_text: if cfg!(target_os = "macos") {
+        "TextEdit"
+    } else if cfg!(windows) {
+        "Notepad"
+    } else {
+        "Text editor"
+    },
+    editor_unknown: "Unknown editor: {id}",
+    editor_not_found: "Editor not found: {name}. Choose another one in Settings › Editor.",
+    editor_failed: "Couldn't open in {name}: {error}",
+    editor_self_default: "The default app for .md is Leve itself. Choose an editor in Settings › Editor.",
+    cli_exists: "{path} already exists and wasn't installed by Leve; nothing was changed.",
+    editor_not_markdown: "Open in Editor only opens Markdown files: {path}",
+    cli_admin_unconfirmed: "Installing as administrator has to be requested from the menu.",
+    cli_verify_failed: "{path} was written but its content doesn't match; check or delete the file.",
+    cli_unsupported: "The app installs the 'leve' command only on macOS. See docs/instalacao.md.",
 };
 
 pub fn strings_for(lang: Lang) -> &'static Strings {
@@ -245,11 +310,21 @@ mod tests {
     fn mensagens_com_parametro_nos_dois_idiomas() {
         for l in [Lang::Pt, Lang::En] {
             let s = strings_for(l);
-            for msg in [s.denied, s.absolute, s.not_found, s.export_exists] {
+            for msg in [
+                s.denied,
+                s.absolute,
+                s.not_found,
+                s.export_exists,
+                s.cli_exists,
+                s.editor_not_markdown,
+                s.cli_verify_failed,
+            ] {
                 assert!(msg.contains("{path}"), "{msg}");
             }
             assert!(s.too_big.contains("{size}") && s.too_big.contains("{max}"));
             assert!(s.write_failed.contains("{path}") && s.write_failed.contains("{error}"));
+            assert!(s.editor_not_found.contains("{name}") && s.editor_unknown.contains("{id}"));
+            assert!(s.editor_failed.contains("{name}") && s.editor_failed.contains("{error}"));
         }
     }
 }

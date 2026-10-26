@@ -193,6 +193,28 @@
             </div>
           </section>
 
+          <section class="pref-group" aria-labelledby="prefs-g-integration">
+            <h3 id="prefs-g-integration" data-i18n="prefs.integration"></h3>
+            <div class="pref-panel">
+              <div class="pref-row">
+                <span class="pref-text">
+                  <label class="pref-label" for="prefs-editor" data-i18n="prefs.editor"></label>
+                  <span id="prefs-editor-hint" class="pref-hint" data-i18n="prefs.editorHint"></span>
+                </span>
+                <select id="prefs-editor" name="editor" class="pref-select" tabindex="0" aria-describedby="prefs-editor-hint"></select>
+              </div>
+              <div class="pref-row pref-row-block">
+                <span class="pref-text">
+                  <span class="pref-label" data-i18n="prefs.cli"></span>
+                  <span id="prefs-cli-hint" class="pref-hint"></span>
+                </span>
+                <span id="prefs-cli-actions" class="pref-actions" hidden>
+                  <button id="prefs-cli-install" type="button" class="text" data-i18n="prefs.cliInstall" aria-describedby="prefs-cli-hint"></button>
+                </span>
+              </div>
+            </div>
+          </section>
+
           <!-- Lugar do grupo de exportação (leve.exportMdLinks): mesma .pref-group/.pref-panel, uma .pref-row com .switch. -->
 
           <section class="pref-group" aria-labelledby="prefs-g-privacy">

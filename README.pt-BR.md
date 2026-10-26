@@ -57,6 +57,8 @@ Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações t
 - Copiar como texto formatado (menu Editar, Cmd/Ctrl+Shift+C): o documento, ou só a seleção, cola no Google Docs, Gmail, Apple Mail, Word, Notion e Slack com títulos, listas, links, tabelas e código; diagramas vão como imagem e fórmulas como a fonte LaTeX
 - Português e inglês, pelo idioma do sistema ou pela escolha nas *Preferências*
 - Documentos grandes (até 20 MB) abrem num modo mais leve
+- *Arquivo › Abrir no editor* (⌘E / Ctrl+E) manda o documento para VS Code, Cursor, Zed, Sublime Text, TextEdit/Bloco de Notas ou o aplicativo padrão (*Preferências › Integração*)
+- `leve arquivo.md` no terminal abre no Leve: no macOS, *Leve › Instalar comando 'leve' no terminal…*; no Windows e no Linux, veja [`docs/instalacao.md`](docs/instalacao.md#comando-leve-no-terminal)
 - Um guia de Markdown embutido abre quando o Leve inicia sem nada para mostrar (*Ajuda › Documento de exemplo*; dá para desligar nas *Preferências*)
 
 ## Privacidade

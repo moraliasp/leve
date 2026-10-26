@@ -100,6 +100,8 @@ pub struct Strings {
     pub no_parent: &'static str,
     /// `{path}` e `{error}`: Exportar HTML não conseguiu gravar.
     pub write_failed: &'static str,
+    /// `{path}`: Exportar HTML recusou criar `<nome>.html` por cima de um arquivo existente.
+    pub export_exists: &'static str,
 }
 
 const PT: Strings = Strings {
@@ -152,6 +154,7 @@ const PT: Strings = Strings {
     too_big: "Arquivo grande demais para abrir ({size} MB; o limite é {max} MB).",
     no_parent: "O arquivo não tem pasta.",
     write_failed: "Não foi possível gravar {path}: {error}",
+    export_exists: "Já existe {path}. Para substituir, escolha um nome terminado em .html; ou escolha outro nome.",
 };
 
 const EN: Strings = Strings {
@@ -204,6 +207,7 @@ const EN: Strings = Strings {
     too_big: "File too large to open ({size} MB; the limit is {max} MB).",
     no_parent: "The file has no parent folder.",
     write_failed: "Couldn't save {path}: {error}",
+    export_exists: "{path} already exists. To replace it, choose a name ending in .html, or choose a different name.",
 };
 
 pub fn strings_for(lang: Lang) -> &'static Strings {
@@ -235,7 +239,7 @@ mod tests {
     fn mensagens_com_parametro_nos_dois_idiomas() {
         for l in [Lang::Pt, Lang::En] {
             let s = strings_for(l);
-            for msg in [s.denied, s.absolute, s.not_found] {
+            for msg in [s.denied, s.absolute, s.not_found, s.export_exists] {
                 assert!(msg.contains("{path}"), "{msg}");
             }
             assert!(s.too_big.contains("{size}") && s.too_big.contains("{max}"));

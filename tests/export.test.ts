@@ -51,6 +51,29 @@ describe("Exportar HTML", () => {
     expect(html).toContain('<article class="markdown-body">');
   });
 
+  it("CSP inteira no <meta>: sem script, sem formulário, sem base, fontes e estilos só embutidos", () => {
+    const { html } = exportOf("x");
+    const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)">/)![1];
+    expect(csp.split(/;\s*/)).toEqual([
+      "default-src 'none'",
+      "img-src * data:",
+      "style-src 'unsafe-inline'",
+      "font-src data:",
+      "base-uri 'none'",
+      "form-action 'none'",
+    ]);
+    expect(html.match(/Content-Security-Policy/g)).toHaveLength(1);
+  });
+
+  it("nenhum atributo interno do app sobra, inclusive data-local-src das imagens locais", () => {
+    const el = content("![a](img/a.png) [[nota]] $x$\n\n```ts\nlet a\n```");
+    for (const code of el.querySelectorAll<HTMLElement>("code")) code.dataset.hl = "1";
+    el.querySelector<HTMLElement>(".math")!.dataset.rendered = "1";
+    const { html } = buildExportHtml(cloneContent(el), { ...base, images: { "img/a.png": { data: "data:image/png;base64,AA", tooBig: false } } });
+    expect(el.querySelector("img")!.dataset.localSrc).toBe("img/a.png");
+    expect(html).not.toMatch(/data-local-src|data-hl|data-rendered|data-target|data-hash|tabindex=/);
+  });
+
   it("não altera a página: trabalha num clone", () => {
     const el = content("```js\nlet a = 1\n```");
     buildExportHtml(cloneContent(el), base);

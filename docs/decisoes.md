@@ -117,7 +117,8 @@ Decisão estrutural nova entra aqui, no fim, no mesmo formato.
   - Features dos plugins: `dialog` só tem `gtk3` (Linux); `opener`, `window-state`, `process` e `single-instance` não têm feature padrão para cortar. `compression` do Tauri fica: sem ela o `dist` entraria sem brotli.
   - Crates duplicadas (`cargo tree -d`: `base64` 0.21/0.22/0.23, `getrandom`, `miniz_oxide` 0.8/0.9, `core-foundation`): cada uma pesa dezenas de KB e vem de dependências do Tauri, fora do nosso controle.
   - Resto do `bloat`: nenhuma função acima de 34 KiB; `std` (~410 KiB, inclusive simbolização de backtrace) só sairia com `build-std` no nightly.
-- **Consequência:** no macOS o Security.framework (via `security-framework`/Secure Transport) negocia até TLS 1.2, contra 1.3 do `rustls`; o GitHub aceita 1.2, e a integridade do pacote continua garantida pela assinatura minisign. Se o Leve passar a distribuir Linux, ele segue com `rustls`. Trocar de volta é apagar as duas tabelas e voltar a `tauri-plugin-updater = "2"`.
+- **Consequência:** no macOS o Security.framework (via `security-framework`/Secure Transport) negocia até TLS 1.2, contra 1.3 do `rustls`; o GitHub aceita 1.2, e a integridade do pacote continua garantida pela assinatura minisign. O Secure Transport que o `native-tls` usa no macOS está marcado como deprecated pela Apple: é risco de manutenção (o `native-tls` pode trocar de backend). Se o GitHub passar a exigir TLS 1.3 ou o backend sumir, voltar ao `rustls` no macOS é tirar `target_os = "macos"` da tabela `native-tls` e pô-lo na do padrão. Se o Leve passar a distribuir Linux, ele segue com `rustls`. Trocar de volta em tudo é apagar as duas tabelas e voltar a `tauri-plugin-updater = "2"`.
+- **No mesmo PR:** `scripts/third-party.mjs` passou a achar o crate direto pelo id resolvido (`resolve` do `cargo metadata`), não pelo nome, então `base64 0.22.1` entra na tabela de crates diretos sem as outras duas versões do grafo.
 
 ## Leitura tolerante, com limite
 

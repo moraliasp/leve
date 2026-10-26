@@ -262,7 +262,7 @@ export type MermaidLike = {
   initialize(config: Record<string, unknown>): void;
   render(id: string, src: string): Promise<{ svg: string; bindFunctions?: (el: Element) => void }>;
 };
-export async function renderMermaid(container: HTMLElement, dark: boolean, lib?: MermaidLike): Promise<void> {
+export async function renderMermaid(container: HTMLElement, dark: boolean, lib?: MermaidLike, opts: { htmlLabels?: boolean } = {}): Promise<void> {
   const nodes = Array.from(container.querySelectorAll<HTMLElement>("pre.mermaid"));
   if (nodes.length === 0) return;
   const mermaid: MermaidLike = lib ?? (await import("mermaid")).default;
@@ -278,6 +278,9 @@ export async function renderMermaid(container: HTMLElement, dark: boolean, lib?:
     theme: dark ? "dark" : "default",
     securityLevel: "strict",
     layout: "dagre",
+    // Rótulos em `<foreignObject>` (padrão) na tela; sem eles (texto SVG) quando o SVG vai para um
+    // canvas (Copiar como texto formatado, `src/rich.ts`). `initialize` parte do padrão a cada chamada.
+    htmlLabels: opts.htmlLabels ?? true,
     secure: ["secure", "securityLevel", "startOnLoad", "maxTextSize", "suppressErrorRendering", "maxEdges", "themeCSS", "fontFamily", "altFontFamily"],
   });
   for (const n of nodes) {

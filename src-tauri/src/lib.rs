@@ -1,8 +1,8 @@
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::{Condvar, Mutex},
-    time::{Duration, Instant},
+    sync::{Condvar, Mutex, OnceLock},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
@@ -10,7 +10,7 @@ use notify_debouncer_mini::{
     DebouncedEvent, Debouncer, new_debouncer,
     notify::{RecommendedWatcher, RecursiveMode},
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::{
     AppHandle, Emitter, Manager, State, Url, Wry,
     menu::{CheckMenuItem, CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder},
@@ -18,6 +18,9 @@ use tauri::{
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
+#[cfg(target_os = "macos")]
+mod cli;
+mod editor;
 mod i18n;
 
 const REPO_URL: &str = "https://github.com/moraliasp/leve";
@@ -38,6 +41,69 @@ fn app_info() -> AppInfo {
         version: env!("CARGO_PKG_VERSION"),
         repo: REPO_URL,
     }
+}
+
+/// Gancho de benchmark (`scripts/bench.mjs`, método em `docs/benchmark.md`). Só existe com
+/// `LEVE_BENCH=1` no ambiente: aí `run()` guarda o instante de partida, o plugin `bench` marca a
+/// página (`window.__LEVE_BENCH__`) e o frontend chama `bench_report` ao fim do layout e no
+/// primeiro quadro de cada documento (`src/bench.ts`). Desligado, o frontend não chama nada e o
+/// comando recusa. Só escreve no stdout.
+static BENCH: OnceLock<Option<Instant>> = OnceLock::new();
+
+fn bench_started() -> Option<Instant> {
+    *BENCH.get_or_init(|| bench_flag(std::env::var_os("LEVE_BENCH").as_deref()).then(Instant::now))
+}
+
+/// Só o valor exato `1` arma o gancho: `0`, vazio ou outro valor não.
+fn bench_flag(v: Option<&std::ffi::OsStr>) -> bool {
+    v.is_some_and(|v| v == "1")
+}
+
+#[derive(Deserialize, Serialize)]
+struct BenchMeasure {
+    name: String,
+    ms: f64,
+    end: f64,
+}
+
+/// Linha do stdout que o `bench.mjs` lê: prefixo fixo e JSON numa linha só.
+fn bench_line(
+    doc: &str,
+    phase: &str,
+    run_ms: f64,
+    epoch_ms: u128,
+    page_ms: f64,
+    measures: &[BenchMeasure],
+) -> String {
+    let json = serde_json::json!({
+        "doc": doc,
+        "phase": phase,
+        "runMs": run_ms,
+        "epochMs": epoch_ms as u64,
+        "pageMs": page_ms,
+        "measures": measures,
+    });
+    format!("LEVE_BENCH {json}")
+}
+
+#[tauri::command]
+fn bench_report(
+    doc: String,
+    phase: String,
+    page_ms: f64,
+    measures: Vec<BenchMeasure>,
+) -> Result<(), String> {
+    let started = bench_started().ok_or("LEVE_BENCH desligado")?;
+    let epoch_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let run_ms = started.elapsed().as_secs_f64() * 1000.0;
+    println!(
+        "{}",
+        bench_line(&doc, &phase, run_ms, epoch_ms, page_ms, &measures)
+    );
+    Ok(())
 }
 
 /// Idioma escolhido no frontend (Preferências ou o do sistema): mensagens e menu passam a ele.
@@ -79,6 +145,10 @@ struct AppState {
     /// para os "Recentes" continuarem abrindo.
     granted: Mutex<Vec<PathBuf>>,
     grants_file: Mutex<Option<PathBuf>>,
+    /// `install_cli`: liberação de uso único para o modo administrador, dada só quando uma chamada
+    /// sem senha nesta execução devolveu `needs-admin` (o frontend então confirmou com o leitor).
+    #[cfg(target_os = "macos")]
+    cli_admin_permit: std::sync::atomic::AtomicBool,
 }
 
 const GRANTS_MAX: usize = 200;
@@ -926,11 +996,97 @@ fn navigation_allowed(url: &Url) -> bool {
     }
 }
 
-fn first_markdown_arg(argv: &[String]) -> Option<PathBuf> {
+/// Primeiro argumento que é `.md` existente. Relativo vale a partir de `cwd`, a pasta de quem
+/// chamou (`leve README.md` no terminal): na 1ª instância é a do próprio processo; na 2ª vem do
+/// plugin single-instance, porque a instância que já está aberta tem outra pasta atual (`/`
+/// quando aberta pelo Finder).
+fn first_markdown_arg(argv: &[String], cwd: &Path) -> Option<PathBuf> {
     argv.iter()
         .skip(1)
-        .map(PathBuf::from)
+        .map(|a| cwd.join(a))
         .find(|p| is_markdown(p) && p.exists())
+}
+
+/// O que pode ir para um editor: só arquivo Markdown (mesma regra de extensão do argv). Um alvo de
+/// link concedido como `./run.command` não passa: com "Aplicativo padrão" o LaunchServices o
+/// executaria, contornando `OPENABLE_EXT`. No Windows tira o prefixo `\\?\` do canônico.
+fn editor_target(doc: &Path) -> Result<PathBuf, String> {
+    let shown = doc.display().to_string();
+    if !is_markdown(doc) {
+        return Err(fill(i18n::s().editor_not_markdown, &[("path", &shown)]));
+    }
+    if !doc.is_file() {
+        return Err(fill(i18n::s().not_found, &[("path", &shown)]));
+    }
+    Ok(editor::strip_verbatim(doc))
+}
+
+/// Lista de "Abrir no editor" com o que está instalado (Preferências › Editor).
+#[tauri::command]
+async fn list_editors(app: AppHandle) -> Result<Vec<editor::EditorInfo>, String> {
+    let id = app.config().identifier.clone();
+    tauri::async_runtime::spawn_blocking(move || editor::list(&id))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Arquivo › Abrir no editor: `editor` é um id da lista fechada (`editor::Editor`) e `path` o
+/// documento ativo, que tem de estar concedido. O comando é montado aqui.
+#[tauri::command]
+async fn open_in_editor(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    editor: String,
+    path: String,
+) -> Result<(), String> {
+    let s = i18n::s();
+    let e =
+        editor::Editor::parse(&editor).ok_or_else(|| fill(s.editor_unknown, &[("id", &editor)]))?;
+    let doc = editor_target(&granted(&state, &path)?)?;
+    let self_id = app.config().identifier.clone();
+    let found = tauri::async_runtime::spawn_blocking(move || editor::detect(e, &self_id))
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(found) = found else {
+        return Err(if e == editor::Editor::System {
+            s.editor_self_default.to_owned()
+        } else {
+            fill(s.editor_not_found, &[("name", e.name())])
+        });
+    };
+    match editor::launch_for(&found, &doc) {
+        editor::Launch::Default(p) => app
+            .opener()
+            .open_path(p.to_string_lossy(), None::<&str>)
+            .map_err(|e| e.to_string()),
+        launch => tauri::async_runtime::spawn_blocking(move || editor::run(launch))
+            .await
+            .map_err(|e| e.to_string())?
+            .map_err(|err| fill(s.editor_failed, &[("name", e.name()), ("error", &err)])),
+    }
+}
+
+/// Leve › Instalar comando 'leve' no terminal… (só macOS; ver `cli.rs`). Sem `admin`, instala onde
+/// não precisa de senha ou devolve `needs-admin`; com `admin` (o leitor confirmou), pede a senha
+/// pelo diálogo do sistema.
+#[tauri::command]
+async fn install_cli(app: AppHandle, admin: bool) -> Result<serde_json::Value, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let state = app.state::<AppState>();
+        cli::take_admin_permit(&state.cli_admin_permit, admin)?;
+        let id = app.config().identifier.clone();
+        let out = tauri::async_runtime::spawn_blocking(move || cli::install(admin, &id))
+            .await
+            .map_err(|e| e.to_string())??;
+        cli::grant_admin_permit(&state.cli_admin_permit, &out);
+        serde_json::to_value(out).map_err(|e| e.to_string())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (app, admin);
+        Err(i18n::s().cli_unsupported.to_owned())
+    }
 }
 
 /// Menu nativo no idioma atual (`i18n`). Chamado no `setup` e de novo por `set_locale`; o
@@ -948,10 +1104,12 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
     let open = item("open", s.open, Some("CmdOrCtrl+O"))?;
     let reload = item("reload", s.reload, Some("CmdOrCtrl+R"))?;
     let reveal = item("reveal", s.reveal, Some("CmdOrCtrl+Shift+R"))?;
+    let open_in_editor = item("open-in-editor", s.open_in_editor, Some("CmdOrCtrl+E"))?;
     let clear_recent = item("clear-recent", s.clear_recent, None)?;
     let print = item("print", s.print, Some("CmdOrCtrl+P"))?;
     let export_html = item("export-html", s.export_html, None)?;
     let copy_html = item("copy-html", s.copy_html, None)?;
+    let copy_rich = item("copy-rich", s.copy_rich, Some("CmdOrCtrl+Shift+C"))?;
     let find = item("find", s.find, Some("CmdOrCtrl+F"))?;
     let toc = item("toggle-toc", s.toc, Some("CmdOrCtrl+B"))?;
     let theme = item("cycle-theme", s.theme, Some("CmdOrCtrl+Shift+L"))?;
@@ -979,6 +1137,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .separator()
         .item(&reload)
         .item(&reveal)
+        .item(&open_in_editor)
         .separator()
         .item(&clear_recent)
         .separator()
@@ -991,6 +1150,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .build()?;
     let edit = SubmenuBuilder::new(app, s.edit)
         .copy_with_text(s.copy)
+        .item(&copy_rich)
         .select_all_with_text(s.select_all)
         .separator()
         .item(&find);
@@ -1060,6 +1220,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
             .item(&check_updates)
             .separator()
             .item(&preferences)
+            .item(&item("install-cli", s.install_cli, None)?)
             .separator()
             .services_with_text(s.services)
             .separator()
@@ -1101,10 +1262,17 @@ fn on_menu(app: &AppHandle, id: String) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
+    if bench_started().is_some() {
+        builder = builder.plugin(
+            tauri::plugin::Builder::<Wry>::new("bench")
+                .js_init_script("window.__LEVE_BENCH__ = true;")
+                .build(),
+        );
+    }
     #[cfg(desktop)]
     {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            if let Some(p) = first_markdown_arg(&argv) {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+            if let Some(p) = first_markdown_arg(&argv, Path::new(&cwd)) {
                 request_open(app, p);
             } else if let Some(w) = app.get_webview_window("main") {
                 let _ = w.set_focus();
@@ -1140,7 +1308,11 @@ pub fn run() {
             app_info,
             paths_exist,
             forget_grants,
-            set_locale
+            set_locale,
+            list_editors,
+            open_in_editor,
+            install_cli,
+            bench_report
         ])
         .setup(|app| {
             i18n::set(i18n::system());
@@ -1155,7 +1327,8 @@ pub fn run() {
             }
             // Windows/Linux: arquivo chega por argv na primeira instância.
             let argv: Vec<String> = std::env::args().collect();
-            if let Some(p) = first_markdown_arg(&argv)
+            let cwd = std::env::current_dir().unwrap_or_default();
+            if let Some(p) = first_markdown_arg(&argv, &cwd)
                 && let Ok(c) = grant(&state, &p)
             {
                 *state.pending_open.lock().unwrap() = Some(c.to_string_lossy().into_owned());
@@ -1750,25 +1923,78 @@ mod tests {
         let real = t.file("doc.md", "# oi");
         let argv = |xs: &[&str]| xs.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let real_s = real.to_string_lossy().into_owned();
+        let elsewhere = Path::new("/");
         assert_eq!(
-            first_markdown_arg(&argv(&["leve", &real_s])),
+            first_markdown_arg(&argv(&["leve", &real_s]), elsewhere),
             Some(real.clone())
         );
         assert_eq!(
-            first_markdown_arg(&argv(&["leve", "--flag", &real_s])),
+            first_markdown_arg(&argv(&["leve", "--flag", &real_s]), elsewhere),
             Some(real.clone())
         );
         assert_eq!(
-            first_markdown_arg(&argv(&[&real_s])),
+            first_markdown_arg(&argv(&[&real_s]), elsewhere),
             None,
             "argv[0] é o binário"
         );
-        assert_eq!(first_markdown_arg(&argv(&["leve", "/nao/existe.md"])), None);
-        let txt = t.file("x.txt", "");
         assert_eq!(
-            first_markdown_arg(&argv(&["leve", &txt.to_string_lossy()])),
+            first_markdown_arg(&argv(&["leve", "/nao/existe.md"]), elsewhere),
             None
         );
+        let txt = t.file("x.txt", "");
+        assert_eq!(
+            first_markdown_arg(&argv(&["leve", &txt.to_string_lossy()]), elsewhere),
+            None
+        );
+    }
+
+    #[test]
+    fn abrir_no_editor_so_aceita_markdown() {
+        let t = TempDir::new("editor-alvo");
+        let md = t.file("doc.md", "# oi");
+        let cmd = t.file("run.command", "#!/bin/sh\necho pwned\n");
+        let app = t.file("x.app", "");
+        assert_eq!(editor_target(&md).unwrap(), md);
+        for bad in [&cmd, &app] {
+            let err = editor_target(bad).unwrap_err();
+            assert!(err.contains(&bad.display().to_string()), "{err}");
+        }
+        // Pasta com nome de .md também não vai.
+        let dir = t.0.join("pasta.md");
+        fs::create_dir_all(&dir).unwrap();
+        assert!(editor_target(&dir).is_err());
+    }
+
+    #[test]
+    fn caminho_relativo_do_terminal_vale_a_partir_da_pasta_de_quem_chamou() {
+        // `leve doc.md` e `leve ../outra/doc.md` num terminal: a 2ª instância repassa a pasta
+        // dela (single-instance), que não é a do app já aberto.
+        let t = TempDir::new("argv-rel");
+        let doc = t.file("proj/doc.md", "# oi");
+        t.file("outra/x.md", "");
+        let argv = |xs: &[&str]| xs.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let proj = t.0.join("proj");
+        let got = first_markdown_arg(&argv(&["leve", "doc.md"]), &proj).unwrap();
+        assert_eq!(
+            fs::canonicalize(got).unwrap(),
+            fs::canonicalize(&doc).unwrap()
+        );
+        let up = first_markdown_arg(&argv(&["leve", "../outra/x.md"]), &proj).unwrap();
+        assert!(up.ends_with("proj/../outra/x.md") && up.is_file());
+        assert_eq!(
+            first_markdown_arg(&argv(&["leve", "doc.md"]), &t.0),
+            None,
+            "na pasta errada, não acha"
+        );
+        // O caminho resolvido é concedido como qualquer abertura vinda do SO.
+        let state = AppState::default();
+        let c = grant(
+            &state,
+            &first_markdown_arg(&argv(&["leve", "doc.md"]), &proj).unwrap(),
+        )
+        .unwrap();
+        assert!(granted(&state, &doc.to_string_lossy()).is_ok());
+        assert_eq!(c, fs::canonicalize(&doc).unwrap());
     }
 
     #[test]
@@ -1822,5 +2048,60 @@ mod tests {
             .to_string_lossy()
             .into_owned();
         assert_eq!(find_file_by_name(&t.0, "x.md"), Some(canon));
+    }
+}
+
+#[cfg(test)]
+mod bench_tests {
+    use super::*;
+
+    #[test]
+    fn linha_do_bench_e_json_numa_linha() {
+        let m = vec![BenchMeasure {
+            name: "leve:render".into(),
+            ms: 12.5,
+            end: 40.0,
+        }];
+        let line = bench_line(
+            "/tmp/a\nb.md",
+            "paint",
+            340.25,
+            1_700_000_000_123,
+            210.0,
+            &m,
+        );
+        assert!(line.starts_with("LEVE_BENCH {"));
+        assert!(
+            !line.contains('\n'),
+            "quebra de linha no caminho vira escape"
+        );
+        let v: serde_json::Value = serde_json::from_str(&line["LEVE_BENCH ".len()..]).unwrap();
+        assert_eq!(v["doc"], "/tmp/a\nb.md");
+        assert_eq!(v["phase"], "paint");
+        assert_eq!(v["epochMs"], 1_700_000_000_123u64);
+        assert_eq!(v["runMs"], 340.25);
+        assert_eq!(v["pageMs"], 210.0);
+        assert_eq!(v["measures"][0]["name"], "leve:render");
+        assert_eq!(v["measures"][0]["ms"], 12.5);
+        assert_eq!(v["measures"][0]["end"], 40.0);
+    }
+
+    #[test]
+    fn so_o_valor_1_arma() {
+        use std::ffi::OsStr;
+        assert!(bench_flag(Some(OsStr::new("1"))));
+        assert!(!bench_flag(Some(OsStr::new("0"))));
+        assert!(!bench_flag(Some(OsStr::new(""))));
+        assert!(!bench_flag(Some(OsStr::new("true"))));
+        assert!(!bench_flag(None));
+    }
+
+    #[test]
+    fn sem_variavel_o_comando_recusa() {
+        // O teste não define LEVE_BENCH; se o ambiente de quem roda definir, não há o que provar.
+        if std::env::var_os("LEVE_BENCH").is_some() {
+            return;
+        }
+        assert!(bench_report("x.md".into(), "layout".into(), 0.0, vec![]).is_err());
     }
 }

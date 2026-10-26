@@ -115,9 +115,10 @@ jobs:
           ldd --version | head -1 || true
           # O AppImage leva o mesmo .desktop (o bundler reusa os dados do .deb).
           APPIMAGE="$(ls "$PWD"/out/*.AppImage)"
-          (cd "$RUNNER_TEMP" && "$APPIMAGE" --appimage-extract '*.desktop' >/dev/null)
-          cat "$RUNNER_TEMP"/squashfs-root/*.desktop
-          grep -Eq '^Exec=[^ ]+ %[FU]$' "$RUNNER_TEMP"/squashfs-root/*.desktop \
+          # (o Leve.desktop da raiz do AppImage é link para este)
+          (cd "$RUNNER_TEMP" && "$APPIMAGE" --appimage-extract usr/share/applications/Leve.desktop >/dev/null)
+          cat "$RUNNER_TEMP"/squashfs-root/usr/share/applications/Leve.desktop
+          grep -Eq '^Exec=[^ ]+ %[FU]$' "$RUNNER_TEMP"/squashfs-root/usr/share/applications/Leve.desktop \
             || { echo "::error::Exec do .desktop do AppImage sem %F/%U"; exit 1; }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

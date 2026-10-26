@@ -4,6 +4,8 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-26
+
 ### Added
 
 - Linux builds (x86_64, experimental: built and smoke-tested headless in CI, not yet tested on a real Linux desktop): an `.AppImage` built on Ubuntu 22.04 (needs glibc 2.35 or newer) and a `.deb` for Debian, Ubuntu and derivatives that registers Leve for `text/markdown`. Both update in place from *Help › Check for Updates…* and are listed in `SHA256SUMS.txt` and in the build provenance attestation.
@@ -17,6 +19,7 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 ### Changed
 
 - Settings redesigned: fixed header and footer, settings grouped in panels with one row per option, segmented controls for theme, font, width and language, switches for on/off options, actions separated from preferences, and a layout that adapts to narrow windows.
+- Settings are now stored under `leve.*` keys; settings saved by 0.2.0 under the old `mdview.*` names are migrated on first launch.
 - Mermaid no longer ships the ELK layout engine (elkjs), the largest asset in the app (1.4 MB). Diagrams that ask for `layout: elk` or `flowchart-elk` render with the default dagre layout.
 - Smaller app on macOS and Windows: the updater now uses the system's TLS (Security.framework, SChannel) instead of a bundled one, which cuts about 600 KB from the macOS binary (5.1 → 4.5 MB). Update downloads are still checked over HTTPS and by signature.
 
@@ -42,5 +45,6 @@ First public release.
 
 - Raw HTML is sanitized (DOMPurify); remote images and resources are blocked until requested; the window never navigates away from the app; documents can only reach files by relative path; file access is granted per file.
 
-[Unreleased]: https://github.com/moraliasp/leve/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/moraliasp/leve/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/moraliasp/leve/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/moraliasp/leve/releases/tag/v0.2.0

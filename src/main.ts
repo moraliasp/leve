@@ -27,6 +27,7 @@ import { type Tab, canGoBack, canGoForward, commitDoc, cycleTarget, findTab, ins
 import { SAMPLE_SESSION_KEY, SESSION_KEY, isSample, sampleOnLaunch, samplePath, sampleText, sampleToReplace } from "./sample";
 import { installErrorReporting } from "./errors";
 import { reportPainted } from "./bench";
+import { type EditorInfo, editablePath, editorOptions, editorPref, isEditorId, setEditorPref } from "./editor";
 
 // Erro não tratado (promessa com `void`, exceção em callback) aparece na barra, não só no console.
 // Instalado antes de tudo; `reportUnexpected` cobre o erro que chega antes de `els` existir.
@@ -790,6 +791,49 @@ function wireExport(): void {
   });
 }
 
+// ---------- Copiar como texto formatado (src/rich.ts) ----------
+
+/**
+ * Editar › Copiar como texto formatado (Mod+Shift+C): `text/html` com estilo inline + `text/plain`
+ * (o Markdown-fonte, ou o texto da seleção) num `ClipboardItem` só. A escrita começa aqui, de forma
+ * síncrona, dentro do gesto do leitor; o conteúdo chega pelas promessas, montado por `src/rich.ts`
+ * (carregado sob demanda, como o resto: reserva por `execCommand` e aviso).
+ */
+function copyRich(): void {
+  const doc = current;
+  if (!doc) {
+    flash(t("rich.noDoc"), true);
+    return;
+  }
+  const sel = window.getSelection();
+  const range = sel && !sel.isCollapsed && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+  const rich = import("./rich");
+  const job = rich.then((m) =>
+    m.richCopyJob({
+      content: els.content,
+      range,
+      source: doc.content,
+      large: isLargeDoc(doc.content),
+      readImages: (rels, max) => readExportImages(doc.dir, rels, max),
+    }),
+  );
+  const write =
+    typeof ClipboardItem !== "undefined" && navigator.clipboard?.write
+      ? navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": job.then((j) => new Blob([j.html], { type: "text/html" })),
+            "text/plain": job.then((j) => new Blob([j.plain], { type: "text/plain" })),
+          }),
+        ])
+      : Promise.reject(new Error("ClipboardItem indisponível"));
+  rich
+    .then((m) => m.finishCopy(job, write))
+    .then(
+      ({ message, oversized }) => flash([message, oversizedNotice(oversized)].filter(Boolean).join(" · "), false, oversized > 0),
+      (e) => flash(t("rich.failed", { error: String(e) }), true),
+    );
+}
+
 // ---------- ações (menu nativo + botões) ----------
 
 /** Quem tinha o foco antes da busca, para devolver ao fechar. */
@@ -844,9 +888,12 @@ const actions: Record<string, () => void> = {
   reveal: () => {
     if (current && !isSample(current.path)) void invoke("reveal_in_folder", { path: current.path });
   },
+  "open-in-editor": () => void openInEditor(),
+  "install-cli": () => void installCli(),
   print: () => window.print(),
   "export-html": () => openExport("file"),
   "copy-html": () => openExport("copy"),
+  "copy-rich": copyRich,
   find: openFind,
   "toggle-toc": toggleToc,
   "cycle-theme": () => flashTheme(theme.cycle()),
@@ -888,6 +935,90 @@ const actions: Record<string, () => void> = {
   },
 };
 
+// ---------- Abrir no editor e comando `leve` (Preferências › Integração) ----------
+
+/** Lista vinda do Rust (`list_editors`), lida ao abrir as Preferências e antes de abrir no editor. */
+let editors: EditorInfo[] = [];
+
+async function loadEditors(): Promise<EditorInfo[]> {
+  if (!IS_TAURI) return editors;
+  try {
+    editors = await invoke<EditorInfo[]>("list_editors");
+  } catch (e) {
+    flash(String(e), true);
+  }
+  return editors;
+}
+
+/** Arquivo › Abrir no editor: o documento ativo no editor escolhido. O Rust monta o comando. */
+async function openInEditor(): Promise<void> {
+  if (!current) {
+    flash(t("editor.noDoc"));
+    return;
+  }
+  const path = editablePath(current.path);
+  if (!path) {
+    flash(t("editor.sample"));
+    return;
+  }
+  if (!IS_TAURI) {
+    flash(t("editor.browser"), true);
+    return;
+  }
+  const id = editorPref();
+  try {
+    await invoke("open_in_editor", { editor: id, path });
+    const name = editors.find((e) => e.id === id)?.name ?? (await loadEditors()).find((e) => e.id === id)?.name ?? id;
+    flash(t("editor.opened", { name }));
+  } catch (e) {
+    flash(String(e), true);
+  }
+}
+
+interface CliOutcome {
+  status: "installed" | "needs-admin" | "cancelled";
+  path?: string;
+}
+
+/** Leve › Instalar comando 'leve' (macOS): sem senha se der; senão pergunta antes de pedir a senha. */
+async function installCli(): Promise<void> {
+  if (!IS_TAURI || PLATFORM !== "mac") {
+    flash(t("cli.pc"));
+    return;
+  }
+  try {
+    let out = await invoke<CliOutcome>("install_cli", { admin: false });
+    if (out.status === "needs-admin") {
+      const ok = await confirmDialog(t("cli.adminTitle"), t("cli.adminText", { path: out.path ?? "" }), t("cli.adminOk"));
+      if (!ok) return;
+      out = await invoke<CliOutcome>("install_cli", { admin: true });
+    }
+    if (out.status === "installed") flash(t("cli.installed", { path: out.path ?? "" }), false, true);
+    else if (out.status === "cancelled") flash(t("cli.cancelled"));
+  } catch (e) {
+    flash(String(e), true);
+  }
+}
+
+/** Preenche o seletor de editor com o que está instalado e o escolhido (mesmo se sumiu). */
+function renderEditorSelect(): void {
+  const sel = $<HTMLSelectElement>("prefs-editor");
+  const chosen = editorPref();
+  const list = editors.length ? editors : [{ id: "system", name: t("prefs.editorSystem"), available: true, selfDefault: false } as EditorInfo];
+  sel.replaceChildren(
+    ...editorOptions(list, chosen).map((o) => {
+      const opt = document.createElement("option");
+      opt.value = o.id;
+      // "Aplicativo padrão" indisponível é o caso do padrão ser o Leve: a dica abaixo explica.
+      opt.textContent = o.missing && o.id !== "system" ? t("prefs.editorMissing", { name: o.name }) : o.name;
+      return opt;
+    }),
+  );
+  sel.value = chosen;
+  const self = editors.find((e) => e.id === "system")?.selfDefault && chosen === "system";
+  $("prefs-editor-hint").textContent = self ? t("prefs.editorSelf") : t("prefs.editorHint");
+}
+
 // ---------- Preferências (Mod+,): mesmas chaves e mesmas ações do menu ----------
 
 function flashTheme(m: theme.ThemeMode): void {
@@ -917,6 +1048,7 @@ function syncPrefsUI(): void {
   $<HTMLInputElement>("prefs-remote").checked = remoteAuto;
   $<HTMLInputElement>("prefs-auto-update").checked = boolPref(PREF_KEYS.autoUpdate, false);
   choose("lang", langPref());
+  renderEditorSelect();
 }
 
 /**
@@ -936,6 +1068,8 @@ function openPreferences(): void {
   const first = !dlg.open;
   if (first) dlg.showModal();
   syncPrefsUI();
+  // A detecção roda no Rust (LaunchServices, PATH); a lista chega depois e o seletor se refaz.
+  if (first) void loadEditors().then(syncPrefsUI);
   // O diálogo foca o primeiro rádio na ordem do DOM; o foco vai para o que está marcado.
   if (first) dlg.querySelector<HTMLInputElement>('input[name="theme"]:checked')?.focus();
 }
@@ -1023,6 +1157,14 @@ function wirePreferences(): void {
     }
     syncPrefsUI();
   });
+  $<HTMLSelectElement>("prefs-editor").addEventListener("change", (ev) => {
+    const v = (ev.target as HTMLSelectElement).value;
+    if (isEditorId(v)) setEditorPref(v);
+    syncPrefsUI();
+  });
+  $("prefs-cli-hint").textContent = PLATFORM === "mac" ? t("prefs.cliHintMac") : t("prefs.cliHintPc");
+  $("prefs-cli-actions").hidden = PLATFORM !== "mac";
+  $("prefs-cli-install").addEventListener("click", () => void installCli());
   $("prefs-zoom-out").addEventListener("click", () => runAction("zoom-out"));
   $("prefs-zoom-in").addEventListener("click", () => runAction("zoom-in"));
   $("prefs-zoom-reset").addEventListener("click", () => runAction("zoom-reset"));

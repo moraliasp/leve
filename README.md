@@ -6,12 +6,12 @@
 
 <p align="center">
   <strong>Double-click a <code>.md</code> file and it just looks right.</strong><br>
-  A small, fast, private Markdown viewer for macOS and Windows. Save in your editor and Leve reloads.
+  A small, fast, private Markdown viewer for macOS, Windows and Linux. Save in your editor and Leve reloads.
 </p>
 
 <p align="center">
   <a href="https://github.com/moraliasp/leve/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/moraliasp/leve?label=release&color=431A60"></a>
-  <img alt="macOS · Windows" src="https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows-431A60">
+  <img alt="macOS · Windows · Linux" src="https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-431A60">
   <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-C9A6F2"></a>
 </p>
 
@@ -35,6 +35,7 @@ Get the latest version from [Releases](https://github.com/moraliasp/leve/release
 
 - **macOS 11+** (Apple silicon and Intel): `Leve_x.y.z_universal.dmg`
 - **Windows 10/11** (x64): `Leve_x.y.z_x64-setup.exe` (per-user, no admin) or `.msi`
+- **Linux** (x86_64, built on Ubuntu 22.04, needs glibc 2.35+): `Leve_x.y.z_amd64.AppImage` (no install) or `Leve_x.y.z_amd64.deb` (Debian, Ubuntu and derivatives). New and not yet tested on a real Linux desktop: only built and smoke-tested headless in CI. Reports welcome.
 
 Each release lists SHA-256 checksums in `SHA256SUMS.txt` and carries [build provenance attestations](https://github.com/moraliasp/leve/attestations) (`gh attestation verify <file> --repo moraliasp/leve`).
 
@@ -43,8 +44,9 @@ Each release lists SHA-256 checksums in `SHA256SUMS.txt` and carries [build prov
 Leve isn't signed with an Apple or Microsoft certificate yet, so the system warns you once.
 **macOS:** open Leve, click *Done*, then go to *System Settings › Privacy & Security* and click *Open Anyway* (or run `xattr -dr com.apple.quarantine /Applications/Leve.app`).
 **Windows:** in the SmartScreen prompt, click *More info › Run anyway*.
+**Linux:** make the AppImage executable (`chmod +x Leve_*.AppImage`) and run it, or install the `.deb` with `sudo apt install ./Leve_*_amd64.deb`.
 
-Updates are signed separately and verified by the app before installing: *Leve › Check for Updates…* (on Windows, *Help › Check for Updates…*), or turn on the daily check in *Settings*.
+Updates are signed separately and verified by the app before installing: *Leve › Check for Updates…* (on Windows and Linux, *Help › Check for Updates…*), or turn on the daily check in *Settings*.
 
 ## Features
 
@@ -54,8 +56,11 @@ Updates are signed separately and verified by the app before installing: *Leve �
 - Table of contents, find in document, tabs, back/forward
 - Light and dark themes, three reading widths, three fonts, zoom
 - Print or export to PDF; export a self-contained HTML file (offline, no scripts) or copy it as HTML
+- Copy as formatted text (Edit menu, Cmd/Ctrl+Shift+C): the document, or just the selection, pastes into Google Docs, Gmail, Apple Mail, Word, Notion and Slack with headings, lists, links, tables and code intact; diagrams go as images and formulas as their LaTeX source
 - English and Portuguese, following your system or your choice in *Settings*
 - Large documents (up to 20 MB) open in a lighter mode
+- *File › Open in Editor* (⌘E / Ctrl+E) sends the document to VS Code, Cursor, Zed, Sublime Text, TextEdit/Notepad or the default app (*Settings › Integration*)
+- `leve file.md` in a terminal opens it in Leve: on macOS, *Leve › Install 'leve' Command in Terminal…*; on Windows and Linux, see [`docs/instalacao.md`](docs/instalacao.md#comando-leve-no-terminal)
 - A built-in Markdown primer opens when you start Leve with nothing else to show (*Help › Sample Document*; can be turned off in *Settings*)
 
 ## Privacy
@@ -81,13 +86,13 @@ These are download sizes only; they say nothing about features, and each app doe
 
 ## Build
 
-Requirements: Node 22+, pnpm, stable Rust, and Xcode Command Line Tools (macOS) or Visual Studio Build Tools + WebView2 (Windows).
+Requirements: Node 22+, pnpm, stable Rust, and Xcode Command Line Tools (macOS), Visual Studio Build Tools + WebView2 (Windows), or the [Tauri 2 Linux packages](https://v2.tauri.app/start/prerequisites/#linux) (`libwebkit2gtk-4.1-dev` and friends).
 
 ```bash
 pnpm install
 pnpm tauri dev -- -- docs/sample.md   # run with a document
 pnpm test                              # unit and golden tests
-pnpm tauri build                       # .app/.dmg on macOS, .exe/.msi on Windows
+pnpm tauri build                       # .app/.dmg on macOS, .exe/.msi on Windows, .deb/.AppImage on Linux (--bundles deb,appimage)
 ```
 
 From a Mac you can also build the Windows NSIS installer with `pnpm build:windows` (needs `cargo-xwin`, `llvm`, `lld` and `makensis`; see `scripts/build-windows.sh`).

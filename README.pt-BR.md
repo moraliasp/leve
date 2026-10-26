@@ -6,12 +6,12 @@
 
 <p align="center">
   <strong>Duplo-clique num <code>.md</code> e pronto: o Markdown aparece bonito, na hora.</strong><br>
-  Um visualizador de Markdown pequeno, rápido e privado para macOS e Windows. Salve no editor e o Leve recarrega.
+  Um visualizador de Markdown pequeno, rápido e privado para macOS, Windows e Linux. Salve no editor e o Leve recarrega.
 </p>
 
 <p align="center">
   <a href="https://github.com/moraliasp/leve/releases/latest"><img alt="versão" src="https://img.shields.io/github/v/release/moraliasp/leve?label=vers%C3%A3o&color=431A60"></a>
-  <img alt="macOS · Windows" src="https://img.shields.io/badge/plataforma-macOS%20%C2%B7%20Windows-431A60">
+  <img alt="macOS · Windows · Linux" src="https://img.shields.io/badge/plataforma-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-431A60">
   <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/licen%C3%A7a-MIT-C9A6F2"></a>
 </p>
 
@@ -35,6 +35,7 @@ Baixe a versão mais recente em [Releases](https://github.com/moraliasp/leve/rel
 
 - **macOS 11+** (Apple silicon e Intel): `Leve_x.y.z_universal.dmg`
 - **Windows 10/11** (x64): `Leve_x.y.z_x64-setup.exe` (por usuário, sem administrador) ou `.msi`
+- **Linux** (x86_64, compilado no Ubuntu 22.04, exige glibc 2.35+): `Leve_x.y.z_amd64.AppImage` (sem instalar) ou `Leve_x.y.z_amd64.deb` (Debian, Ubuntu e derivados). Novo e ainda não testado num desktop Linux real: só compilado e com teste de fumaça sem tela no CI. Relatos são bem-vindos.
 
 Cada release traz os SHA-256 em `SHA256SUMS.txt` e [attestations de proveniência](https://github.com/moraliasp/leve/attestations) (`gh attestation verify <arquivo> --repo moraliasp/leve`).
 
@@ -43,8 +44,9 @@ Cada release traz os SHA-256 em `SHA256SUMS.txt` e [attestations de proveniênci
 O Leve ainda não tem assinatura Apple nem Microsoft, então o sistema avisa uma vez.
 **macOS:** abra o Leve, clique em *Concluído*, vá em *Ajustes do Sistema › Privacidade e Segurança* e clique em *Abrir Mesmo Assim* (ou rode `xattr -dr com.apple.quarantine /Applications/Leve.app`).
 **Windows:** no aviso do SmartScreen, clique em *Mais informações › Executar assim mesmo*.
+**Linux:** torne o AppImage executável (`chmod +x Leve_*.AppImage`) e abra, ou instale o `.deb` com `sudo apt install ./Leve_*_amd64.deb`.
 
-Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações têm assinatura própria, conferida pelo app antes de instalar: *Leve › Verificar atualizações…* (no Windows, *Ajuda › Verificar atualizações…*), ou ligue a checagem diária nas *Preferências*.
+Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações têm assinatura própria, conferida pelo app antes de instalar: *Leve › Verificar atualizações…* (no Windows e no Linux, *Ajuda › Verificar atualizações…*), ou ligue a checagem diária nas *Preferências*.
 
 ## Recursos
 
@@ -54,8 +56,11 @@ Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações t
 - Sumário, busca no documento, abas, voltar/avançar
 - Tema claro e escuro, três larguras de leitura, três fontes, zoom
 - Imprimir ou exportar PDF; exportar um HTML autocontido (offline, sem scripts) ou copiar como HTML
+- Copiar como texto formatado (menu Editar, Cmd/Ctrl+Shift+C): o documento, ou só a seleção, cola no Google Docs, Gmail, Apple Mail, Word, Notion e Slack com títulos, listas, links, tabelas e código; diagramas vão como imagem e fórmulas como a fonte LaTeX
 - Português e inglês, pelo idioma do sistema ou pela escolha nas *Preferências*
 - Documentos grandes (até 20 MB) abrem num modo mais leve
+- *Arquivo › Abrir no editor* (⌘E / Ctrl+E) manda o documento para VS Code, Cursor, Zed, Sublime Text, TextEdit/Bloco de Notas ou o aplicativo padrão (*Preferências › Integração*)
+- `leve arquivo.md` no terminal abre no Leve: no macOS, *Leve › Instalar comando 'leve' no terminal…*; no Windows e no Linux, veja [`docs/instalacao.md`](docs/instalacao.md#comando-leve-no-terminal)
 - Um guia de Markdown embutido abre quando o Leve inicia sem nada para mostrar (*Ajuda › Documento de exemplo*; dá para desligar nas *Preferências*)
 
 ## Privacidade
@@ -81,13 +86,13 @@ Tamanho do instalador da última release do Leve e de outros visualizadores de M
 
 ## Build
 
-Pré-requisitos: Node 22+, pnpm, Rust estável e Xcode Command Line Tools (macOS) ou Visual Studio Build Tools + WebView2 (Windows).
+Pré-requisitos: Node 22+, pnpm, Rust estável e Xcode Command Line Tools (macOS), Visual Studio Build Tools + WebView2 (Windows) ou os [pacotes do Tauri 2 para Linux](https://v2.tauri.app/start/prerequisites/#linux) (`libwebkit2gtk-4.1-dev` e afins).
 
 ```bash
 pnpm install
 pnpm tauri dev -- -- docs/exemplo.md   # roda com um documento
 pnpm test                               # testes unitários e golden
-pnpm tauri build                        # .app/.dmg no macOS, .exe/.msi no Windows
+pnpm tauri build                        # .app/.dmg no macOS, .exe/.msi no Windows, .deb/.AppImage no Linux (--bundles deb,appimage)
 ```
 
 Do Mac também sai o instalador NSIS do Windows com `pnpm build:windows` (precisa de `cargo-xwin`, `llvm`, `lld` e `makensis`; ver `scripts/build-windows.sh`).

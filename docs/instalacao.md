@@ -1,6 +1,6 @@
 # Instalar o Leve
 
-Os instaladores ainda saem sem assinatura (macOS até a Moralia ter conta Apple Developer própria; Windows sem certificado), então o sistema avisa na primeira abertura. É esperado e acontece uma vez.
+Os instaladores ainda saem sem assinatura (macOS até a Moralia ter conta Apple Developer própria; Windows sem certificado), então o sistema avisa na primeira abertura. É esperado e acontece uma vez. No Linux não há aviso de sistema: a origem se confere pelo `SHA256SUMS.txt` e pela attestation da release.
 
 ## macOS
 
@@ -21,14 +21,63 @@ xattr -dr com.apple.quarantine /Applications/Leve.app
 2. O SmartScreen mostra "O Windows protegeu o computador". Clique em **Mais informações** e depois em **Executar assim mesmo**.
 3. O instalador associa `.md`, `.markdown`, `.mdown` e `.mkd` ao Leve.
 
+## Linux
+
+Pacotes x86_64, compilados no Ubuntu 22.04, para distribuições com glibc 2.35 ou mais nova (em tese Ubuntu 22.04, Debian 12, Fedora 36, Linux Mint 21 e posteriores). **Ainda não testados numa máquina Linux real:** o CI compila, confere o pacote e abre o AppImage sem tela por 15 s, mas leitura, duplo-clique, diálogo e atualização não foram exercitados num desktop. Relatos em [issues](https://github.com/moraliasp/leve/issues).
+
+**AppImage** (qualquer distribuição, sem instalar):
+
+```bash
+chmod +x Leve_x.y.z_amd64.AppImage
+./Leve_x.y.z_amd64.AppImage documento.md
+```
+
+Se ele não abrir por falta de FUSE, instale `libfuse2` (no Ubuntu 24.04, `libfuse2t64`) ou rode com `--appimage-extract-and-run`. Para o duplo-clique em `.md` abrir no Leve, use um integrador de AppImage (Gear Lever, AppImageLauncher) ou prefira o `.deb`.
+
+**.deb** (Debian, Ubuntu e derivados):
+
+```bash
+sudo apt install ./Leve_x.y.z_amd64.deb
+```
+
+O `apt` puxa o WebKitGTK e o GTK se faltarem. O pacote instala o Leve no menu de aplicativos e o registra para `text/markdown`; para torná-lo o padrão, use **Abrir com › Leve** e marque "sempre", ou `xdg-mime default Leve.desktop text/markdown`.
+
+Sem `.rpm` nem Flatpak por enquanto: no Fedora e no openSUSE, use o AppImage.
+
+## Comando `leve` no terminal
+
+`leve arquivo.md` abre o arquivo no Leve (caminho relativo vale a partir da pasta atual do terminal); `leve` sozinho abre ou traz o Leve para a frente.
+
+**macOS:** **Leve › Instalar comando 'leve' no terminal…** (ou **Preferências › Integração**). O app grava um script curto que chama `open -b br.com.moralia.leve`:
+
+- em `/usr/local/bin/leve`, se der para gravar ali sem senha;
+- senão em `~/.local/bin/leve` ou `~/bin/leve`, se uma dessas pastas estiver no `PATH` do seu shell;
+- senão o app pergunta e grava `/usr/local/bin/leve` pedindo a senha de administrador do macOS.
+
+Ele não sobrescreve um `leve` que não tenha sido instalado por ele. Para remover: `rm "$(command -v leve)"`.
+
+**Windows:** o executável é `leve.exe`, na pasta de instalação (padrão `%LOCALAPPDATA%\Leve`). Ponha essa pasta no `PATH` do seu usuário uma vez (PowerShell):
+
+```powershell
+[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$env:LOCALAPPDATA\Leve", "User")
+```
+
+Abra um terminal novo e use `leve arquivo.md`. Se instalou em outra pasta, troque o caminho.
+
+**Linux:** o pacote `.deb` instala `/usr/bin/leve`, já no `PATH`. O AppImage não: crie um link, por exemplo `ln -s ~/Applications/Leve.AppImage ~/.local/bin/leve`.
+
+## Abrir no editor
+
+**Arquivo › Abrir no editor** (⌘E / Ctrl+E) abre o documento ativo no editor escolhido em **Preferências › Integração › Editor**: VS Code, Cursor, Zed, Sublime Text, TextEdit (macOS) ou Bloco de Notas (Windows), ou o aplicativo padrão para `.md`. A lista mostra só o que está instalado. Se o aplicativo padrão para `.md` for o próprio Leve, escolha um editor.
+
 ## Conferir a versão
 
 **Ajuda › Sobre o Leve** (no macOS, **Leve › Sobre o Leve**) mostra a versão, a licença e o link do repositório.
 
 ## Atualizações
 
-**Leve › Verificar atualizações…** (no Windows, **Ajuda › Verificar atualizações…**) procura uma versão nova nas releases do GitHub, pergunta antes de baixar e reinicia o app ao terminar. Em **Preferências › Atualizações** dá para ligar a checagem diária (desligada por padrão). O pacote baixado é conferido pela assinatura do atualizador antes de instalar.
+**Leve › Verificar atualizações…** (no Windows e no Linux, **Ajuda › Verificar atualizações…**) procura uma versão nova nas releases do GitHub, pergunta antes de baixar e reinicia o app ao terminar. Em **Preferências › Atualizações** dá para ligar a checagem diária (desligada por padrão). O pacote baixado é conferido pela assinatura do atualizador antes de instalar. No Linux, o AppImage se substitui no lugar (precisa de permissão de escrita no arquivo); o `.deb` é reinstalado pelo `dpkg` e o sistema pede a senha de administrador (`pkexec`).
 
 ## Dados do app
 
-A lista de arquivos liberados para os Recentes fica em `grants.json`, em `~/Library/Application Support/br.com.moralia.leve/` (macOS) ou `%LOCALAPPDATA%\br.com.moralia.leve\` (Windows). Preferências, abas e posições de leitura ficam no armazenamento do WebView do app. **Preferências › Esquecer arquivos autorizados…** limpa a lista.
+A lista de arquivos liberados para os Recentes fica em `grants.json`, em `~/Library/Application Support/br.com.moralia.leve/` (macOS), `%LOCALAPPDATA%\br.com.moralia.leve\` (Windows) ou `~/.local/share/br.com.moralia.leve/` (Linux). Preferências, abas e posições de leitura ficam no armazenamento do WebView do app. **Preferências › Esquecer arquivos autorizados…** limpa a lista.

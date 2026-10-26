@@ -929,89 +929,298 @@ button.text.primary {
 
 /* ---------- Preferências (Mod+,) ---------- */
 
+/* Superfície em --bar-bg (a mesma da barra) e grupos em --page-bg: o texto só usa tokens já
+   conferidos por scripts/contraste.mjs nos dois fundos. Cabeçalho e rodapé ficam; o meio rola. */
 .prefs {
-  width: min(520px, calc(100vw - 32px));
+  width: min(560px, calc(100vw - 32px));
   max-height: calc(100vh - 48px);
-  overflow: auto;
+  padding: 0;
+  overflow: hidden;
+  background: var(--bar-bg);
 }
 
-.prefs input {
-  accent-color: var(--accent);
+.prefs[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.prefs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 12px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.prefs .prefs-head h2 {
   margin: 0;
-}
-
-.pref-group {
-  margin: 0 0 16px;
-}
-
-.pref-group h3 {
-  margin: 0 0 8px;
-  font-size: 11px;
+  font-size: 17px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+}
+
+.prefs-help {
+  display: flex;
+  gap: 2px;
+}
+
+button.ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
   color: var(--bar-muted);
 }
 
-/* Rótulo à esquerda, opções à direita; em janela estreita o rótulo sobe. */
+button.ghost:hover:not(:disabled) {
+  color: var(--bar-fg);
+}
+
+.prefs-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 4px 20px 20px;
+}
+
+.pref-group h3 {
+  margin: 18px 0 8px 2px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pref-panel {
+  background: var(--page-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+/* Rótulo (e dica) à esquerda, controle à direita. */
 .pref-row {
-  display: grid;
-  grid-template-columns: 128px 1fr;
-  align-items: center;
-  gap: 4px 12px;
-  margin: 0 0 8px;
-}
-
-.pref-options {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 16px;
-}
-
-.pref-option,
-.pref-check {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: 44px;
+  padding: 8px 12px 8px 14px;
 }
 
-.pref-check {
-  margin: 0 0 8px;
+.pref-row + .pref-row {
+  border-top: 1px solid var(--border);
 }
 
-.pref-zoom {
-  gap: 6px;
+.pref-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.pref-zoom output {
-  min-width: 48px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
+.pref-label {
+  line-height: 1.35;
+}
+
+label.pref-label {
+  cursor: pointer;
+}
+
+.pref-hint {
+  max-width: 52ch;
+  color: var(--bar-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* Dica em cima, botões embaixo: ação sem estado, não preferência. */
+.pref-row-block {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding-block: 12px;
 }
 
 .pref-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 4px 0 8px;
 }
 
-.prefs .prefs-footer {
+button.text.danger {
+  color: var(--error);
+}
+
+/* Escolha única: rádios de verdade (setas, Tab no marcado), desenhados como controle segmentado. */
+.seg {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  padding: 2px;
+  background: var(--bar-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.seg input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.seg label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 0 10px;
+  color: var(--bar-muted);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+
+.seg label:hover {
+  color: var(--bar-fg);
+  background: var(--hover);
+}
+
+.seg input:checked + label {
+  color: var(--bar-fg);
+  font-weight: 500;
+  background: var(--page-bg);
+  border-color: var(--border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme="dark"] .seg input:checked + label {
+  /* --page-bg afundaria o segmento no escuro; --border o levanta (--bar-fg sobre ele: 10:1). */
+  background: var(--border);
+  box-shadow: none;
+}
+
+.seg input:focus-visible + label {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Cada fonte se mostra nela mesma (mesmas pilhas de body[data-font] #content). */
+.seg-font label[for="prefs-font-serif"] {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  font-size: 14px;
+}
+
+.seg-font label[for="prefs-font-mono"] {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+/* Liga/desliga: checkbox nativo (role="switch"). Trilho desligado em --bar-muted para ≥ 3:1. */
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  width: 32px;
+  height: 18px;
+  margin: 0;
+  background: var(--bar-muted);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
+}
+
+.switch::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.switch:checked {
+  background: var(--accent);
+}
+
+.switch:checked::before {
+  transform: translateX(14px);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pref-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.stepper button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  min-height: 28px;
+  border-radius: 0;
+}
+
+.stepper output {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  border-inline: 1px solid var(--border);
+  background: var(--page-bg);
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.prefs .prefs-foot {
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-}
-
-.pref-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
+  margin: 0;
+  padding: 12px 16px 12px 14px;
+  border-top: 1px solid var(--border);
 }
 
 @media (max-width: 479px) {
-  .pref-row {
-    grid-template-columns: 1fr;
+  .prefs-help span:not([data-icon]) {
+    display: none;
+  }
+
+  .pref-row:has(.seg, .pref-zoom) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .seg label {
+    flex: 1 1 0;
+    padding: 0 6px;
   }
 }
 

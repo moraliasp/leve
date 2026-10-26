@@ -19,6 +19,12 @@ import triangleAlert from "lucide-static/icons/triangle-alert.svg?raw";
 import octagonAlert from "lucide-static/icons/octagon-alert.svg?raw";
 import imageOff from "lucide-static/icons/image-off.svg?raw";
 import globeLock from "lucide-static/icons/globe-lock.svg?raw";
+import monitor from "lucide-static/icons/monitor.svg?raw";
+import sun from "lucide-static/icons/sun.svg?raw";
+import moon from "lucide-static/icons/moon.svg?raw";
+import minus from "lucide-static/icons/minus.svg?raw";
+import plus from "lucide-static/icons/plus.svg?raw";
+import keyboard from "lucide-static/icons/keyboard.svg?raw";
 
 const RAW = {
   "panel-left": panelLeft,
@@ -37,6 +43,12 @@ const RAW = {
   "octagon-alert": octagonAlert,
   "image-off": imageOff,
   "globe-lock": globeLock,
+  monitor,
+  sun,
+  moon,
+  minus,
+  plus,
+  keyboard,
 } as const;
 
 export type IconName = keyof typeof RAW;

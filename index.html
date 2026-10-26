@@ -85,89 +85,135 @@
         </form>
       </dialog>
 
+      <!-- Preferências: cabeçalho e rodapé fixos, grupos rolam no meio. Cada linha é rótulo (e dica)
+           à esquerda, controle à direita; abaixo de 480 px o controle desce. Escolha única = .seg
+           (rádios), liga/desliga = .switch (checkbox com role="switch"). Ids, names e values são
+           o contrato com wirePreferences/syncPrefsUI em main.ts. -->
       <dialog id="prefs" class="sheet prefs" aria-labelledby="prefs-title">
-        <h2 id="prefs-title" data-i18n="prefs.title"></h2>
-
-        <section class="pref-group" aria-labelledby="prefs-g-look">
-          <h3 id="prefs-g-look" data-i18n="prefs.look"></h3>
-          <div class="pref-row" role="radiogroup" aria-labelledby="prefs-lang-label">
-            <span id="prefs-lang-label" class="pref-label" data-i18n="prefs.language"></span>
-            <span class="pref-options">
-              <span class="pref-option"><input type="radio" id="prefs-lang-auto" name="lang" value="auto" /><label for="prefs-lang-auto" data-i18n="prefs.langAuto"></label></span>
-              <span class="pref-option"><input type="radio" id="prefs-lang-pt" name="lang" value="pt-BR" /><label for="prefs-lang-pt" lang="pt-BR">Português</label></span>
-              <span class="pref-option"><input type="radio" id="prefs-lang-en" name="lang" value="en" /><label for="prefs-lang-en" lang="en">English</label></span>
-            </span>
-          </div>
-          <div class="pref-row" role="radiogroup" aria-labelledby="prefs-theme-label">
-            <span id="prefs-theme-label" class="pref-label" data-i18n="prefs.theme"></span>
-            <span class="pref-options">
-              <span class="pref-option"><input type="radio" id="prefs-theme-auto" name="theme" value="auto" /><label for="prefs-theme-auto" data-i18n="theme.auto"></label></span>
-              <span class="pref-option"><input type="radio" id="prefs-theme-light" name="theme" value="light" /><label for="prefs-theme-light" data-i18n="theme.light"></label></span>
-              <span class="pref-option"><input type="radio" id="prefs-theme-dark" name="theme" value="dark" /><label for="prefs-theme-dark" data-i18n="theme.dark"></label></span>
-            </span>
-          </div>
-          <div class="pref-row" role="radiogroup" aria-labelledby="prefs-font-label">
-            <span id="prefs-font-label" class="pref-label" data-i18n="prefs.font"></span>
-            <span class="pref-options">
-              <span class="pref-option"><input type="radio" id="prefs-font-sans" name="font" value="sans" /><label for="prefs-font-sans">Sans</label></span>
-              <span class="pref-option"><input type="radio" id="prefs-font-serif" name="font" value="serif" /><label for="prefs-font-serif">Serif</label></span>
-              <span class="pref-option"><input type="radio" id="prefs-font-mono" name="font" value="mono" /><label for="prefs-font-mono">Mono</label></span>
-            </span>
-          </div>
-          <div class="pref-row" role="radiogroup" aria-labelledby="prefs-width-label">
-            <span id="prefs-width-label" class="pref-label" data-i18n="prefs.width"></span>
-            <span class="pref-options">
-              <span class="pref-option"><input type="radio" id="prefs-width-narrow" name="width" value="narrow" /><label for="prefs-width-narrow" data-i18n="width.narrow"></label></span>
-              <span class="pref-option"><input type="radio" id="prefs-width-normal" name="width" value="normal" /><label for="prefs-width-normal" data-i18n="width.normal"></label></span>
-              <span class="pref-option"><input type="radio" id="prefs-width-wide" name="width" value="wide" /><label for="prefs-width-wide" data-i18n="width.wide"></label></span>
-            </span>
-          </div>
-          <div class="pref-row" role="group" aria-labelledby="prefs-zoom-label">
-            <span id="prefs-zoom-label" class="pref-label" data-i18n="prefs.zoom"></span>
-            <span class="pref-options pref-zoom">
-              <button id="prefs-zoom-out" type="button" class="text" data-i18n-title="prefs.zoomOut" data-shortcut="zoom-out" data-i18n-aria-label="prefs.zoomOutLabel">−</button>
-              <output id="prefs-zoom-value" for="prefs-zoom-out prefs-zoom-in prefs-zoom-reset" aria-live="polite">100 %</output>
-              <button id="prefs-zoom-in" type="button" class="text" data-i18n-title="prefs.zoomIn" data-shortcut="zoom-in" data-i18n-aria-label="prefs.zoomInLabel">+</button>
-              <button id="prefs-zoom-reset" type="button" class="text" data-i18n-title="prefs.zoomReset" data-shortcut="zoom-reset" data-i18n="prefs.zoomResetShort"></button>
-            </span>
-          </div>
-        </section>
-
-        <section class="pref-group" aria-labelledby="prefs-g-read">
-          <h3 id="prefs-g-read" data-i18n="prefs.reading"></h3>
-          <div class="pref-check"><input type="checkbox" id="prefs-toc" name="toc" /><label for="prefs-toc" data-i18n="prefs.tocOpen"></label></div>
-          <div class="pref-check"><input type="checkbox" id="prefs-restore-scroll" name="restore-scroll" /><label for="prefs-restore-scroll" data-i18n="prefs.restoreScroll"></label></div>
-          <div class="pref-check"><input type="checkbox" id="prefs-restore-tabs" name="restore-tabs" /><label for="prefs-restore-tabs" data-i18n="prefs.restoreTabs"></label></div>
-          <div class="pref-check"><input type="checkbox" id="prefs-sample" name="sample" /><label for="prefs-sample" data-i18n="prefs.sample"></label></div>
-        </section>
-
-        <section class="pref-group" aria-labelledby="prefs-g-privacy">
-          <h3 id="prefs-g-privacy" data-i18n="prefs.privacy"></h3>
-          <div class="pref-check"><input type="checkbox" id="prefs-remote" name="remote" /><label for="prefs-remote" data-i18n="prefs.remote"></label></div>
-          <p class="muted" data-i18n="prefs.remoteHint"></p>
-          <div class="pref-actions">
-            <button id="prefs-clear-recent" type="button" class="text" data-i18n="prefs.clearRecent"></button>
-            <button id="prefs-forget-grants" type="button" class="text" data-i18n="prefs.forget"></button>
-          </div>
-          <p class="muted" data-i18n="prefs.forgetHint"></p>
-        </section>
-
-        <section class="pref-group" aria-labelledby="prefs-g-updates">
-          <h3 id="prefs-g-updates" data-i18n="prefs.updates"></h3>
-          <div class="pref-check"><input type="checkbox" id="prefs-auto-update" name="auto-update" /><label for="prefs-auto-update" data-i18n="prefs.autoUpdate"></label></div>
-          <p class="muted" data-i18n="prefs.autoUpdateHint"></p>
-          <div class="pref-actions">
-            <button id="prefs-check-update" type="button" class="text" data-i18n="update.check"></button>
-          </div>
-        </section>
-
-        <form method="dialog" class="prefs-footer">
-          <span class="pref-links">
-            <button id="prefs-shortcuts" type="button" class="link" data-i18n-title="prefs.shortcuts" data-shortcut="shortcuts" data-i18n="prefs.shortcuts"></button>
-            <button id="prefs-about" type="button" class="link" data-i18n="prefs.about"></button>
-            <button id="prefs-reset" type="button" class="link" data-i18n="prefs.reset"></button>
+        <header class="prefs-head">
+          <h2 id="prefs-title" data-i18n="prefs.title"></h2>
+          <span class="prefs-help">
+            <button id="prefs-shortcuts" type="button" class="ghost" data-i18n-title="prefs.shortcuts" data-i18n-aria-label="prefs.shortcuts" data-shortcut="shortcuts"><span data-icon="keyboard"></span><span data-i18n="prefs.shortcuts"></span></button>
+            <button id="prefs-about" type="button" class="ghost" data-i18n-title="prefs.about" data-i18n-aria-label="prefs.about"><span data-icon="info"></span><span data-i18n="prefs.about"></span></button>
           </span>
-          <button class="text" data-i18n="common.close"></button>
+        </header>
+
+        <div class="prefs-body">
+          <section class="pref-group" aria-labelledby="prefs-g-look">
+            <h3 id="prefs-g-look" data-i18n="prefs.look"></h3>
+            <div class="pref-panel">
+              <div class="pref-row" role="radiogroup" aria-labelledby="prefs-theme-label">
+                <span id="prefs-theme-label" class="pref-label" data-i18n="prefs.theme"></span>
+                <span class="seg">
+                  <input type="radio" id="prefs-theme-auto" name="theme" value="auto" /><label for="prefs-theme-auto"><span data-icon="monitor" data-size="14"></span><span data-i18n="theme.auto"></span></label>
+                  <input type="radio" id="prefs-theme-light" name="theme" value="light" /><label for="prefs-theme-light"><span data-icon="sun" data-size="14"></span><span data-i18n="theme.light"></span></label>
+                  <input type="radio" id="prefs-theme-dark" name="theme" value="dark" /><label for="prefs-theme-dark"><span data-icon="moon" data-size="14"></span><span data-i18n="theme.dark"></span></label>
+                </span>
+              </div>
+              <div class="pref-row" role="radiogroup" aria-labelledby="prefs-font-label">
+                <span id="prefs-font-label" class="pref-label" data-i18n="prefs.font"></span>
+                <span class="seg seg-font">
+                  <input type="radio" id="prefs-font-sans" name="font" value="sans" /><label for="prefs-font-sans">Sans</label>
+                  <input type="radio" id="prefs-font-serif" name="font" value="serif" /><label for="prefs-font-serif">Serif</label>
+                  <input type="radio" id="prefs-font-mono" name="font" value="mono" /><label for="prefs-font-mono">Mono</label>
+                </span>
+              </div>
+              <div class="pref-row" role="radiogroup" aria-labelledby="prefs-width-label">
+                <span id="prefs-width-label" class="pref-label" data-i18n="prefs.width"></span>
+                <span class="seg">
+                  <input type="radio" id="prefs-width-narrow" name="width" value="narrow" /><label for="prefs-width-narrow" data-i18n="width.narrow"></label>
+                  <input type="radio" id="prefs-width-normal" name="width" value="normal" /><label for="prefs-width-normal" data-i18n="width.normal"></label>
+                  <input type="radio" id="prefs-width-wide" name="width" value="wide" /><label for="prefs-width-wide" data-i18n="width.wide"></label>
+                </span>
+              </div>
+              <div class="pref-row" role="group" aria-labelledby="prefs-zoom-label">
+                <span id="prefs-zoom-label" class="pref-label" data-i18n="prefs.zoom"></span>
+                <span class="pref-zoom">
+                  <span class="stepper">
+                    <button id="prefs-zoom-out" type="button" data-i18n-title="prefs.zoomOut" data-shortcut="zoom-out" data-i18n-aria-label="prefs.zoomOutLabel"><span data-icon="minus" data-size="14"></span></button>
+                    <output id="prefs-zoom-value" for="prefs-zoom-out prefs-zoom-in prefs-zoom-reset" aria-live="polite">100 %</output>
+                    <button id="prefs-zoom-in" type="button" data-i18n-title="prefs.zoomIn" data-shortcut="zoom-in" data-i18n-aria-label="prefs.zoomInLabel"><span data-icon="plus" data-size="14"></span></button>
+                  </span>
+                  <button id="prefs-zoom-reset" type="button" class="ghost" data-i18n-title="prefs.zoomReset" data-shortcut="zoom-reset" data-i18n="prefs.zoomResetShort"></button>
+                </span>
+              </div>
+              <div class="pref-row" role="radiogroup" aria-labelledby="prefs-lang-label">
+                <span id="prefs-lang-label" class="pref-label" data-i18n="prefs.language"></span>
+                <span class="seg">
+                  <input type="radio" id="prefs-lang-auto" name="lang" value="auto" /><label for="prefs-lang-auto" data-i18n="prefs.langAuto"></label>
+                  <input type="radio" id="prefs-lang-pt" name="lang" value="pt-BR" /><label for="prefs-lang-pt" lang="pt-BR">Português</label>
+                  <input type="radio" id="prefs-lang-en" name="lang" value="en" /><label for="prefs-lang-en" lang="en">English</label>
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section class="pref-group" aria-labelledby="prefs-g-read">
+            <h3 id="prefs-g-read" data-i18n="prefs.reading"></h3>
+            <div class="pref-panel">
+              <div class="pref-row">
+                <label class="pref-label" for="prefs-toc" data-i18n="prefs.tocOpen"></label>
+                <input type="checkbox" role="switch" class="switch" id="prefs-toc" name="toc" />
+              </div>
+              <div class="pref-row">
+                <label class="pref-label" for="prefs-restore-scroll" data-i18n="prefs.restoreScroll"></label>
+                <input type="checkbox" role="switch" class="switch" id="prefs-restore-scroll" name="restore-scroll" />
+              </div>
+              <div class="pref-row">
+                <label class="pref-label" for="prefs-restore-tabs" data-i18n="prefs.restoreTabs"></label>
+                <input type="checkbox" role="switch" class="switch" id="prefs-restore-tabs" name="restore-tabs" />
+              </div>
+              <div class="pref-row">
+                <label class="pref-label" for="prefs-sample" data-i18n="prefs.sample"></label>
+                <input type="checkbox" role="switch" class="switch" id="prefs-sample" name="sample" />
+              </div>
+            </div>
+          </section>
+
+          <!-- Lugar do grupo de exportação (leve.exportMdLinks): mesma .pref-group/.pref-panel, uma .pref-row com .switch. -->
+
+          <section class="pref-group" aria-labelledby="prefs-g-privacy">
+            <h3 id="prefs-g-privacy" data-i18n="prefs.privacy"></h3>
+            <div class="pref-panel">
+              <div class="pref-row">
+                <span class="pref-text">
+                  <label class="pref-label" for="prefs-remote" data-i18n="prefs.remote"></label>
+                  <span id="prefs-remote-hint" class="pref-hint" data-i18n="prefs.remoteHint"></span>
+                </span>
+                <input type="checkbox" role="switch" class="switch" id="prefs-remote" name="remote" aria-describedby="prefs-remote-hint" />
+              </div>
+              <div class="pref-row pref-row-block">
+                <span id="prefs-forget-hint" class="pref-hint" data-i18n="prefs.forgetHint"></span>
+                <span class="pref-actions">
+                  <button id="prefs-clear-recent" type="button" class="text" data-i18n="prefs.clearRecent"></button>
+                  <button id="prefs-forget-grants" type="button" class="text danger" data-i18n="prefs.forget" aria-describedby="prefs-forget-hint"></button>
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section class="pref-group" aria-labelledby="prefs-g-updates">
+            <h3 id="prefs-g-updates" data-i18n="prefs.updates"></h3>
+            <div class="pref-panel">
+              <div class="pref-row">
+                <span class="pref-text">
+                  <label class="pref-label" for="prefs-auto-update" data-i18n="prefs.autoUpdate"></label>
+                  <span id="prefs-auto-update-hint" class="pref-hint" data-i18n="prefs.autoUpdateHint"></span>
+                </span>
+                <input type="checkbox" role="switch" class="switch" id="prefs-auto-update" name="auto-update" aria-describedby="prefs-auto-update-hint" />
+              </div>
+              <div class="pref-row pref-row-block">
+                <span class="pref-actions">
+                  <button id="prefs-check-update" type="button" class="text" data-i18n="update.check"></button>
+                </span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <form method="dialog" class="prefs-foot">
+          <button id="prefs-reset" type="button" class="ghost" data-i18n="prefs.reset"></button>
+          <button class="text primary" data-i18n="common.close"></button>
         </form>
       </dialog>
 

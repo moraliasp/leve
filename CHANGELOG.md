@@ -8,6 +8,10 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 - Sample document: a Markdown primer (history, syntax, good practices, uses) in English and Portuguese that also shows what Leve renders. It opens when Leve is started directly with no tabs to restore, from *Help › Sample Document* at any time, and can be turned off with "Show sample document at startup" in Settings. It lives in memory: no file is written, read or authorized.
 
+### Changed
+
+- Settings redesigned: fixed header and footer, settings grouped in panels with one row per option, segmented controls for theme, font, width and language, switches for on/off options, actions separated from preferences, and a layout that adapts to narrow windows.
+
 ## [0.2.0] - 2026-10-25
 
 First public release.

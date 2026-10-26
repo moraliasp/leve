@@ -94,6 +94,12 @@ Decisão estrutural nova entra aqui, no fim, no mesmo formato.
 - **Decisão:** o render só marca a linguagem. `src/highlight.ts` importa o highlight.js sob demanda e realça em fatias de 8 ms, começando pelos blocos mais perto da rolagem. A fila usa `setTimeout`, porque o IntersectionObserver não dispara com a janela oculta. A busca recalcula os resultados com `refresh`, no máximo a cada 300 ms.
 - **Consequência:** o render caiu de 762 para 369 ms e o chunk de abertura de 500 para 346 KB. Duas alternativas foram medidas e descartadas: o `RETURN_DOM_FRAGMENT` do DOMPurify, mais lento que string com `innerHTML`, e o `content-visibility`, que leva 5 a 7 s até pintar e deixa as âncoras imprecisas. Para medir, use `performance.measure` em `loadDoc` e um Chrome headless, porque o painel do navegador em segundo plano distorce os tempos.
 
+## Orçamento de tamanho no CI
+
+- **Contexto:** o chunk de abertura já caiu de 500 para 346 KB tirando Mermaid, KaTeX e highlight.js do caminho crítico, mas nada impedia um import estático novo de trazer tudo de volta, nem uma dependência de inchar o `dist/` (o aviso de chunk do Vite é esperado e ninguém lê).
+- **Decisão:** `scripts/tamanho.mjs` (`pnpm size`, passo do CI logo depois do `pnpm build`) mede o `dist/`: total bruto e gzip, chunk de abertura (o `<script type="module">`, o CSS e os `modulepreload` linkados em `dist/index.html`) bruto e gzip, e o maior arquivo. Os limites ficam num objeto só, `ORCAMENTO`, com ~10% de folga sobre o medido em 2026-10-25, já sem o layout ELK do Mermaid (`dist` 4,44 MB / 1,44 MB gzip; abertura 391,3 kB / 124,2 kB gzip; maior arquivo um chunk do Mermaid, 629 kB). Estourar sai com erro dizendo o que e por quanto.
+- **Consequência:** subir um limite é decisão no mesmo PR, com o motivo. Quando o tamanho cai de verdade, o limite desce junto, senão a folga vira espaço para regressão: foi o que aconteceu quando o ELK saiu (−1,46 MB) e o orçamento, montado antes sobre 5,90 MB, foi refeito sobre o `dist` novo. O gzip é por arquivo, nível 9, só como referência de transferência: o app lê do disco.
+
 ## Leitura tolerante, com limite
 
 - **Contexto:** `read_to_string` recusava UTF-16, que é o padrão do Bloco de Notas, e qualquer byte fora de UTF-8, com erro em inglês. Também lia arquivos de qualquer tamanho, o que pode travar o WebView.

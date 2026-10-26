@@ -56,6 +56,8 @@ Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações t
 - Imprimir ou exportar PDF; exportar um HTML autocontido (offline, sem scripts) ou copiar como HTML
 - Português e inglês, pelo idioma do sistema ou pela escolha nas *Preferências*
 - Documentos grandes (até 20 MB) abrem num modo mais leve
+- *Arquivo › Abrir no editor* (⌘E / Ctrl+E) manda o documento para VS Code, Cursor, Zed, Sublime Text, TextEdit/Bloco de Notas ou o aplicativo padrão (*Preferências › Integração*)
+- `leve arquivo.md` no terminal abre no Leve: no macOS, *Leve › Instalar comando 'leve' no terminal…*; no Windows e no Linux, veja [`docs/instalacao.md`](docs/instalacao.md#comando-leve-no-terminal)
 - Um guia de Markdown embutido abre quando o Leve inicia sem nada para mostrar (*Ajuda › Documento de exemplo*; dá para desligar nas *Preferências*)
 
 ## Privacidade

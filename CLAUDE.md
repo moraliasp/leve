@@ -1,6 +1,6 @@
 # Leve
 
-Visualizador de Markdown em Tauri 2. Frontend vanilla TS em `src/`, Rust em `src-tauri/src/lib.rs`. Da Moralia, licença MIT (`LICENSE`); nome, logo e marca fora da licença. O app se chamava mdview: as chaves `mdview.*` do localStorage ficaram com o nome antigo de propósito.
+Visualizador de Markdown em Tauri 2. Frontend vanilla TS em `src/`, Rust em `src-tauri/src/lib.rs`. Da Moralia, licença MIT (`LICENSE`); nome, logo e marca fora da licença. O app se chamava mdview: as chaves do localStorage são `leve.*`, e `migrateLegacyKeys` (`src/prefs.ts`) renomeia as `mdview.*` antigas ao carregar.
 
 Por que as coisas são como são: [`docs/decisoes.md`](docs/decisoes.md). Leia antes de mudar algo que está lá; decisão estrutural nova (ou mudada) entra lá no mesmo PR.
 

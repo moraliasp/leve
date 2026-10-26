@@ -90,8 +90,11 @@ pub fn foreign(existing: Option<&str>) -> bool {
 /// O modo administrador só vale uma vez, depois de uma chamada sem senha nesta execução ter
 /// devolvido `needs-admin` (o frontend mostra a confirmação entre as duas). Sem isso, qualquer
 /// `invoke("install_cli", { admin: true })` abriria o pedido de senha direto.
+/// Toda chamada desarma a liberação antes de qualquer outra coisa: se a chamada falhar depois,
+/// a liberação de antes não fica armada.
 pub fn take_admin_permit(permit: &AtomicBool, admin: bool) -> Result<(), String> {
-    if !admin || permit.swap(false, Ordering::SeqCst) {
+    let armed = permit.swap(false, Ordering::SeqCst);
+    if !admin || armed {
         Ok(())
     } else {
         Err(crate::i18n::s().cli_admin_unconfirmed.to_owned())
@@ -320,6 +323,13 @@ mod tests {
         assert!(
             take_admin_permit(&permit, true).is_err(),
             "outro resultado tira a liberação"
+        );
+        // Chamada sem senha que falha (Err antes de `grant_admin_permit`) também desarma.
+        grant_admin_permit(&permit, &Outcome::NeedsAdmin { path: "x".into() });
+        assert!(take_admin_permit(&permit, false).is_ok());
+        assert!(
+            take_admin_permit(&permit, true).is_err(),
+            "desarmada pela chamada que falhou"
         );
     }
 

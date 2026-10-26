@@ -234,6 +234,22 @@ pub fn system_unless_self(default_app: Option<&str>, me: &str) -> Option<Found> 
     }
 }
 
+/// Linux: a saída do `xdg-mime query default text/markdown` (`Leve.desktop\n`) é do próprio Leve
+/// quando o nome sem `.desktop`, sem diferenciar maiúsculas, é `leve` ou o `identifier`
+/// (`br.com.moralia.leve`). `leve` vira o próprio id; o `identifier` já é o próprio id e
+/// `system_unless_self` o compara sem diferenciar maiúsculas. Nos dois casos ela recusa. Nome
+/// parecido (`leve-notes.desktop`) é outro app.
+#[cfg_attr(any(target_os = "macos", windows), allow(dead_code))]
+pub fn desktop_owner(xdg_out: &str, self_id: &str) -> String {
+    let t = xdg_out.trim();
+    let stem = t.strip_suffix(".desktop").unwrap_or(t);
+    if stem.eq_ignore_ascii_case("leve") {
+        self_id.to_owned()
+    } else {
+        stem.to_owned()
+    }
+}
+
 /// Windows: `canonicalize` devolve `\\?\C:\...` (ou `\\?\UNC\servidor\...`), que vários editores
 /// não entendem. Tira o prefixo antes de passar o caminho adiante; outros caminhos passam iguais.
 pub fn strip_verbatim(p: &Path) -> PathBuf {
@@ -486,19 +502,13 @@ mod sys {
         false
     }
 
-    pub fn default_and_self(_self_id: &str) -> (Option<String>, String) {
+    pub fn default_and_self(self_id: &str) -> (Option<String>, String) {
         let desktop = std::process::Command::new("xdg-mime")
             .args(["query", "default", "text/markdown"])
             .output()
             .ok()
-            .map(|o| desktop_stem(&String::from_utf8_lossy(&o.stdout)));
-        (desktop, "leve".to_owned())
-    }
-
-    /// `Leve.desktop\n` → `Leve`.
-    pub fn desktop_stem(out: &str) -> String {
-        let t = out.trim();
-        t.strip_suffix(".desktop").unwrap_or(t).to_owned()
+            .map(|o| super::desktop_owner(&String::from_utf8_lossy(&o.stdout), self_id));
+        (desktop, self_id.to_owned())
     }
 }
 
@@ -604,11 +614,33 @@ mod tests {
         assert_eq!(find_in_path(&["zed"], None, &exists), None);
     }
 
-    #[cfg(not(any(target_os = "macos", windows)))]
     #[test]
-    fn desktop_do_leve() {
-        assert_eq!(sys::desktop_stem("Leve.desktop\n"), "Leve");
-        assert_eq!(sys::desktop_stem("code.desktop"), "code");
+    fn desktop_do_leve_no_linux_pelos_dois_nomes() {
+        let me = "br.com.moralia.leve";
+        for proprio in [
+            "Leve.desktop\n",
+            "leve.desktop",
+            "br.com.moralia.leve.desktop\n",
+            "BR.COM.MORALIA.LEVE.desktop",
+        ] {
+            assert_eq!(
+                system_unless_self(Some(&desktop_owner(proprio, me)), me),
+                None,
+                "{proprio}"
+            );
+        }
+        for alheio in [
+            "leve-notes.desktop\n",
+            "code.desktop",
+            "br.com.moralia.leve2.desktop",
+            "",
+        ] {
+            assert_eq!(
+                system_unless_self(Some(&desktop_owner(alheio, me)), me),
+                Some(Found::System),
+                "{alheio}"
+            );
+        }
     }
 
     #[test]

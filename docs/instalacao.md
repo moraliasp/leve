@@ -2,6 +2,20 @@
 
 Os instaladores ainda saem sem assinatura (macOS até a Moralia ter conta Apple Developer própria; Windows sem certificado), então o sistema avisa na primeira abertura. É esperado e acontece uma vez.
 
+## Por gerenciador de pacotes (em breve)
+
+Ainda não publicado; quando estiver, estas linhas deixam de dizer "em breve".
+
+```bash
+brew install --cask moraliasp/tap/leve   # macOS, tap próprio da Moralia
+```
+
+```powershell
+winget install Moralia.Leve              # Windows, instalador por usuário
+```
+
+O app é o mesmo da release, com o mesmo aviso na primeira abertura (abaixo). No macOS o Homebrew mantém a quarentena de propósito, então o passo do **Abrir Mesmo Assim** vale também para quem instala pelo `brew`, e pode voltar depois de um `brew upgrade`. Pelo winget vai o instalador por usuário (`-setup.exe`); o `.msi` continua só na release.
+
 ## macOS
 
 1. Abra o `.dmg` e arraste **Leve** para **Aplicativos**.

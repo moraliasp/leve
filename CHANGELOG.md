@@ -6,6 +6,7 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ### Added
 
+- Homebrew cask (own tap, `moraliasp/tap/leve`) and winget manifests (`Moralia.Leve`), generated per release from `SHA256SUMS.txt` by a manual workflow. Not published yet.
 - Sample document: a Markdown primer (history, syntax, good practices, uses) in English and Portuguese that also shows what Leve renders. It opens when Leve is started directly with no tabs to restore, from *Help › Sample Document* at any time, and can be turned off with "Show sample document at startup" in Settings. It lives in memory: no file is written, read or authorized.
 - File › Export HTML… saves the document as a single self-contained `.html` file that opens offline in any browser: light theme, highlighted code, KaTeX math with its fonts, Mermaid diagrams as SVG, callouts and front matter, local images up to 5 MB embedded, no scripts. Links to other `.md` files become text or point to the sibling `.html`. File › Copy as HTML… copies the same HTML to the clipboard.
 

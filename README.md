@@ -36,6 +36,13 @@ Get the latest version from [Releases](https://github.com/moraliasp/leve/release
 - **macOS 11+** (Apple silicon and Intel): `Leve_x.y.z_universal.dmg`
 - **Windows 10/11** (x64): `Leve_x.y.z_x64-setup.exe` (per-user, no admin) or `.msi`
 
+Package managers (coming soon):
+
+```bash
+brew install --cask moraliasp/tap/leve   # macOS
+winget install Moralia.Leve              # Windows
+```
+
 Each release lists SHA-256 checksums in `SHA256SUMS.txt` and carries [build provenance attestations](https://github.com/moraliasp/leve/attestations) (`gh attestation verify <file> --repo moraliasp/leve`).
 
 ### First launch

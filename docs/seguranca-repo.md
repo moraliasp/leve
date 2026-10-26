@@ -97,9 +97,9 @@ Plano Free. Repositórios: `leve` (público) e `mfo` (privado). O que vale para 
 
 | Item | Antes | Depois (PR) |
 |---|---|---|
-| `pull_request_target`, `workflow_run`, `workflow_dispatch` | ausentes | ausentes |
+| `pull_request_target`, `workflow_run`, `workflow_dispatch` | ausentes | ausentes; depois, `workflow_dispatch` só no `packaging.yml` (só quem tem escrita dispara; job só leitura, sem secrets nem environment, entrada validada por regex e passada por `env:`) |
 | `${{ github.event.* }}` em `run:` | ausente; havia `${{ matrix.* }}` e `${{ env.* }}` em `run:` (template injection, nível help) | tudo por `env:`, argumentos em array bash |
-| `permissions` | `ci.yml` com `contents: read` no topo; `release.yml` com `{}` no topo e mínimo por job | `{}` no topo dos três; mínimo por job, cada permissão comentada na linha |
+| `permissions` | `ci.yml` com `contents: read` no topo; `release.yml` com `{}` no topo e mínimo por job | `{}` no topo de todos (o `packaging.yml` também); mínimo por job, cada permissão comentada na linha |
 | `persist-credentials` | `false` em todo checkout | idem |
 | Cache | `release.yml` restaurava cache de pnpm e cargo que a `main` grava (**alto**, cache poisoning) | release sem cache nenhum; CI segue com cache (o de PR fica no escopo do PR) |
 | Pin por SHA | todas | todas (agora exigido pelo repositório) |

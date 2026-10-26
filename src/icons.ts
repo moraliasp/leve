@@ -94,3 +94,9 @@ export function installIcons(root: ParentNode = document): void {
   const style = document.documentElement.style;
   for (const [prop, name] of Object.entries(CSS_VARS)) style.setProperty(prop, iconMask(name));
 }
+
+/** As mesmas variáveis de máscara como regra CSS (`:root{--icon-note:url(…);…}`), para o HTML exportado. */
+export function iconCssVars(): string {
+  const decls = Object.entries(CSS_VARS).map(([prop, name]) => `${prop}:${iconMask(name)}`);
+  return `:root{${decls.join(";")}}`;
+}

@@ -4,7 +4,8 @@ import { t } from "./i18n";
 
 /** Ícone de copiar e rótulo da linguagem nos blocos de código (pós-render). */
 
-async function copyText(text: string): Promise<void> {
+/** Copia texto: Clipboard API, com o `execCommand` antigo de reserva. Também usada pelo Copiar como HTML. */
+export async function copyText(text: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(text);

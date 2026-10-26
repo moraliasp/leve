@@ -53,7 +53,7 @@ Updates are signed separately and verified by the app before installing: *Leve â
 - Front matter as a table, `[[wikilinks]]`, relative links and images
 - Table of contents, find in document, tabs, back/forward
 - Light and dark themes, three reading widths, three fonts, zoom
-- Print or export to PDF
+- Print or export to PDF; export a self-contained HTML file (offline, no scripts) or copy it as HTML
 - English and Portuguese, following your system or your choice in *Settings*
 - Large documents (up to 20 MB) open in a lighter mode
 

@@ -5,6 +5,9 @@ import hlDark from "highlight.js/styles/github-dark.css?inline";
 
 import { PREF_KEYS } from "./prefs";
 
+/** Tema claro do documento (GitHub + realce), também embutido pelo Exportar HTML (src/export-css.ts). */
+export const LIGHT_DOC_CSS = { markdown: mdLight, highlight: hlLight } as const;
+
 export type ThemeMode = "auto" | "light" | "dark";
 
 const KEY = PREF_KEYS.theme;

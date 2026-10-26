@@ -16,9 +16,10 @@ rows.sort((a, b) => a.name.localeCompare(b.name));
 
 const meta = JSON.parse(sh("cargo metadata --format-version 1", "src-tauri"));
 const root = meta.packages.find((p) => p.name === "leve");
-const direct = new Set(root.dependencies.map((d) => d.name));
+// Pelo id resolvido, não pelo nome: crate com várias versões no grafo (base64) entra só na versão direta.
+const direct = new Set(meta.resolve.nodes.find((n) => n.id === root.id).deps.map((d) => d.pkg));
 const crates = meta.packages
-  .filter((p) => direct.has(p.name))
+  .filter((p) => direct.has(p.id))
   .map((p) => ({ name: p.name, version: p.version, license: p.license ?? "", url: p.repository ?? "" }))
   .sort((a, b) => a.name.localeCompare(b.name));
 const count = {};

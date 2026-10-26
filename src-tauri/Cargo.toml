@@ -26,6 +26,13 @@ notify-debouncer-mini = "0.6"
 sys-locale = "0.3"
 tauri-plugin-process = "2"
 tauri-plugin-single-instance = "2"
+
+# Atualizador com o TLS do sistema (Security.framework / SChannel) em vez de rustls: −613 KB no binário
+# do macOS (2026-10-26). No Linux fica o padrão, porque native-tls lá é OpenSSL. Ver docs/decisoes.md.
+[target.'cfg(any(target_os = "macos", windows))'.dependencies]
+tauri-plugin-updater = { version = "2", default-features = false, features = ["native-tls", "system-proxy", "zip"] }
+
+[target.'cfg(not(any(target_os = "macos", windows)))'.dependencies]
 tauri-plugin-updater = "2"
 
 [profile.release]

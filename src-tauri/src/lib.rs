@@ -457,24 +457,34 @@ fn launch_settled(
     has_file || ready_at.is_some_and(|r| now.saturating_duration_since(r) >= grace)
 }
 
-/// Espera a abertura assentar (ou `max`) e devolve o arquivo pedido pelo SO, se houver.
+/// Espera a abertura assentar (ou `max`) e devolve o arquivo pedido pelo SO, se houver. Dorme
+/// até o prazo (fim da folga ou teto) e só acorda antes por `notify_all` de `mark_ready` ou
+/// `queue_open`: sem o aviso, um arquivo tardio esperaria a folga inteira.
 fn wait_launch(state: &AppState, grace: Duration, max: Duration) -> Option<String> {
     let start = Instant::now();
     let mut ready = state.ready_at.lock().unwrap();
     loop {
         let now = Instant::now();
         let has_file = state.pending_open.lock().unwrap().is_some();
-        if launch_settled(*ready, now, has_file, grace) || now.duration_since(start) >= max {
+        let cap = start + max;
+        if launch_settled(*ready, now, has_file, grace) || now >= cap {
             break;
         }
+        let deadline = ready.map_or(cap, |r| (r + grace).min(cap));
         ready = state
             .launch_cv
-            .wait_timeout(ready, Duration::from_millis(25))
+            .wait_timeout(ready, deadline.saturating_duration_since(now))
             .unwrap()
             .0;
     }
     drop(ready);
     state.pending_open.lock().unwrap().take()
+}
+
+/// Põe o arquivo pedido pelo SO na fila e acorda quem espera a abertura (`wait_launch`).
+fn queue_open(state: &AppState, path: String) {
+    *state.pending_open.lock().unwrap() = Some(path);
+    state.launch_cv.notify_all();
 }
 
 fn mark_ready(state: &AppState) {
@@ -717,8 +727,7 @@ fn request_open(app: &AppHandle, path: PathBuf) {
         return;
     };
     let s = c.to_string_lossy().into_owned();
-    *state.pending_open.lock().unwrap() = Some(s.clone());
-    state.launch_cv.notify_all();
+    queue_open(&state, s.clone());
     let _ = app.emit("open-file", s);
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.set_focus();
@@ -1031,17 +1040,24 @@ mod launch_tests {
     #[test]
     fn arquivo_que_chega_durante_a_espera_e_entregue() {
         // Opened depois do Ready (ordem que o AppKit não proíbe): a espera devolve o arquivo.
+        // Folga longa (5 s) de propósito: só o `notify_all` de `queue_open` (o caminho de
+        // `request_open`) acorda a espera antes dela; sem o aviso, o teste estoura o tempo.
         let state = std::sync::Arc::new(AppState::default());
         mark_ready(&state);
         let s2 = state.clone();
         let late = std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(80));
-            *s2.pending_open.lock().unwrap() = Some("/x/tarde.md".into());
-            s2.launch_cv.notify_all();
+            queue_open(&s2, "/x/tarde.md".into());
         });
-        let got = wait_launch(&state, GRACE, Duration::from_secs(2));
+        let t = Instant::now();
+        let got = wait_launch(&state, Duration::from_secs(5), Duration::from_secs(10));
+        let waited = t.elapsed();
         late.join().unwrap();
         assert_eq!(got.as_deref(), Some("/x/tarde.md"));
+        assert!(
+            waited < Duration::from_secs(1),
+            "acordou pelo aviso, não pelo prazo: {waited:?}"
+        );
         assert!(
             state.pending_open.lock().unwrap().is_none(),
             "entregue uma vez só"

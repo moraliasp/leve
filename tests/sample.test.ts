@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import pt from "../src/sample/pt-BR.md?raw";
 import en from "../src/sample/en.md?raw";
 import { render } from "../src/render";
-import { type LaunchFacts, isSample, sampleOnLaunch, samplePath, sampleText } from "../src/sample";
+import { type LaunchFacts, isSample, sampleOnLaunch, samplePath, sampleText, sampleToReplace } from "../src/sample";
 
 const base: LaunchFacts = { fileArrived: false, restoredTabs: false, prefOn: true, reload: false, sampleWasOpen: false };
 
@@ -24,6 +24,23 @@ describe("abre o exemplo na abertura?", () => {
   it("recarga da página (troca de idioma) só devolve o exemplo se ele estava aberto", () => {
     expect(sampleOnLaunch({ ...base, reload: true })).toBe(false);
     expect(sampleOnLaunch({ ...base, reload: true, sampleWasOpen: true, restoredTabs: true, prefOn: false })).toBe(true);
+  });
+});
+
+describe("arquivo do SO depois da abertura: fecha o exemplo?", () => {
+  const sample = { path: "sample:pt-BR" };
+  const file = { path: "/notas/a.md" };
+
+  it("fecha só o exemplo da abertura, único e intocado", () => {
+    expect(sampleToReplace([sample], sample)).toBe(sample);
+  });
+
+  it("mantém se o leitor mexeu (sem marca), se há outras abas ou se a marca não é exemplo", () => {
+    expect(sampleToReplace([sample], null)).toBeNull();
+    expect(sampleToReplace([sample, file], sample)).toBeNull();
+    // Marca apontando para a aba de um arquivo (corrida na abertura): nunca fecha a aba do leitor.
+    expect(sampleToReplace([file], file)).toBeNull();
+    expect(sampleToReplace([{ path: "sample:pt-BR" }], sample)).toBeNull();
   });
 });
 

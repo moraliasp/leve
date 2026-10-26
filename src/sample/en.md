@@ -20,16 +20,16 @@ Markdown was created in 2004 by **John Gruber**, with significant input from **A
 
 The original description left many cases open: what happens to lists inside quotes, how indentation is counted, where a block ends. Each implementation answered in its own way, and **dialects** appeared that also added features such as tables and footnotes: PHP Markdown Extra, MultiMarkdown, Pandoc's Markdown, and others. The same file could come out differently in each tool.
 
-The answer was **CommonMark**, a detailed, unambiguous specification backed by a large test suite, launched in 2014[^name]. Soon after, **GitHub Flavored Markdown** (GFM) came to be defined as an extension of CommonMark, adding tables, task lists, strikethrough, and automatic links. Most current tools follow CommonMark, often with the GFM extensions.
+One of the most widely used dialects is **GitHub Flavored Markdown** (GFM), GitHub's own, which added tables, task lists, strikethrough, and automatic links. The answer to the fragmentation was **CommonMark**, a detailed, unambiguous specification backed by a large test suite, launched in 2014[^name]. Later, GitHub formally defined GFM as an extension of CommonMark. Most current tools follow CommonMark, often with the GFM extensions.
 
 ```mermaid
 timeline
   title Markdown in four moments
   2004 : Markdown, by John Gruber with Aaron Swartz
   Following years : Dialects with their own extensions
-                  : PHP Markdown Extra, MultiMarkdown, Pandoc
+                  : PHP Markdown Extra, MultiMarkdown, Pandoc, GFM
   2014 : CommonMark, a specification with tests
-  Later : GFM as an extension of CommonMark
+  Later : GFM specification on top of CommonMark
         : Tables, tasks, strikethrough, autolinks
 ```
 
@@ -44,7 +44,7 @@ What each generation added, in short:
 | ~~Strikethrough~~ | — | — | ✅ |
 | Automatic links for bare URLs | — | — | ✅ |
 
-[^name]: The initiative was announced under another name and became CommonMark after Gruber asked that "Markdown" not be used in its title.
+[^name]: The initiative was announced under another name and became CommonMark after Gruber asked that the name Markdown not be used.
 
 ## How to use it
 

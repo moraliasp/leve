@@ -20,16 +20,16 @@ Markdown foi criado em 2004 por **John Gruber**, com contribuições importantes
 
 A descrição original deixava vários casos em aberto: o que acontece com listas dentro de citações, como contar a indentação, onde termina um bloco. Cada implementação respondeu do seu jeito, e surgiram **dialetos** que também acrescentavam recursos, como tabelas e notas de rodapé: PHP Markdown Extra, MultiMarkdown, o Markdown do Pandoc e outros. O mesmo arquivo podia sair diferente em cada ferramenta.
 
-A resposta foi o **CommonMark**, uma especificação detalhada e sem ambiguidades, acompanhada de um grande conjunto de testes, lançada em 2014[^nome]. Pouco depois, o **GitHub Flavored Markdown** (GFM) passou a ser definido como uma extensão do CommonMark, somando tabelas, listas de tarefas, texto riscado e links automáticos. Boa parte das ferramentas atuais segue CommonMark, muitas vezes com as extensões do GFM.
+Um dos dialetos mais usados é o **GitHub Flavored Markdown** (GFM), do GitHub, que somava tabelas, listas de tarefas, texto riscado e links automáticos. A resposta à fragmentação foi o **CommonMark**, uma especificação detalhada e sem ambiguidades, acompanhada de um grande conjunto de testes, lançada em 2014[^nome]. Mais tarde, o GitHub passou a definir o GFM formalmente como uma extensão do CommonMark. Boa parte das ferramentas atuais segue CommonMark, muitas vezes com as extensões do GFM.
 
 ```mermaid
 timeline
   title Markdown em quatro momentos
   2004 : Markdown, de John Gruber com Aaron Swartz
   Anos seguintes : Dialetos com extensões próprias
-                 : PHP Markdown Extra, MultiMarkdown, Pandoc
+                 : PHP Markdown Extra, MultiMarkdown, Pandoc, GFM
   2014 : CommonMark, especificação com testes
-  Depois : GFM como extensão do CommonMark
+  Depois : Especificação do GFM sobre o CommonMark
          : Tabelas, tarefas, riscado, links automáticos
 ```
 
@@ -44,7 +44,7 @@ O que cada geração acrescentou, de forma resumida:
 | ~~Texto riscado~~ | — | — | ✅ |
 | Links automáticos para URLs soltas | — | — | ✅ |
 
-[^nome]: A iniciativa foi anunciada com outro nome e passou a se chamar CommonMark depois que Gruber pediu que não usassem "Markdown" no título.
+[^nome]: A iniciativa foi anunciada com outro nome e passou a se chamar CommonMark depois que Gruber pediu que não usassem o nome Markdown.
 
 ## Como se usa
 

@@ -21,7 +21,7 @@ import { SCROLL_KEY, addRecent, clearRecent, readRecent, removeRecent, splitPath
 import { PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, readJson, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "./prefs";
 import { applyI18n, detectLang, lang, langPref, setLangPref, t, type Key, type LangPref } from "./i18n";
 import { checkForUpdates, maybeDailyCheck, type UpdateUi } from "./updater";
-import { SAMPLE_SESSION_KEY, SESSION_KEY, isSample, sampleOnLaunch, samplePath, sampleText } from "./sample";
+import { SAMPLE_SESSION_KEY, SESSION_KEY, isSample, sampleOnLaunch, samplePath, sampleText, sampleToReplace } from "./sample";
 
 installIcons();
 // Textos da interface antes de qualquer evento ligado (troca `innerHTML` de alguns trechos).
@@ -82,8 +82,9 @@ let tabSeq = 0;
 const baseName = (p: string): string => (isSample(p) ? t("sample.title") : (p.split(/[\\/]/).pop() ?? p));
 
 /**
- * Aba do exemplo aberta sozinha na abertura direta, enquanto o leitor não mexeu nela (rolar ou
- * clicar no documento). Se um arquivo chegar do SO e ela for a única aba, sai para dar lugar a ele.
+ * Aba do exemplo (`sample:*`) aberta sozinha na abertura direta, enquanto o leitor não mexeu nela:
+ * rolar a área do documento ou clicar nela zera a marca. Se um arquivo chegar do SO e ela for a
+ * única aba, sai para dar lugar a ele (`sampleToReplace`).
  */
 let sampleAuto: Tab | null = null;
 
@@ -1060,7 +1061,6 @@ function wire(): void {
     if (!href) return;
     // ⌘/Ctrl-clique abre o documento em aba nova.
     const where: LoadOpts["target"] = ev.metaKey || ev.ctrlKey ? "new" : "current";
-    if (active === sampleAuto) sampleAuto = null;
     if (a instanceof HTMLAnchorElement && a.classList.contains("wikilink")) {
       const target = a.dataset.target ?? "";
       const hash = a.dataset.hash || undefined;
@@ -1109,6 +1109,10 @@ function wire(): void {
   });
   // Sobreposição fecha ao tocar no documento ou ao voltar a janela larga.
   els.main.addEventListener("click", closeTocPeek);
+  // Clique no documento (link ou não) conta como mexer no exemplo da abertura.
+  els.main.addEventListener("click", () => {
+    if (active === sampleAuto) sampleAuto = null;
+  });
   narrowMq.addEventListener("change", closeTocPeek);
 
   let raf = 0;
@@ -1171,7 +1175,7 @@ async function wireTauri(): Promise<void> {
  * não mexeu nele, ele sai e o arquivo fica sozinho.
  */
 async function openFromSystem(path: string): Promise<void> {
-  const replace = sampleAuto !== null && tabs.length === 1 && tabs[0] === sampleAuto ? sampleAuto : null;
+  const replace = sampleToReplace(tabs, sampleAuto);
   const ok = await loadDoc(path, { target: "new" });
   if (ok && replace && active !== replace) void closeTab(replace);
 }
@@ -1228,7 +1232,8 @@ async function openAtLaunch(): Promise<void> {
     return;
   }
   await loadDoc(path, { target: "new" });
-  if (!reload) sampleAuto = active;
+  // Pela identidade, não por `active`: um arquivo que chegue durante o `await` vira a ativa.
+  if (!reload) sampleAuto = tabs.find((t) => t.path === path) ?? null;
 }
 
 function wireBrowserShortcuts(): void {

@@ -41,6 +41,14 @@ export interface LaunchFacts {
 }
 
 /**
+ * Aba do exemplo a fechar quando um arquivo chega do SO depois da abertura: só a aba marcada na
+ * abertura direta (`auto`, ainda intocada), se for de fato `sample:*` e a única aberta.
+ */
+export function sampleToReplace<T extends { path: string }>(tabs: readonly T[], auto: T | null): T | null {
+  return auto !== null && tabs.length === 1 && tabs[0] === auto && isSample(auto.path) ? auto : null;
+}
+
+/**
  * Abre o exemplo? Arquivo pedido sempre vence. Recarga da página só devolve o exemplo se ele já
  * estava aberto (no idioma novo). Abertura direta mostra o exemplo com a preferência ligada e
  * nenhuma aba restaurada.

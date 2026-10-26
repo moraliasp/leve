@@ -116,6 +116,13 @@ const pt = {
   "export.noDoc": "Abra um documento para exportar",
   "export.remoteBlocked": "Imagem remota não incluída",
 
+  "rich.copied": "Copiado como texto formatado",
+  "rich.copiedSelection": "Seleção copiada como texto formatado",
+  "rich.failed": "Não foi possível copiar: {error}",
+  "rich.noDoc": "Abra um documento para copiar",
+  "rich.mermaidAlt": "Diagrama Mermaid",
+  "rich.mermaidSource": "Diagrama Mermaid (fonte):",
+
   "alert.note": "Nota",
   "alert.tip": "Dica",
   "alert.important": "Importante",
@@ -211,6 +218,7 @@ const pt = {
   "shortcuts.openInEditor": "Abrir no editor",
   "shortcuts.print": "Imprimir / Exportar PDF",
   "shortcuts.find": "Buscar no documento",
+  "shortcuts.copyRich": "Copiar como texto formatado",
   "shortcuts.toc": "Sumário",
   "shortcuts.theme": "Alternar tema",
   "shortcuts.zoom": "Aumentar / Diminuir / Tamanho padrão",
@@ -328,6 +336,13 @@ const en: Dict = {
   "export.noDoc": "Open a document to export",
   "export.remoteBlocked": "Remote image not included",
 
+  "rich.copied": "Copied as formatted text",
+  "rich.copiedSelection": "Selection copied as formatted text",
+  "rich.failed": "Couldn’t copy: {error}",
+  "rich.noDoc": "Open a document to copy",
+  "rich.mermaidAlt": "Mermaid diagram",
+  "rich.mermaidSource": "Mermaid diagram (source):",
+
   "alert.note": "Note",
   "alert.tip": "Tip",
   "alert.important": "Important",
@@ -423,6 +438,7 @@ const en: Dict = {
   "shortcuts.openInEditor": "Open in Editor",
   "shortcuts.print": "Print / Export PDF",
   "shortcuts.find": "Find in Document",
+  "shortcuts.copyRich": "Copy as Formatted Text",
   "shortcuts.toc": "Contents",
   "shortcuts.theme": "Toggle Theme",
   "shortcuts.zoom": "Zoom In / Zoom Out / Actual Size",

@@ -54,6 +54,7 @@ Updates are signed separately and verified by the app before installing: *Leve �
 - Table of contents, find in document, tabs, back/forward
 - Light and dark themes, three reading widths, three fonts, zoom
 - Print or export to PDF; export a self-contained HTML file (offline, no scripts) or copy it as HTML
+- Copy as formatted text (Edit menu, Cmd/Ctrl+Shift+C): the document, or just the selection, pastes into Google Docs, Gmail, Apple Mail, Word, Notion and Slack with headings, lists, links, tables and code intact; diagrams go as images and formulas as their LaTeX source
 - English and Portuguese, following your system or your choice in *Settings*
 - Large documents (up to 20 MB) open in a lighter mode
 - *File › Open in Editor* (⌘E / Ctrl+E) sends the document to VS Code, Cursor, Zed, Sublime Text, TextEdit/Notepad or the default app (*Settings › Integration*)

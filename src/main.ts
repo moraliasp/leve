@@ -789,6 +789,49 @@ function wireExport(): void {
   });
 }
 
+// ---------- Copiar como texto formatado (src/rich.ts) ----------
+
+/**
+ * Editar › Copiar como texto formatado (Mod+Shift+C): `text/html` com estilo inline + `text/plain`
+ * (o Markdown-fonte, ou o texto da seleção) num `ClipboardItem` só. A escrita começa aqui, de forma
+ * síncrona, dentro do gesto do leitor; o conteúdo chega pelas promessas, montado por `src/rich.ts`
+ * (carregado sob demanda, como o resto: reserva por `execCommand` e aviso).
+ */
+function copyRich(): void {
+  const doc = current;
+  if (!doc) {
+    flash(t("rich.noDoc"), true);
+    return;
+  }
+  const sel = window.getSelection();
+  const range = sel && !sel.isCollapsed && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+  const rich = import("./rich");
+  const job = rich.then((m) =>
+    m.richCopyJob({
+      content: els.content,
+      range,
+      source: doc.content,
+      large: isLargeDoc(doc.content),
+      readImages: (rels, max) => readExportImages(doc.dir, rels, max),
+    }),
+  );
+  const write =
+    typeof ClipboardItem !== "undefined" && navigator.clipboard?.write
+      ? navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": job.then((j) => new Blob([j.html], { type: "text/html" })),
+            "text/plain": job.then((j) => new Blob([j.plain], { type: "text/plain" })),
+          }),
+        ])
+      : Promise.reject(new Error("ClipboardItem indisponível"));
+  rich
+    .then((m) => m.finishCopy(job, write))
+    .then(
+      ({ message, oversized }) => flash([message, oversizedNotice(oversized)].filter(Boolean).join(" · "), false, oversized > 0),
+      (e) => flash(t("rich.failed", { error: String(e) }), true),
+    );
+}
+
 // ---------- ações (menu nativo + botões) ----------
 
 /** Quem tinha o foco antes da busca, para devolver ao fechar. */
@@ -848,6 +891,7 @@ const actions: Record<string, () => void> = {
   print: () => window.print(),
   "export-html": () => openExport("file"),
   "copy-html": () => openExport("copy"),
+  "copy-rich": copyRich,
   find: openFind,
   "toggle-toc": toggleToc,
   "cycle-theme": () => flashTheme(theme.cycle()),

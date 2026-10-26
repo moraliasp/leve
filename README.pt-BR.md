@@ -54,6 +54,7 @@ Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações t
 - Sumário, busca no documento, abas, voltar/avançar
 - Tema claro e escuro, três larguras de leitura, três fontes, zoom
 - Imprimir ou exportar PDF; exportar um HTML autocontido (offline, sem scripts) ou copiar como HTML
+- Copiar como texto formatado (menu Editar, Cmd/Ctrl+Shift+C): o documento, ou só a seleção, cola no Google Docs, Gmail, Apple Mail, Word, Notion e Slack com títulos, listas, links, tabelas e código; diagramas vão como imagem e fórmulas como a fonte LaTeX
 - Português e inglês, pelo idioma do sistema ou pela escolha nas *Preferências*
 - Documentos grandes (até 20 MB) abrem num modo mais leve
 - *Arquivo › Abrir no editor* (⌘E / Ctrl+E) manda o documento para VS Code, Cursor, Zed, Sublime Text, TextEdit/Bloco de Notas ou o aplicativo padrão (*Preferências › Integração*)

@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { check, measure, openingAssets, report } from "../scripts/tamanho.mjs";
+import { check, measure, openingAssets, ORCAMENTO, report } from "../scripts/tamanho.mjs";
 
 // Sem @types/node no projeto: módulos do Node por import dinâmico, tipados só no que o teste usa.
 interface NodeApi {
@@ -11,10 +11,12 @@ interface NodeApi {
   join(...p: string[]): string;
   dirname(p: string): string;
   gzipSync(s: string, o: { level: number }): { length: number };
+  spawnSync(cmd: string, args: string[], o: { encoding: "utf8" }): { status: number | null; stdout: string; stderr: string };
+  execPath: string;
 }
 let node: NodeApi;
 beforeAll(async () => {
-  const mods = await Promise.all(["node:fs", "node:os", "node:path", "node:zlib"].map((m) => import(m as string)));
+  const mods = await Promise.all(["node:fs", "node:os", "node:path", "node:zlib", "node:child_process", "node:process"].map((m) => import(m as string)));
   node = Object.assign({}, ...mods);
 });
 
@@ -42,6 +44,18 @@ const html = `<!doctype html><html><head>
 describe("orçamento de tamanho", () => {
   it("acha o JS de módulo e o CSS do index.html, sem ícone nem outros links", () => {
     expect(openingAssets(html)).toEqual(["assets/index-abc.js", "assets/index-def.css"]);
+  });
+
+  it("conta o modulepreload na abertura", () => {
+    const comPreload = html.replace("</head>", '<link rel="modulepreload" crossorigin href="/assets/vendor-xyz.js"></head>');
+    expect(openingAssets(comPreload)).toEqual(["assets/index-abc.js", "assets/index-def.css", "assets/vendor-xyz.js"]);
+    const d = fixture({
+      "index.html": comPreload,
+      "assets/index-abc.js": "a".repeat(300),
+      "assets/index-def.css": "b".repeat(50),
+      "assets/vendor-xyz.js": "v".repeat(200),
+    });
+    expect(measure(d).values.abertura).toBe(550);
   });
 
   it("mede total, abertura e maior arquivo de um dist", () => {
@@ -83,5 +97,20 @@ describe("orçamento de tamanho", () => {
     const padrao = check(values);
     expect(padrao.map((r) => r.key)).toEqual(["total", "totalGzip", "abertura", "aberturaGzip", "maior"]);
     expect(padrao.filter((r) => !r.ok).map((r) => r.key)).toEqual(["total"]);
+  });
+
+  it("o CLI sai com 0 dentro do orçamento e com erro quando estoura", () => {
+    const files = { "index.html": html, "assets/index-abc.js": "a".repeat(300), "assets/index-def.css": "b".repeat(50) };
+    const run = (d: string) => node.spawnSync(node.execPath, ["scripts/tamanho.mjs", d], { encoding: "utf8" });
+
+    const ok = run(fixture(files));
+    expect(ok.status, ok.stderr).toBe(0);
+    expect(ok.stdout).toMatch(/chunk de abertura/);
+
+    // Um arquivo maior que ORCAMENTO.maior (e fora da abertura) estoura só esse limite.
+    const big = run(fixture({ ...files, "assets/elk-123.js": "c".repeat(ORCAMENTO.maior + 1) }));
+    expect(big.status).not.toBe(0);
+    expect(big.stdout).toMatch(/maior arquivo .*ESTOUROU por 0,0 kB/);
+    expect(big.stderr).toMatch(/1 limite\(s\) estourado\(s\)/);
   });
 });

@@ -34,7 +34,10 @@ function walk(dir) {
   );
 }
 
-/** Arquivos que `index.html` carrega ao abrir: `<script type="module" src>` e `<link rel="stylesheet" href>`. */
+/**
+ * Arquivos que `index.html` carrega ao abrir: `<script type="module" src>`, `<link rel="stylesheet" href>`
+ * e `<link rel="modulepreload" href>` (chunk que o Vite separa mas a abertura importa de cara).
+ */
 export function openingAssets(html) {
   const tags = html.match(/<(script|link)\b[^>]*>/gi) ?? [];
   const attr = (tag, name) => tag.match(new RegExp(`\\s${name}\\s*=\\s*["']([^"']+)["']`, "i"))?.[1];
@@ -42,7 +45,7 @@ export function openingAssets(html) {
   for (const tag of tags) {
     const isScript = /^<script/i.test(tag);
     if (isScript && attr(tag, "type") === "module" && attr(tag, "src")) out.push(attr(tag, "src"));
-    if (!isScript && attr(tag, "rel") === "stylesheet" && attr(tag, "href")) out.push(attr(tag, "href"));
+    if (!isScript && ["stylesheet", "modulepreload"].includes(attr(tag, "rel")?.toLowerCase()) && attr(tag, "href")) out.push(attr(tag, "href"));
   }
   return out.map((u) => u.replace(/^\.?\//, ""));
 }

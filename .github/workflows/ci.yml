@@ -54,9 +54,9 @@ jobs:
   bundle-linux:
     # Prova do empacotamento Linux (AppImage + .deb) sem tag nem environment, para quem mexe em
     # tauri.conf.json, dependências do Rust ou no release.yml: `gh workflow run ci.yml --ref <branch>`.
-    # Só a pedido porque compila em release (LTO, codegen-units=1) e empacota: ~10 min de runner por
-    # disparo, contra ~4 do `check`; a cada PR seria o dobro de minutos para provar algo que só muda
-    # quando o bundle muda, e o release candidate prova de novo antes de publicar.
+    # Só a pedido porque compila em release sem cache (LTO, codegen-units=1) e empacota: ~6 min de
+    # runner por disparo, contra ~2 do `check` com cache; a cada PR seria o quádruplo de minutos para
+    # provar algo que só muda quando o bundle muda, e o release candidate prova de novo antes de publicar.
     # A chave do atualizador é descartável, gerada aqui (a de verdade fica só no environment
     # release): serve para provar que os .sig do AppImage e do .deb saem. Os pacotes deste job não
     # valem para distribuição.

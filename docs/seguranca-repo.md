@@ -97,7 +97,7 @@ Plano Free. Repositórios: `leve` (público) e `mfo` (privado). O que vale para 
 
 | Item | Antes | Depois (PR) |
 |---|---|---|
-| `pull_request_target`, `workflow_run`, `workflow_dispatch` | ausentes | ausentes |
+| `pull_request_target`, `workflow_run`, `workflow_dispatch` | ausentes | ausentes; depois, `workflow_dispatch` no `ci.yml` para o job `bundle-linux` (só quem tem escrita dispara; sem environment nem segredo, chave do atualizador descartável) |
 | `${{ github.event.* }}` em `run:` | ausente; havia `${{ matrix.* }}` e `${{ env.* }}` em `run:` (template injection, nível help) | tudo por `env:`, argumentos em array bash |
 | `permissions` | `ci.yml` com `contents: read` no topo; `release.yml` com `{}` no topo e mínimo por job | `{}` no topo dos três; mínimo por job, cada permissão comentada na linha |
 | `persist-credentials` | `false` em todo checkout | idem |

@@ -21,7 +21,7 @@ import { SCROLL_KEY, addRecent, clearRecent, readRecent, removeRecent, splitPath
 import { PREF_KEYS, TABS_KEY, TIP_KEY, boolPref, readJson, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "./prefs";
 import { applyI18n, detectLang, lang, langPref, setLangPref, t, type Key, type LangPref } from "./i18n";
 import { checkForUpdates, maybeDailyCheck, type UpdateUi } from "./updater";
-import { clipboardDoc, isUntitled, persistableTabs, replaceInHistory, untitledId, untitledName } from "./untitled";
+import { clipboardDoc, isUntitled, otherTabWith, persistableTabs, replaceInHistory, untitledId, untitledName } from "./untitled";
 
 installIcons();
 // Textos da interface antes de qualquer evento ligado (troca `innerHTML` de alguns trechos).
@@ -707,7 +707,11 @@ async function openClipboard(): Promise<void> {
  * Salvar (Mod+S): só a aba não salva tem o que salvar. O diálogo e a escrita ficam no Rust
  * (`save_markdown_as`), que concede o caminho escolhido; depois disso a aba vira documento normal.
  */
+/** Diálogo de salvar aberto: um segundo Mod+S não abre outro. */
+let saving = false;
+
 async function saveUntitled(): Promise<void> {
+  if (saving) return;
   const tab = active;
   const id = current?.path;
   if (!tab || !id || !isUntitled(id)) {
@@ -721,17 +725,33 @@ async function saveUntitled(): Promise<void> {
   const text = untitledDocs.get(id);
   if (text === undefined) return;
   let saved: string | null;
+  saving = true;
   try {
     saved = await invoke<string | null>("save_markdown_as", { text });
   } catch (e) {
     flash(String(e), true);
     return;
+  } finally {
+    saving = false;
   }
   if (!saved) return;
+  flash(t("untitled.saved", { name: baseName(saved) }));
+  // Sobrescreveu um arquivo já aberto em outra aba: foca essa (relê do disco) e fecha a não salva.
+  const other = otherTabWith(
+    tabs.map((x) => x.path),
+    tabs.indexOf(tab),
+    saved,
+  );
+  if (other >= 0) {
+    const target = tabs[other];
+    if (tab === active) await activateTab(target);
+    else if (target === active) reloadCurrent();
+    closeTab(tab);
+    return;
+  }
   untitledDocs.delete(id);
   tab.hist = replaceInHistory(tab.hist, id, saved);
   tab.path = saved;
-  flash(t("untitled.saved", { name: baseName(saved) }));
   // Relê do disco na própria aba: vigia, Recentes e título passam a valer.
   if (tab === active && current?.path === id) await loadDoc(saved, { push: false, keepScroll: true });
   else renderTabs();

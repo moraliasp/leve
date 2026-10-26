@@ -34,6 +34,14 @@ export function persistableTabs(paths: string[], activeIdx: number): { paths: st
   return { paths: kept, active: activePath === undefined ? -1 : kept.indexOf(activePath) };
 }
 
+/**
+ * Depois de salvar: índice de outra aba que já mostra o arquivo salvo (sobrescreveu um documento
+ * aberto), para focá-la em vez de duplicar; -1 se não houver.
+ */
+export function otherTabWith(paths: string[], selfIdx: number, path: string): number {
+  return paths.findIndex((p, i) => i !== selfIdx && p === path);
+}
+
 /** Depois de salvar: o histórico da aba passa a apontar para o arquivo no lugar do id. */
 export function replaceInHistory(hist: string[], from: string, to: string): string[] {
   return hist.map((p) => (p === from ? to : p));

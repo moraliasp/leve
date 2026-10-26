@@ -509,6 +509,36 @@ fn with_md_ext(path: &Path) -> Option<PathBuf> {
     Some(path.with_file_name(name))
 }
 
+/// Escreve o texto no caminho do diálogo. Se foi preciso acrescentar `.md`, o diálogo não confirmou
+/// sobrescrever esse nome: cria só se não existir (`create_new`, atômico e sem seguir symlink
+/// pré-existente). Caminho vindo direto do diálogo (sobrescrita já confirmada) é escrito normal.
+fn write_saved(chosen: &Path, text: &str) -> Result<PathBuf, String> {
+    use std::io::Write;
+    let io_err = |p: &Path, e: std::io::Error| format!("{}: {e}", p.display());
+    match with_md_ext(chosen) {
+        Some(fixed) => {
+            let mut f = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&fixed)
+                .map_err(|e| {
+                    if e.kind() == std::io::ErrorKind::AlreadyExists {
+                        fill(i18n::s().exists, &[("path", &fixed.display().to_string())])
+                    } else {
+                        io_err(&fixed, e)
+                    }
+                })?;
+            f.write_all(text.as_bytes())
+                .map_err(|e| io_err(&fixed, e))?;
+            Ok(fixed)
+        }
+        None => {
+            std::fs::write(chosen, text).map_err(|e| io_err(chosen, e))?;
+            Ok(chosen.to_path_buf())
+        }
+    }
+}
+
 /// Salvar o documento não salvo (aba da área de transferência): o diálogo nativo roda aqui, o
 /// texto só é escrito no caminho escolhido nele, e esse caminho é concedido para leitura. O
 /// frontend nunca passa caminho para escrita. `None` = cancelou.
@@ -528,18 +558,8 @@ async fn save_markdown_as(app: AppHandle, text: String) -> Result<Option<String>
     let Some(p) = picked else {
         return Ok(None);
     };
-    let mut path = p.into_path().map_err(|e| e.to_string())?;
-    if let Some(fixed) = with_md_ext(&path) {
-        // O diálogo confirmou a sobrescrita do nome que mostrou, não deste: não sobrescrever.
-        if fixed.exists() {
-            return Err(fill(
-                i18n::s().exists,
-                &[("path", &fixed.display().to_string())],
-            ));
-        }
-        path = fixed;
-    }
-    std::fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))?;
+    let chosen = p.into_path().map_err(|e| e.to_string())?;
+    let path = write_saved(&chosen, &text)?;
     let c = grant(&app.state::<AppState>(), &path)?;
     Ok(Some(c.to_string_lossy().into_owned()))
 }
@@ -1385,6 +1405,31 @@ mod tests {
             Some(PathBuf::from("/d/notas.txt.md"))
         );
         assert_eq!(with_md_ext(Path::new("/")), None);
+    }
+
+    #[test]
+    fn salvar_com_md_acrescentado_nao_sobrescreve() {
+        let t = TempDir::new("salvar");
+        // Nome com .md veio do diálogo, que confirmou sobrescrever: escreve.
+        let md = t.file("doc.md", "antigo");
+        assert_eq!(write_saved(&md, "novo").unwrap(), md);
+        assert_eq!(fs::read_to_string(&md).unwrap(), "novo");
+        // Sem extensão: ganha .md e é criado.
+        let criado = write_saved(&t.0.join("nota"), "oi").unwrap();
+        assert_eq!(criado, t.0.join("nota.md"));
+        assert_eq!(fs::read_to_string(&criado).unwrap(), "oi");
+        // O .md acrescentado já existe: recusa e mantém o conteúdo.
+        let existente = t.file("outra.md", "intacto");
+        assert!(write_saved(&t.0.join("outra"), "x").is_err());
+        assert_eq!(fs::read_to_string(&existente).unwrap(), "intacto");
+        // Symlink pré-existente no nome acrescentado também é recusado, sem seguir.
+        #[cfg(unix)]
+        {
+            let alvo = t.file("alvo.txt", "alvo");
+            std::os::unix::fs::symlink(&alvo, t.0.join("link.md")).unwrap();
+            assert!(write_saved(&t.0.join("link"), "x").is_err());
+            assert_eq!(fs::read_to_string(&alvo).unwrap(), "alvo");
+        }
     }
 
     #[test]

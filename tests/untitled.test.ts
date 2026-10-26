@@ -4,7 +4,15 @@ import caps from "../src-tauri/capabilities/default.json?raw";
 import html from "../index.html?raw";
 import { hydrateImages } from "../src/render";
 import { keysFor, shortcutRows } from "../src/shortcuts";
-import { clipboardDoc, isUntitled, persistableTabs, replaceInHistory, untitledId, untitledName } from "../src/untitled";
+import {
+  clipboardDoc,
+  isUntitled,
+  otherTabWith,
+  persistableTabs,
+  replaceInHistory,
+  untitledId,
+  untitledName,
+} from "../src/untitled";
 
 describe("documento não salvo (área de transferência)", () => {
   it("id sintético nunca parece caminho de arquivo", () => {
@@ -43,6 +51,18 @@ describe("documento não salvo (área de transferência)", () => {
       "/x.md",
       "/d/Sem título.md",
     ]);
+  });
+
+  it("salvar sobre arquivo aberto em outra aba acha essa aba, nunca a própria", () => {
+    expect(otherTabWith(["/a.md", "untitled:1", "/b.md"], 1, "/b.md")).toBe(2);
+    expect(otherTabWith(["/a.md", "untitled:1"], 1, "/c.md")).toBe(-1);
+    expect(otherTabWith(["/b.md", "/b.md"], 0, "/b.md")).toBe(1);
+  });
+
+  it("main.ts trava o segundo Mod+S enquanto o diálogo está aberto", async () => {
+    const main = (await import("../src/main.ts?raw")).default;
+    expect(main).toMatch(/if \(saving\) return;/);
+    expect(main).toMatch(/finally \{\s*saving = false;/);
   });
 
   it("imagem relativa sem pasta vira aviso, sem carregar nada", async () => {

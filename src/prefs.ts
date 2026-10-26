@@ -19,6 +19,8 @@ export const PREF_KEYS = {
   restoreScroll: "leve.restoreScroll",
   /** Reabrir as abas da última sessão ao iniciar. */
   restoreTabs: "leve.restoreTabs",
+  /** Abrir o documento de exemplo na abertura direta sem abas a restaurar (`src/sample.ts`). */
+  sample: "leve.sample",
   /** Idioma da interface ("pt-BR", "en"); ausente = o do sistema (`src/i18n.ts`). */
   lang: "leve.lang",
   /** Procurar atualização uma vez por dia (desligado por padrão: privacidade). */

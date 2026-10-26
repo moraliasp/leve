@@ -56,6 +56,7 @@ Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações t
 - Imprimir ou exportar PDF
 - Português e inglês, pelo idioma do sistema ou pela escolha nas *Preferências*
 - Documentos grandes (até 20 MB) abrem num modo mais leve
+- Um guia de Markdown embutido abre quando o Leve inicia sem nada para mostrar (*Ajuda › Documento de exemplo*; dá para desligar nas *Preferências*)
 
 ## Privacidade
 

@@ -35,7 +35,7 @@ Get the latest version from [Releases](https://github.com/moraliasp/leve/release
 
 - **macOS 11+** (Apple silicon and Intel): `Leve_x.y.z_universal.dmg`
 - **Windows 10/11** (x64): `Leve_x.y.z_x64-setup.exe` (per-user, no admin) or `.msi`
-- **Linux** (x86_64, glibc 2.35+: Ubuntu 22.04, Debian 12, Fedora 36 or newer): `Leve_x.y.z_amd64.AppImage` (any distro, no install) or `Leve_x.y.z_amd64.deb` (Debian, Ubuntu and derivatives)
+- **Linux** (x86_64, built on Ubuntu 22.04, needs glibc 2.35+): `Leve_x.y.z_amd64.AppImage` (no install) or `Leve_x.y.z_amd64.deb` (Debian, Ubuntu and derivatives). New and not yet tested on a real Linux desktop: only built and smoke-tested headless in CI. Reports welcome.
 
 Each release lists SHA-256 checksums in `SHA256SUMS.txt` and carries [build provenance attestations](https://github.com/moraliasp/leve/attestations) (`gh attestation verify <file> --repo moraliasp/leve`).
 

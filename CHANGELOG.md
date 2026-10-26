@@ -6,7 +6,7 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ### Added
 
-- Linux builds (x86_64): an `.AppImage` that runs on any distribution with glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 and later) and a `.deb` for Debian, Ubuntu and derivatives that registers Leve for `text/markdown`. Both update in place from *Help › Check for Updates…* and are listed in `SHA256SUMS.txt` and in the build provenance attestation.
+- Linux builds (x86_64, experimental: built and smoke-tested headless in CI, not yet tested on a real Linux desktop): an `.AppImage` built on Ubuntu 22.04 (needs glibc 2.35 or newer) and a `.deb` for Debian, Ubuntu and derivatives that registers Leve for `text/markdown`. Both update in place from *Help › Check for Updates…* and are listed in `SHA256SUMS.txt` and in the build provenance attestation.
 - Sample document: a Markdown primer (history, syntax, good practices, uses) in English and Portuguese that also shows what Leve renders. It opens when Leve is started directly with no tabs to restore, from *Help › Sample Document* at any time, and can be turned off with "Show sample document at startup" in Settings. It lives in memory: no file is written, read or authorized.
 - File › Export HTML… saves the document as a single self-contained `.html` file that opens offline in any browser: light theme, highlighted code, KaTeX math with its fonts, Mermaid diagrams as SVG, callouts and front matter, local images up to 5 MB embedded, no scripts. Links to other `.md` files become text or point to the sibling `.html`. File › Copy as HTML… copies the same HTML to the clipboard.
 

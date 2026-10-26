@@ -23,7 +23,7 @@ xattr -dr com.apple.quarantine /Applications/Leve.app
 
 ## Linux
 
-Pacotes x86_64, compilados no Ubuntu 22.04: rodam em distribuições com glibc 2.35 ou mais nova (Ubuntu 22.04, Debian 12, Fedora 36, Linux Mint 21 e posteriores).
+Pacotes x86_64, compilados no Ubuntu 22.04, para distribuições com glibc 2.35 ou mais nova (em tese Ubuntu 22.04, Debian 12, Fedora 36, Linux Mint 21 e posteriores). **Ainda não testados numa máquina Linux real:** o CI compila, confere o pacote e abre o AppImage sem tela por 15 s, mas leitura, duplo-clique, diálogo e atualização não foram exercitados num desktop. Relatos em [issues](https://github.com/moraliasp/leve/issues).
 
 **AppImage** (qualquer distribuição, sem instalar):
 

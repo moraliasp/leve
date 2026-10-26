@@ -16,6 +16,6 @@ pnpm tauri build --no-bundle
 echo "Empacotando sem rede:"
 sudo -E unshare --net -- sudo -E -u "$(id -un)" \
   env "PATH=$PATH" "HOME=$HOME" CARGO_NET_OFFLINE=true \
-  bash -c 'if curl -fsS --max-time 5 -o /dev/null https://github.com; then echo "::error::o namespace sem rede alcançou github.com"; exit 1; fi; exec pnpm tauri bundle "$@"' bundle "$@"
+  bash -c 'if curl -fsS --max-time 5 -o /dev/null https://github.com; then echo "::error::o namespace sem rede alcançou github.com"; exit 1; fi; exec pnpm tauri bundle --verbose "$@"' bundle "$@"
 
 "$HERE/linux-tools.sh" --check

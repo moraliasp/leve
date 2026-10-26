@@ -4,6 +4,10 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Fixed
+
+- Unhandled errors in the interface (rejected promises, exceptions in callbacks) now show in the status bar instead of only in the WebView console, at most one notice every 3 seconds and without repeating the same message. Failure to resolve `[[wikilinks]]` is shown too.
+
 ## [0.2.0] - 2026-10-25
 
 First public release.

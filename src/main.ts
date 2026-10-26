@@ -21,6 +21,7 @@ import { SCROLL_KEY, addRecent, clearRecent, readRecent, removeRecent, splitPath
 import { PREF_KEYS, TABS_KEY, TIP_KEY, boolPref, readJson, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "./prefs";
 import { applyI18n, detectLang, lang, langPref, setLangPref, t, type Key, type LangPref } from "./i18n";
 import { checkForUpdates, maybeDailyCheck, type UpdateUi } from "./updater";
+import { installErrorReporting } from "./errors";
 
 installIcons();
 // Textos da interface antes de qualquer evento ligado (troca `innerHTML` de alguns trechos).
@@ -583,7 +584,7 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
       .then((r) => {
         if (current?.path === doc.path) markWikilinks(content, r);
       })
-      .catch((e) => console.warn("wikilinks:", e));
+      .catch((e) => flash(`Wikilinks: ${String(e)}`, true));
   }
   tocItems = buildToc(els.content, els.toc, large ? LARGE_TOC_MAX_LEVEL : undefined);
   // Sem foco em lugar nenhum (abriu pelo menu ou pelo sistema): foco no documento, setas já rolam.
@@ -1155,6 +1156,8 @@ function wireBrowserShortcuts(): void {
 }
 
 async function main(): Promise<void> {
+  // Erro não tratado (promessa com `void`, exceção em callback) aparece na barra, não só no console.
+  installErrorReporting((msg) => flash(msg, true));
   // Menu nativo e mensagens do Rust no mesmo idioma da página, antes de sincronizar os itens.
   if (IS_TAURI) await invoke("set_locale", { lang: lang() }).catch((e) => console.warn("set_locale:", e));
   keepTabbable($("app"));

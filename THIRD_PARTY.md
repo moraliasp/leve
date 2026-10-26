@@ -1,6 +1,6 @@
 # Terceiros
 
-Gerado por `node scripts/third-party.mjs` em 2026-10-25. Textos completos das licenças com obrigação de aviso (Lucide, elkjs, DOMPurify, crates MPL-2.0) em `THIRD_PARTY_NOTICES.md`.
+Gerado por `node scripts/third-party.mjs` em 2026-10-26. Textos completos das licenças com obrigação de aviso (Lucide, DOMPurify, crates MPL-2.0, webpki-root-certs) em `THIRD_PARTY_NOTICES.md`.
 
 ## Licenças com obrigação de aviso (EPL/MPL/CDLA)
 
@@ -15,7 +15,10 @@ Pacotes npm de produção e crates do grafo do Rust cuja licença é EPL ou MPL 
 | [selectors](https://github.com/servo/stylo) | 0.38.0 | crate | MPL-2.0 | sem alternativa permissiva; texto e fonte em THIRD_PARTY_NOTICES.md |
 | [webpki-root-certs](https://github.com/rustls/webpki-roots) | 1.0.11 | crate | CDLA-Permissive-2.0 | sem alternativa permissiva; texto e fonte em THIRD_PARTY_NOTICES.md |
 | [dompurify](https://github.com/cure53/DOMPurify) | 3.4.17 | npm | (MPL-2.0 OR Apache-2.0) | Apache-2.0 escolhida; texto e fonte em THIRD_PARTY_NOTICES.md |
-| [elkjs](https://github.com/kieler/elkjs#readme) | 0.9.3 | npm | EPL-2.0 | sem alternativa permissiva; texto e fonte em THIRD_PARTY_NOTICES.md |
+
+Fora do bundle (dependência instalada, não distribuída no app):
+
+- elkjs 0.9.3 (EPL-2.0): layout ELK do Mermaid, cortado pelo plugin `mermaidSemElk` do `vite.config.ts`.
 
 ## npm (produção, 134 pacotes incluindo transitivos)
 

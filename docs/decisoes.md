@@ -34,6 +34,12 @@ Decisão estrutural nova entra aqui, no fim, no mesmo formato.
 - **Decisão:** o render só marca os blocos. `renderMermaid` e `renderMath` fazem `import()` dinâmico quando há o que desenhar, inclusive o CSS do KaTeX.
 - **Consequência:** biblioteca pesada nova segue o mesmo padrão. O aviso de tamanho de chunk no `pnpm build` é esperado. A rolagem é reaplicada depois que eles terminam (`applyPending`).
 
+## Mermaid sem o layout ELK
+
+- **Contexto:** o Mermaid 12 registra o layout ELK com `import()` do elkjs, e o Vite emite esse chunk mesmo sem nenhum diagrama pedir: `dist/assets/elk-*.js` tinha 1.462 KB (456 KB gzip), o maior asset. O Leve já força `layout: "dagre"` em `renderMermaid`, e o ELK só servia a quem pede `layout: elk` ou `flowchart-elk`. Era também o único componente EPL-2.0 distribuído.
+- **Decisão:** o plugin `mermaidSemElk` (`vite.config.ts`, mesmo padrão do `katexWoff2Only`) tira o `...elkLayoutLoaders()` de `registerDefaultLayoutLoaders` no arquivo do Mermaid, no build e no pré-empacotamento do dev server (`optimizeDeps.rolldownOptions.plugins`). Sem o registro, `getRegisteredLayoutAlgorithm` do Mermaid devolve dagre (com `log.warn`), e todos os renderizadores passam por ela. Se o padrão não aparecer exatamente uma vez no arquivo que define `elkLayoutLoaders`, o build falha. `dist` antes: 120 arquivos, 5.902.406 bytes, maior chunk o `elk` (1.462 KB); depois: 118 arquivos, 4.438.557 bytes (-1,46 MB, -25%), maior chunk 629 KB (`chunk-NGNAAXSQ`, do Mermaid).
+- **Consequência:** diagramas `flowchart-elk` e com `layout: elk` renderizam com dagre, sem erro. O elkjs continua instalado (dependência do `mermaid`), mas não é distribuído: `scripts/third-party.mjs` o lista em `foraDoBundle` e o NOTICES não traz mais a EPL-2.0. Upgrade do Mermaid que mude o registro derruba o build; reabrir o ELK é decisão nova, aqui, e volta o aviso EPL.
+
 ## Links locais só abrem tipos conhecidos
 
 - **Contexto:** um link num `.md` pode apontar para um executável ou script. Abrir no app padrão seria executar código com um clique.
@@ -120,9 +126,9 @@ Decisão estrutural nova entra aqui, no fim, no mesmo formato.
 
 ## Avisos de terceiros (EPL/MPL/CDLA)
 
-- **Contexto:** EPL-2.0 (elkjs, no chunk opcional do Mermaid), MPL-2.0 (cinco crates do Rust: `cssparser`, `cssparser-macros`, `dtoa-short`, `option-ext`, `selectors`) e CDLA-Permissive-2.0 (`webpki-root-certs`, via `reqwest` do Tauri) pedem o texto da licença junto da distribuição e, no caso de EPL e MPL, indicação de onde está a fonte. DOMPurify é MPL-2.0 OR Apache-2.0. Nenhuma GPL/AGPL no grafo.
-- **Decisão:** `THIRD_PARTY_NOTICES.md` traz o texto integral de cada licença e a fonte de cada componente (tag do elkjs, crates.io por versão). Do DOMPurify, o Leve redistribui sob a **Apache-2.0**. `scripts/third-party.mjs` gera `THIRD_PARTY.md` com a seção "Licenças com obrigação de aviso (EPL/MPL/CDLA)", e `tests/notices.test.ts` exige no NOTICES um título com nome e versão de cada um.
-- **Consequência:** dependência nova com EPL/MPL/CDLA, ou bump de versão de uma listada, derruba o teste depois que `node scripts/third-party.mjs` regenera `THIRD_PARTY.md` (o gerador não roda no CI; regerar faz parte de atualizar dependência). Dupla nova com `OR` só avisa no gerador até entrar em `escolhas`. As escolhas e os textos aqui são orientação técnica, não parecer jurídico.
+- **Contexto:** MPL-2.0 (cinco crates do Rust: `cssparser`, `cssparser-macros`, `dtoa-short`, `option-ext`, `selectors`) e CDLA-Permissive-2.0 (`webpki-root-certs`, via `reqwest` do Tauri) pedem o texto da licença junto da distribuição e, no caso da MPL, indicação de onde está a fonte. DOMPurify é MPL-2.0 OR Apache-2.0. Nenhuma GPL/AGPL no grafo. A EPL-2.0 (elkjs) saiu com o corte do ELK (ver "Mermaid sem o layout ELK").
+- **Decisão:** `THIRD_PARTY_NOTICES.md` traz o texto integral de cada licença e a fonte de cada componente (crates.io por versão). Do DOMPurify, o Leve redistribui sob a **Apache-2.0**. `scripts/third-party.mjs` gera `THIRD_PARTY.md` com a seção "Licenças com obrigação de aviso (EPL/MPL/CDLA)", e `tests/notices.test.ts` exige no NOTICES um título com nome e versão de cada um.
+- **Consequência:** dependência nova com EPL/MPL/CDLA, ou bump de versão de uma listada, derruba o teste depois que `node scripts/third-party.mjs` regenera `THIRD_PARTY.md` (o gerador não roda no CI; regerar faz parte de atualizar dependência). Dupla nova com `OR` só avisa no gerador até entrar em `escolhas`; pacote instalado mas cortado do bundle entra em `foraDoBundle`. As escolhas e os textos aqui são orientação técnica, não parecer jurídico.
 
 ## Distribuição: release do GitHub, sem assinatura de sistema por enquanto
 

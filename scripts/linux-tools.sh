@@ -8,6 +8,8 @@
 # `${XDG_CACHE_HOME:-~/.cache}/tauri`, com o linuxdeploy em
 # `linuxdeploy-<LINUXDEPLOY_COMMIT_HASH>-<arch>.AppImage`. Atualizar a CLI do Tauri pode mudar
 # esse commit: aí o bundler procura outro nome, o --check acusa e os hashes daqui são revistos.
+# O `runtime-x86_64` (type2-runtime do AppImage) não é do Tauri: sem ele, o appimagetool de dentro
+# do plugin baixa o da tag `continuous`. scripts/bundle-linux.sh o passa por LDAI_RUNTIME_FILE.
 # Ver docs/decisoes.md ("Linux: AppImage e .deb").
 set -euo pipefail
 
@@ -16,11 +18,12 @@ SUMS="$HERE/linux-tools.sha256"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/tauri"
 
 # Nome no cache e URL. O plugin do AppImage vem da release versionada, não da `continuous`.
-NOMES=(AppRun-x86_64 linuxdeploy-07333c6-x86_64.AppImage linuxdeploy-plugin-appimage.AppImage)
+NOMES=(AppRun-x86_64 linuxdeploy-07333c6-x86_64.AppImage linuxdeploy-plugin-appimage.AppImage runtime-x86_64)
 URLS=(
   "https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-x86_64"
   "https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy-07333c6/linuxdeploy-x86_64.AppImage"
   "https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/1-alpha-20250213-1/linuxdeploy-plugin-appimage-x86_64.AppImage"
+  "https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64"
 )
 # Scripts que o bundler grava a partir do próprio binário (embutidos, sem rede).
 EMBUTIDOS=(linuxdeploy-plugin-gstreamer.sh linuxdeploy-plugin-gtk.sh)

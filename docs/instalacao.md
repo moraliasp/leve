@@ -21,6 +21,32 @@ xattr -dr com.apple.quarantine /Applications/Leve.app
 2. O SmartScreen mostra "O Windows protegeu o computador". Clique em **Mais informações** e depois em **Executar assim mesmo**.
 3. O instalador associa `.md`, `.markdown`, `.mdown` e `.mkd` ao Leve.
 
+## Comando `leve` no terminal
+
+`leve arquivo.md` abre o arquivo no Leve (caminho relativo vale a partir da pasta atual do terminal); `leve` sozinho abre ou traz o Leve para a frente.
+
+**macOS:** **Leve › Instalar comando 'leve' no terminal…** (ou **Preferências › Integração**). O app grava um script curto que chama `open -b br.com.moralia.leve`:
+
+- em `/usr/local/bin/leve`, se der para gravar ali sem senha;
+- senão em `~/.local/bin/leve` ou `~/bin/leve`, se uma dessas pastas estiver no `PATH` do seu shell;
+- senão o app pergunta e grava `/usr/local/bin/leve` pedindo a senha de administrador do macOS.
+
+Ele não sobrescreve um `leve` que não tenha sido instalado por ele. Para remover: `rm "$(command -v leve)"`.
+
+**Windows:** o executável é `leve.exe`, na pasta de instalação (padrão `%LOCALAPPDATA%\Leve`). Ponha essa pasta no `PATH` do seu usuário uma vez (PowerShell):
+
+```powershell
+[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$env:LOCALAPPDATA\Leve", "User")
+```
+
+Abra um terminal novo e use `leve arquivo.md`. Se instalou em outra pasta, troque o caminho.
+
+**Linux:** os pacotes `.deb` e `.rpm` instalam `/usr/bin/leve`, já no `PATH`. O AppImage não: crie um link, por exemplo `ln -s ~/Applications/Leve.AppImage ~/.local/bin/leve`.
+
+## Abrir no editor
+
+**Arquivo › Abrir no editor** (⌘E / Ctrl+E) abre o documento ativo no editor escolhido em **Preferências › Integração › Editor**: VS Code, Cursor, Zed, Sublime Text, TextEdit (macOS) ou Bloco de Notas (Windows), ou o aplicativo padrão para `.md`. A lista mostra só o que está instalado. Se o aplicativo padrão para `.md` for o próprio Leve, escolha um editor.
+
 ## Conferir a versão
 
 **Ajuda › Sobre o Leve** (no macOS, **Leve › Sobre o Leve**) mostra a versão, a licença e o link do repositório.

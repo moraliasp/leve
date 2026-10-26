@@ -1,10 +1,33 @@
-# Leve
+<p align="center">
+  <img src="design/icon-1024.png" width="128" height="128" alt="Leve">
+</p>
 
-**A lightweight Markdown viewer for macOS and Windows.** Double-click a `.md` file to open it; save it in your editor and Leve reloads.
+<h1 align="center">Leve</h1>
 
-[Português (Brasil)](README.pt-BR.md)
+<p align="center">
+  <strong>Double-click a <code>.md</code> file and it just looks right.</strong><br>
+  A small, fast, private Markdown viewer for macOS and Windows. Save in your editor and Leve reloads.
+</p>
 
-![Leve showing a Markdown document with a table of contents](docs/screenshot.png)
+<p align="center">
+  <a href="https://github.com/moraliasp/leve/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/moraliasp/leve?label=release&color=431A60"></a>
+  <img alt="macOS · Windows" src="https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows-431A60">
+  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-C9A6F2"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/moraliasp/leve/releases/latest"><strong>Download</strong></a> ·
+  <a href="#first-launch">First launch</a> ·
+  <a href="docs/sample.md">Sample document</a> ·
+  <a href="README.pt-BR.md">Português</a>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/screenshot-en-dark.png">
+    <img src="docs/img/screenshot-en-light.png" width="860" alt="Leve showing a Markdown document with metadata, a tip callout, a task list and a table, with the table of contents on the side">
+  </picture>
+</p>
 
 ## Download
 

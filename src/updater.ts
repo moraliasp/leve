@@ -11,7 +11,7 @@ import { t } from "./i18n";
 import { PREF_KEYS, boolPref } from "./prefs";
 
 /** Quando foi a última checagem automática (dado, não preferência: fora de "Restaurar padrões"). */
-const CHECKED_KEY = "mdview.updateChecked";
+const CHECKED_KEY = "leve.updateChecked";
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface UpdateUi {

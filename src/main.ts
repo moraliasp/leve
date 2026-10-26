@@ -18,7 +18,7 @@ import { renderMath } from "./math";
 import { MD_EXT, collectWikilinkTargets, markWikilinks } from "./wikilinks";
 import { applyTooltips, detectPlatform, shortcutRows, tooltip } from "./shortcuts";
 import { SCROLL_KEY, addRecent, clearRecent, readRecent, removeRecent, splitPath } from "./recent";
-import { PREF_KEYS, TABS_KEY, boolPref, readJson, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "./prefs";
+import { PREF_KEYS, TABS_KEY, TIP_KEY, boolPref, readJson, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "./prefs";
 import { applyI18n, detectLang, lang, langPref, setLangPref, t, type Key, type LangPref } from "./i18n";
 import { checkForUpdates, maybeDailyCheck, type UpdateUi } from "./updater";
 
@@ -274,7 +274,7 @@ function applyZoom(): void {
 }
 
 // Abaixo de 720 px o sumário é sobreposição (styles.css): o botão abre/fecha `toc-peek`, só na
-// sessão, e `mdview.toc` (a preferência para janela larga) não é tocada.
+// sessão, e `leve.toc` (a preferência para janela larga) não é tocada.
 const narrowMq = window.matchMedia("(max-width: 719px)");
 
 function syncTocAria(): void {
@@ -943,8 +943,8 @@ function openAbout(): void {
 
 /** Uma vez só: na primeira vez que o estado vazio aparece. */
 function showTipOnce(): void {
-  if (localStorage.getItem("mdview.tip") === "1") return;
-  localStorage.setItem("mdview.tip", "1");
+  if (localStorage.getItem(TIP_KEY) === "1") return;
+  localStorage.setItem(TIP_KEY, "1");
   $("tip").hidden = false;
 }
 for (const w of Object.keys(WIDTHS) as Width[]) {

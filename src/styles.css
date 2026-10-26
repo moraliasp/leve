@@ -429,7 +429,7 @@ body[data-font="mono"] #content {
 
 /* Janela estreita (< 720 px): o sumário de 260 px deixaria ~120 px para o texto, que quebraria no
    meio da palavra. Vira sobreposição dentro de #body, fechada por padrão; abre pelo botão/⌘B
-   (`body.toc-peek`, só na sessão). A preferência `mdview.toc` não muda com a largura. */
+   (`body.toc-peek`, só na sessão). A preferência `leve.toc` não muda com a largura. */
 @media (max-width: 719px) {
   #body {
     position: relative;

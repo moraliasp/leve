@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { PREF_KEYS, TABS_KEY, TOP, boolPref, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "../src/prefs";
+import { PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, migrateLegacyKeys, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "../src/prefs";
 import { RECENT_KEY, SCROLL_KEY } from "../src/recent";
 import { REMOTE_PREF_KEY } from "../src/remote-ui";
 
@@ -19,11 +19,11 @@ describe("preferências", () => {
 
   it("as chaves do menu e da tela são as mesmas (uma fonte por preferência)", () => {
     expect(REMOTE_PREF_KEY).toBe(PREF_KEYS.remote);
-    expect(PREF_KEYS.toc).toBe("mdview.toc");
-    expect(PREF_KEYS.theme).toBe("mdview.theme");
+    expect(PREF_KEYS.toc).toBe("leve.toc");
+    expect(PREF_KEYS.theme).toBe("leve.theme");
   });
 
-  describe("restaurar posição de leitura (mdview.restoreScroll)", () => {
+  describe("restaurar posição de leitura (leve.restoreScroll)", () => {
     const store = { "/a.md": { top: 300, index: 4, offset: 12 }, "/velho.md": 80 };
     beforeEach(() => localStorage.setItem(SCROLL_KEY, JSON.stringify(store)));
 
@@ -42,7 +42,7 @@ describe("preferências", () => {
     });
   });
 
-  describe("reabrir abas ao iniciar (mdview.restoreTabs)", () => {
+  describe("reabrir abas ao iniciar (leve.restoreTabs)", () => {
     beforeEach(() => localStorage.setItem(TABS_KEY, JSON.stringify({ paths: ["/a.md", 7, "/b.md"], active: 1 })));
 
     it("ligada por padrão: devolve as abas salvas, só as que são caminho", () => {
@@ -66,12 +66,38 @@ describe("preferências", () => {
     localStorage.setItem(RECENT_KEY, '["/a.md"]');
     localStorage.setItem(SCROLL_KEY, "{}");
     localStorage.setItem(TABS_KEY, "{}");
-    localStorage.setItem("mdview.tip", "1");
+    localStorage.setItem(TIP_KEY, "1");
     resetPrefs();
     for (const k of Object.values(PREF_KEYS)) expect(localStorage.getItem(k), k).toBeNull();
     expect(localStorage.getItem(RECENT_KEY)).toBe('["/a.md"]');
     expect(localStorage.getItem(SCROLL_KEY)).toBe("{}");
     expect(localStorage.getItem(TABS_KEY)).toBe("{}");
-    expect(localStorage.getItem("mdview.tip")).toBe("1");
+    expect(localStorage.getItem(TIP_KEY)).toBe("1");
+  });
+
+  describe("migração das chaves mdview.* (até a 0.2.0)", () => {
+    it("renomeia para leve.* preservando o valor e apaga a antiga", () => {
+      localStorage.setItem("mdview.theme", "dark");
+      localStorage.setItem("mdview.lang", "en");
+      localStorage.setItem("mdview.recent", '["/a.md"]');
+      localStorage.setItem("mdview.tip", "1");
+      migrateLegacyKeys();
+      expect(localStorage.getItem(PREF_KEYS.theme)).toBe("dark");
+      expect(localStorage.getItem(PREF_KEYS.lang)).toBe("en");
+      expect(localStorage.getItem(RECENT_KEY)).toBe('["/a.md"]');
+      expect(localStorage.getItem(TIP_KEY)).toBe("1");
+      expect(localStorage.getItem("mdview.theme")).toBeNull();
+      expect(localStorage.getItem("mdview.lang")).toBeNull();
+    });
+
+    it("chave nova já gravada vence a antiga; chave de outro prefixo não é tocada", () => {
+      localStorage.setItem(PREF_KEYS.zoom, "1.2");
+      localStorage.setItem("mdview.zoom", "0.8");
+      localStorage.setItem("outro.x", "1");
+      migrateLegacyKeys();
+      expect(localStorage.getItem(PREF_KEYS.zoom)).toBe("1.2");
+      expect(localStorage.getItem("mdview.zoom")).toBeNull();
+      expect(localStorage.getItem("outro.x")).toBe("1");
+    });
   });
 });

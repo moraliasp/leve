@@ -207,7 +207,8 @@ pub fn launch_for(found: &Found, doc: &Path) -> Launch {
 /// Acha o editor nesta máquina. `None` = não instalado (ou, para `System`, o padrão é o Leve).
 pub fn detect(editor: Editor, self_id: &str) -> Option<Found> {
     if editor == Editor::System {
-        return (!sys::default_is_self(self_id)).then_some(Found::System);
+        let (default_app, me) = sys::default_and_self(self_id);
+        return system_unless_self(default_app.as_deref(), &me);
     }
     let c = candidates(editor, CURRENT_OS, &|v| std::env::var_os(v));
     if let Some(id) = c.bundles.into_iter().find(|id| sys::bundle_installed(id)) {
@@ -220,6 +221,30 @@ pub fn detect(editor: Editor, self_id: &str) -> Option<Found> {
         p.is_file()
     })
     .map(Found::Exe)
+}
+
+/// "Aplicativo padrão" só vale se o app padrão para `.md` não for o próprio Leve; senão o arquivo
+/// voltaria para cá. `default_app` e `me` vêm de `sys::default_and_self` na mesma forma (macOS:
+/// bundle id e `identifier`; Windows: executável normalizado; Linux: nome do `.desktop`).
+/// Sem padrão conhecido, deixa o sistema decidir.
+pub fn system_unless_self(default_app: Option<&str>, me: &str) -> Option<Found> {
+    match default_app {
+        Some(d) if d.eq_ignore_ascii_case(me) => None,
+        _ => Some(Found::System),
+    }
+}
+
+/// Windows: `canonicalize` devolve `\\?\C:\...` (ou `\\?\UNC\servidor\...`), que vários editores
+/// não entendem. Tira o prefixo antes de passar o caminho adiante; outros caminhos passam iguais.
+pub fn strip_verbatim(p: &Path) -> PathBuf {
+    let s = p.to_string_lossy();
+    if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
+        PathBuf::from(format!(r"\\{rest}"))
+    } else if let Some(rest) = s.strip_prefix(r"\\?\") {
+        PathBuf::from(rest)
+    } else {
+        p.to_path_buf()
+    }
 }
 
 #[derive(Serialize)]
@@ -341,9 +366,13 @@ mod sys {
 
     /// Bundle id do app que o LaunchServices usa para abrir um `.md`. A consulta exige um arquivo
     /// que exista (com caminho inexistente ela devolve nada), então cria um `.md` vazio na pasta
-    /// temporária só para perguntar e o apaga em seguida.
+    /// temporária só para perguntar e o apaga em seguida. Nome único por chamada (pid + contador):
+    /// duas consultas ao mesmo tempo não apagam o arquivo uma da outra.
     pub fn default_md_app() -> Option<String> {
-        let probe = std::env::temp_dir().join(format!("leve-probe-{}.md", std::process::id()));
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let probe = std::env::temp_dir().join(format!("leve-probe-{}-{n}.md", std::process::id()));
         std::fs::write(&probe, b"").ok()?;
         let id = default_app_for(&probe);
         let _ = std::fs::remove_file(&probe);
@@ -387,8 +416,8 @@ mod sys {
         }
     }
 
-    pub fn default_is_self(self_id: &str) -> bool {
-        default_md_app().is_some_and(|id| id.eq_ignore_ascii_case(self_id))
+    pub fn default_and_self(self_id: &str) -> (Option<String>, String) {
+        (default_md_app(), self_id.to_owned())
     }
 }
 
@@ -437,17 +466,15 @@ mod sys {
         Some(PathBuf::from(OsString::from_wide(&buf[..end])))
     }
 
-    pub fn default_is_self(_self_id: &str) -> bool {
-        let (Some(def), Ok(me)) = (default_md_exe(), std::env::current_exe()) else {
-            return false;
-        };
+    pub fn default_and_self(_self_id: &str) -> (Option<String>, String) {
         let norm = |p: PathBuf| {
             std::fs::canonicalize(&p)
                 .unwrap_or(p)
                 .to_string_lossy()
-                .to_lowercase()
+                .into_owned()
         };
-        norm(def) == norm(me)
+        let me = std::env::current_exe().map(norm).unwrap_or_default();
+        (default_md_exe().map(norm), me)
     }
 }
 
@@ -459,16 +486,19 @@ mod sys {
         false
     }
 
-    pub fn default_is_self(_self_id: &str) -> bool {
-        std::process::Command::new("xdg-mime")
+    pub fn default_and_self(_self_id: &str) -> (Option<String>, String) {
+        let desktop = std::process::Command::new("xdg-mime")
             .args(["query", "default", "text/markdown"])
             .output()
             .ok()
-            .is_some_and(|o| desktop_is_leve(&String::from_utf8_lossy(&o.stdout)))
+            .map(|o| desktop_stem(&String::from_utf8_lossy(&o.stdout)));
+        (desktop, "leve".to_owned())
     }
 
-    pub fn desktop_is_leve(desktop: &str) -> bool {
-        desktop.trim().to_ascii_lowercase().starts_with("leve")
+    /// `Leve.desktop\n` → `Leve`.
+    pub fn desktop_stem(out: &str) -> String {
+        let t = out.trim();
+        t.strip_suffix(".desktop").unwrap_or(t).to_owned()
     }
 }
 
@@ -577,8 +607,48 @@ mod tests {
     #[cfg(not(any(target_os = "macos", windows)))]
     #[test]
     fn desktop_do_leve() {
-        assert!(sys::desktop_is_leve("Leve.desktop\n"));
-        assert!(!sys::desktop_is_leve("code.desktop"));
+        assert_eq!(sys::desktop_stem("Leve.desktop\n"), "Leve");
+        assert_eq!(sys::desktop_stem("code.desktop"), "code");
+    }
+
+    #[test]
+    fn aplicativo_padrao_nunca_e_o_proprio_leve() {
+        let me = "br.com.moralia.leve";
+        assert_eq!(system_unless_self(Some("br.com.moralia.leve"), me), None);
+        assert_eq!(system_unless_self(Some("BR.com.Moralia.Leve"), me), None);
+        assert_eq!(
+            system_unless_self(Some("com.microsoft.VSCode"), me),
+            Some(Found::System)
+        );
+        assert_eq!(system_unless_self(None, me), Some(Found::System));
+        // Windows: executável normalizado.
+        assert_eq!(
+            system_unless_self(
+                Some(r"C:\Users\x\AppData\Local\Leve\leve.exe"),
+                r"c:\users\x\appdata\local\leve\leve.exe"
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn tira_prefixo_verbatim_do_windows() {
+        assert_eq!(
+            strip_verbatim(Path::new(r"\\?\C:\docs\a.md")),
+            PathBuf::from(r"C:\docs\a.md")
+        );
+        assert_eq!(
+            strip_verbatim(Path::new(r"\\?\UNC\srv\share\a.md")),
+            PathBuf::from(r"\\srv\share\a.md")
+        );
+        assert_eq!(
+            strip_verbatim(Path::new("/docs/a.md")),
+            PathBuf::from("/docs/a.md")
+        );
+        assert_eq!(
+            strip_verbatim(Path::new(r"C:\docs\a.md")),
+            PathBuf::from(r"C:\docs\a.md")
+        );
     }
 
     #[cfg(target_os = "macos")]
@@ -590,12 +660,11 @@ mod tests {
             detect(Editor::Text, "br.com.moralia.leve"),
             Some(Found::Bundle("com.apple.TextEdit"))
         );
-        // O padrão para .md existe em toda máquina com algum app que o declare; o que importa é
-        // a comparação com o próprio id.
-        if let Some(id) = sys::default_md_app() {
-            assert!(sys::default_is_self(&id));
-            assert!(!sys::default_is_self("br.com.moralia.nao-existe"));
-        }
+        // A consulta ao LaunchServices responde (há sempre algum app para .md nesta máquina);
+        // a decisão em si é testada em `aplicativo_padrao_nunca_e_o_proprio_leve`.
+        let (default_app, me) = sys::default_and_self("x.y");
+        assert!(default_app.is_some());
+        assert_eq!(me, "x.y");
     }
 
     /// Prova manual, fora do `cargo test` normal porque abre uma janela: o mesmo caminho do

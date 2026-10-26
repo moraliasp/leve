@@ -82,6 +82,10 @@ struct AppState {
     /// para os "Recentes" continuarem abrindo.
     granted: Mutex<Vec<PathBuf>>,
     grants_file: Mutex<Option<PathBuf>>,
+    /// `install_cli`: liberação de uso único para o modo administrador, dada só quando uma chamada
+    /// sem senha nesta execução devolveu `needs-admin` (o frontend então confirmou com o leitor).
+    #[cfg(target_os = "macos")]
+    cli_admin_permit: std::sync::atomic::AtomicBool,
 }
 
 const GRANTS_MAX: usize = 200;
@@ -940,6 +944,20 @@ fn first_markdown_arg(argv: &[String], cwd: &Path) -> Option<PathBuf> {
         .find(|p| is_markdown(p) && p.exists())
 }
 
+/// O que pode ir para um editor: só arquivo Markdown (mesma regra de extensão do argv). Um alvo de
+/// link concedido como `./run.command` não passa: com "Aplicativo padrão" o LaunchServices o
+/// executaria, contornando `OPENABLE_EXT`. No Windows tira o prefixo `\\?\` do canônico.
+fn editor_target(doc: &Path) -> Result<PathBuf, String> {
+    let shown = doc.display().to_string();
+    if !is_markdown(doc) {
+        return Err(fill(i18n::s().editor_not_markdown, &[("path", &shown)]));
+    }
+    if !doc.is_file() {
+        return Err(fill(i18n::s().not_found, &[("path", &shown)]));
+    }
+    Ok(editor::strip_verbatim(doc))
+}
+
 /// Lista de "Abrir no editor" com o que está instalado (Preferências › Editor).
 #[tauri::command]
 async fn list_editors(app: AppHandle) -> Result<Vec<editor::EditorInfo>, String> {
@@ -961,10 +979,7 @@ async fn open_in_editor(
     let s = i18n::s();
     let e =
         editor::Editor::parse(&editor).ok_or_else(|| fill(s.editor_unknown, &[("id", &editor)]))?;
-    let doc = granted(&state, &path)?;
-    if !doc.is_file() {
-        return Err(fill(s.not_found, &[("path", &path)]));
-    }
+    let doc = editor_target(&granted(&state, &path)?)?;
     let self_id = app.config().identifier.clone();
     let found = tauri::async_runtime::spawn_blocking(move || editor::detect(e, &self_id))
         .await
@@ -995,11 +1010,13 @@ async fn open_in_editor(
 async fn install_cli(app: AppHandle, admin: bool) -> Result<serde_json::Value, String> {
     #[cfg(target_os = "macos")]
     {
+        let state = app.state::<AppState>();
+        cli::take_admin_permit(&state.cli_admin_permit, admin)?;
         let id = app.config().identifier.clone();
-        let scratch = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-        let out = tauri::async_runtime::spawn_blocking(move || cli::install(admin, &id, &scratch))
+        let out = tauri::async_runtime::spawn_blocking(move || cli::install(admin, &id))
             .await
             .map_err(|e| e.to_string())??;
+        cli::grant_admin_permit(&state.cli_admin_permit, &out);
         serde_json::to_value(out).map_err(|e| e.to_string())
     }
     #[cfg(not(target_os = "macos"))]
@@ -1856,6 +1873,23 @@ mod tests {
             first_markdown_arg(&argv(&["leve", &txt.to_string_lossy()]), elsewhere),
             None
         );
+    }
+
+    #[test]
+    fn abrir_no_editor_so_aceita_markdown() {
+        let t = TempDir::new("editor-alvo");
+        let md = t.file("doc.md", "# oi");
+        let cmd = t.file("run.command", "#!/bin/sh\necho pwned\n");
+        let app = t.file("x.app", "");
+        assert_eq!(editor_target(&md).unwrap(), md);
+        for bad in [&cmd, &app] {
+            let err = editor_target(bad).unwrap_err();
+            assert!(err.contains(&bad.display().to_string()), "{err}");
+        }
+        // Pasta com nome de .md também não vai.
+        let dir = t.0.join("pasta.md");
+        fs::create_dir_all(&dir).unwrap();
+        assert!(editor_target(&dir).is_err());
     }
 
     #[test]

@@ -117,6 +117,14 @@ pub struct Strings {
     /// `{name}` e `{error}`: o editor não abriu.
     pub editor_failed: &'static str,
     pub editor_self_default: &'static str,
+    /// `{path}`: Abrir no editor só aceita Markdown.
+    pub editor_not_markdown: &'static str,
+    /// Modo administrador sem a confirmação que o precede.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub cli_admin_unconfirmed: &'static str,
+    /// `{path}`: o arquivo gravado como administrador não confere com o script.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub cli_verify_failed: &'static str,
     /// `{path}`: já existe um `leve` que não é o script do app.
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub cli_exists: &'static str,
@@ -191,6 +199,9 @@ const PT: Strings = Strings {
     editor_failed: "Não foi possível abrir no {name}: {error}",
     editor_self_default: "O aplicativo padrão para .md é o próprio Leve. Escolha um editor em Preferências › Editor.",
     cli_exists: "Já existe {path} e não foi instalado pelo Leve; nada foi alterado.",
+    editor_not_markdown: "Abrir no editor só abre arquivos Markdown: {path}",
+    cli_admin_unconfirmed: "Instalação como administrador precisa ser pedida pelo menu.",
+    cli_verify_failed: "{path} foi gravado, mas o conteúdo não confere; confira ou apague o arquivo.",
     cli_unsupported: "O comando 'leve' só é instalado pelo app no macOS. Veja docs/instalacao.md.",
 };
 
@@ -261,6 +272,9 @@ const EN: Strings = Strings {
     editor_failed: "Couldn't open in {name}: {error}",
     editor_self_default: "The default app for .md is Leve itself. Choose an editor in Settings › Editor.",
     cli_exists: "{path} already exists and wasn't installed by Leve; nothing was changed.",
+    editor_not_markdown: "Open in Editor only opens Markdown files: {path}",
+    cli_admin_unconfirmed: "Installing as administrator has to be requested from the menu.",
+    cli_verify_failed: "{path} was written but its content doesn't match; check or delete the file.",
     cli_unsupported: "The app installs the 'leve' command only on macOS. See docs/instalacao.md.",
 };
 
@@ -299,6 +313,8 @@ mod tests {
                 s.not_found,
                 s.export_exists,
                 s.cli_exists,
+                s.editor_not_markdown,
+                s.cli_verify_failed,
             ] {
                 assert!(msg.contains("{path}"), "{msg}");
             }

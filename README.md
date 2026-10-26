@@ -62,6 +62,23 @@ Updates are signed separately and verified by the app before installing: *Leve �
 
 No telemetry. Leve reads only files you open (dialog, double-click, drag and drop) and files an open document links to with a relative path. Remote images are blocked until you load them. The network is used only for links you open, remote images you ask for, and update checks.
 
+## Size
+
+Installer size of the latest release of Leve and other Markdown viewers, as published on GitHub (asset `size` from the GitHub Releases API, `releases/latest`, queried 2026-10-26; MB = 10⁶ bytes). Architecture is as stated in each asset name. A universal macOS build carries code for both Apple silicon and Intel, so it is larger than a single-architecture build of the same app.
+
+| App | Release | macOS | Windows |
+|---|---|--:|--:|
+| **Leve** | v0.2.0 (2026-10-25) | 8.0 MB `.dmg` (universal) | 3.6 MB `setup.exe` · 4.2 MB `.msi` (x64) |
+| [Markdown Preview](https://github.com/pluk-inc/markdown-preview) | v0.0.69 (2026-10-23) | 9.0 MB `.dmg` (not stated) | — |
+| [MD Reader](https://github.com/Neilooo/md-reader) | v0.3.12 (2026-10-10) | 8.8 MB `.dmg` (universal) | 4.4 MB `.msi` · 6.5 MB portable `.exe` (x64) |
+| [MDHero](https://github.com/vaibhav-kakde-in/mdhero) | v0.2.10 (2026-09-13) | 11.5 MB `.dmg` (Apple silicon) | 5.4 MB `setup.exe` · 6.9 MB `.msi` (x64) |
+| [Tinta](https://github.com/oipoistar/tinta) | v3.9.0 (2026-10-21) | — | 2.8 MB `tinta.exe` (not stated) |
+| [mdview](https://github.com/c3er/mdview) | v4.0.2 (2026-08-02) | 119.3 MB `.dmg` (Apple silicon) | 102.6 MB `.exe` · 114.9 MB `.msi` (x64) |
+| [MarkText](https://github.com/marktext/marktext) | v0.23.0 (2026-10-21) | 157.8 MB (Apple silicon) · 164.7 MB (Intel) `.dmg` | 132.4 MB `setup.exe` (x64) |
+| [Moji](https://github.com/alexishida/Moji) | v1.0.7 (2026-09-10) | 246.4 MB `.dmg` (universal) | 131.2 MB `Setup.exe` (not stated) |
+
+These are download sizes only; they say nothing about features, and each app does different things. Opening time and memory are measured for Leve alone, because we have no comparable measurement of the others: method, machine and numbers in [`docs/benchmark.md`](docs/benchmark.md).
+
 ## Build
 
 Requirements: Node 22+, pnpm, stable Rust, and Xcode Command Line Tools (macOS) or Visual Studio Build Tools + WebView2 (Windows).

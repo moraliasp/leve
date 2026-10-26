@@ -170,6 +170,8 @@ jobs:
           elif [ "$RUNNER_OS" = "Linux" ]; then
             # Leve_X.Y.Z_amd64.AppImage e Leve_X.Y.Z_amd64.deb, cada um com o seu .sig.
             cp "$BUNDLE"/appimage/*.AppImage "$BUNDLE"/appimage/*.AppImage.sig "$BUNDLE"/deb/*.deb "$BUNDLE"/deb/*.deb.sig out/
+            # Exec com %F, MimeType e glibc: o rc reprova se o pacote regredir.
+            scripts/check-linux-packages.sh out
           else
             cp "$BUNDLE"/nsis/*-setup.exe "$BUNDLE"/nsis/*-setup.exe.sig "$BUNDLE"/msi/*.msi "$BUNDLE"/msi/*.msi.sig out/
           fi

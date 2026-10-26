@@ -56,7 +56,8 @@ jobs:
     # tauri.conf.json, dependências do Rust ou no release.yml: `gh workflow run ci.yml --ref <branch>`.
     # Só a pedido porque compila em release sem cache (LTO, codegen-units=1) e empacota: ~6 min de
     # runner por disparo, contra ~2 do `check` com cache; a cada PR seria o quádruplo de minutos para
-    # provar algo que só muda quando o bundle muda, e o release candidate prova de novo antes de publicar.
+    # provar algo que só muda quando o bundle muda. O release.yml roda os mesmos scripts de build e de
+    # conferência; só a fumaça com xvfb fica aqui.
     # A chave do atualizador é descartável, gerada aqui (a de verdade fica só no environment
     # release): serve para provar que os .sig do AppImage e do .deb saem. Os pacotes deste job não
     # valem para distribuição.
@@ -97,29 +98,10 @@ jobs:
         run: |
           B=src-tauri/target/release/bundle
           mkdir -p out
-          # Mesmo `cp` do release.yml: falha se faltar pacote ou assinatura.
+          # Mesmo `cp` e mesmo script de conferência do release.yml.
           cp "$B"/appimage/*.AppImage "$B"/appimage/*.AppImage.sig "$B"/deb/*.deb "$B"/deb/*.deb.sig out/
           ls -l out
-          DEB="$(ls out/*.deb)"
-          dpkg-deb --info "$DEB"
-          dpkg-deb --contents "$DEB"
-          mkdir -p "$RUNNER_TEMP/deb" && dpkg-deb -x "$DEB" "$RUNNER_TEMP/deb"
-          cat "$RUNNER_TEMP"/deb/usr/share/applications/*.desktop
-          # Sem %F/%U no Exec, abrir um .md pelo gerenciador de arquivos abre o Leve vazio.
-          grep -Eq '^Exec=[^ ]+ %[FU]$' "$RUNNER_TEMP"/deb/usr/share/applications/Leve.desktop \
-            || { echo "::error::Exec do .desktop do .deb sem %F/%U"; exit 1; }
-          grep -qx 'MimeType=text/markdown' "$RUNNER_TEMP"/deb/usr/share/applications/Leve.desktop \
-            || { echo "::error::MimeType do .desktop do .deb sem text/markdown"; exit 1; }
-          # glibc mais nova que o binário exige (a do runner é o teto).
-          objdump -T "$RUNNER_TEMP/deb/usr/bin/leve" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1
-          ldd --version | head -1 || true
-          # O AppImage leva o mesmo .desktop (o bundler reusa os dados do .deb).
-          APPIMAGE="$(ls "$PWD"/out/*.AppImage)"
-          # (o Leve.desktop da raiz do AppImage é link para este)
-          (cd "$RUNNER_TEMP" && "$APPIMAGE" --appimage-extract usr/share/applications/Leve.desktop >/dev/null)
-          cat "$RUNNER_TEMP"/squashfs-root/usr/share/applications/Leve.desktop
-          grep -Eq '^Exec=[^ ]+ %[FU]$' "$RUNNER_TEMP"/squashfs-root/usr/share/applications/Leve.desktop \
-            || { echo "::error::Exec do .desktop do AppImage sem %F/%U"; exit 1; }
+          scripts/check-linux-packages.sh out
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: leve-linux-prova

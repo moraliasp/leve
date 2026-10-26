@@ -5,6 +5,7 @@ import wVersion from "../packaging/winget/0.2.0/Moralia.Leve.yaml?raw";
 import wInstaller from "../packaging/winget/0.2.0/Moralia.Leve.installer.yaml?raw";
 import wEn from "../packaging/winget/0.2.0/Moralia.Leve.locale.en-US.yaml?raw";
 import wPt from "../packaging/winget/0.2.0/Moralia.Leve.locale.pt-BR.yaml?raw";
+import cask from "../packaging/homebrew/Casks/leve.rb?raw";
 
 const committed: Record<string, string> = {
   "packaging/winget/0.2.0/Moralia.Leve.yaml": wVersion,
@@ -34,12 +35,15 @@ describe("pacotes winget e Homebrew", () => {
     expect(() => parseSums("isto não é um hash  Leve.dmg")).toThrow(/linha inválida/);
   });
 
-  // Os manifestos de uma versão não mudam depois de publicados; o cask acompanha a última versão,
-  // então só ele fica de fora deste tripwire.
-  it("os manifestos winget versionados de 0.2.0 são exatamente o que o gerador produz", () => {
-    const files = Object.entries(gen()).filter(([rel]) => rel.startsWith("packaging/winget/"));
-    expect(files).toHaveLength(4);
-    for (const [rel, content] of files) expect(committed[rel], rel).toBe(content);
+  // Tripwire: o que está versionado em packaging/ é exatamente o que o gerador produz. Os manifestos
+  // winget de uma versão não mudam depois de publicados; o cask acompanha a última versão, então ao
+  // atualizá-lo troque SUMS_020 pelo SHA256SUMS.txt da versão nova (ver docs/publicar-pacotes.md).
+  it("os arquivos versionados de 0.2.0 (manifestos winget e cask) são exatamente o que o gerador produz", () => {
+    const files = gen();
+    const winget = Object.entries(files).filter(([rel]) => rel.startsWith("packaging/winget/"));
+    expect(winget).toHaveLength(4);
+    for (const [rel, content] of winget) expect(committed[rel], rel).toBe(content);
+    expect(cask).toBe(files["packaging/homebrew/Casks/leve.rb"]);
   });
 
   it("winget: NSIS por usuário com o hash do -setup.exe e as quatro extensões", () => {

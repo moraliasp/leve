@@ -13,21 +13,43 @@ Os de 0.2.0 já estão neste repositório.
 
 Depois que a release `vX.Y.Z` saiu do rascunho (publicada, não pre-release):
 
+As duas rotas abaixo terminam no mesmo lugar, `/tmp/leve-out/packaging/` (com `winget/X.Y.Z/` e `homebrew/Casks/leve.rb`), e os passos seguintes usam esses caminhos.
+
+**Pelo workflow.** `gh workflow run` não devolve o id do run, e `gh run list --limit 1` logo depois pode pegar outro run (o novo leva alguns segundos para aparecer). Por isso: anotar a hora antes de disparar e esperar o primeiro run `workflow_dispatch` do `packaging.yml`, seu, criado depois dela.
+
 ```bash
-gh workflow run packaging.yml --repo moraliasp/leve -f version=X.Y.Z
-gh run watch --repo moraliasp/leve "$(gh run list --repo moraliasp/leve --workflow packaging.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
-gh run download --repo moraliasp/leve --name packaging-X.Y.Z --dir /tmp/leve-packaging
+V=X.Y.Z
+DESDE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+gh workflow run packaging.yml --repo moraliasp/leve -f version="$V"
+EU="$(gh api user --jq .login)"
+RUN=""
+for _ in $(seq 20); do
+  RUN="$(gh run list --repo moraliasp/leve --workflow packaging.yml --event workflow_dispatch --user "$EU" \
+    --json databaseId,createdAt --jq "[.[] | select(.createdAt >= \"$DESDE\")] | last | .databaseId // empty")"
+  [ -n "$RUN" ] && break
+  sleep 3
+done
+[ -n "$RUN" ] || echo "run não apareceu em 60 s: confira em Actions antes de seguir"
+gh run watch --repo moraliasp/leve "$RUN" --exit-status
+rm -rf /tmp/leve-out && gh run download "$RUN" --repo moraliasp/leve --name "packaging-$V" --dir /tmp/leve-out/packaging
 ```
 
-O workflow confere a attestation do `SHA256SUMS.txt` (só aceita o que saiu do `release.yml`) e recusa rascunho e pre-release. Sem o workflow, o mesmo resultado localmente:
+Disparar duas versões ao mesmo tempo atrapalha a escolha (o filtro pega o primeiro depois de `DESDE`): uma de cada vez.
+
+O workflow confere a attestation do `SHA256SUMS.txt` (só aceita o que saiu do `release.yml`) e recusa rascunho e pre-release.
+
+**Localmente**, sem o workflow (o 4º argumento é a pasta de saída; o script grava em `<pasta>/packaging/`):
 
 ```bash
-gh release download vX.Y.Z --repo moraliasp/leve --pattern SHA256SUMS.txt --dir /tmp/leve-sums
+V=X.Y.Z
+rm -rf /tmp/leve-sums /tmp/leve-out
+gh release download "v$V" --repo moraliasp/leve --pattern SHA256SUMS.txt --dir /tmp/leve-sums
 gh attestation verify /tmp/leve-sums/SHA256SUMS.txt --repo moraliasp/leve --signer-workflow moraliasp/leve/.github/workflows/release.yml
-node scripts/packaging.mjs /tmp/leve-sums/SHA256SUMS.txt X.Y.Z AAAA-MM-DD
+DATA="$(gh release view "v$V" --repo moraliasp/leve --json publishedAt --jq '.publishedAt[0:10]')"
+node scripts/packaging.mjs /tmp/leve-sums/SHA256SUMS.txt "$V" "$DATA" /tmp/leve-out
 ```
 
-O artefato tem `winget/X.Y.Z/` e `homebrew/Casks/leve.rb`. Para guardar o registro aqui, copie os dois para `packaging/` e abra um PR no `leve`.
+Para guardar o registro aqui, copie `/tmp/leve-out/packaging/winget/X.Y.Z/` e `/tmp/leve-out/packaging/homebrew/Casks/leve.rb` para `packaging/` e abra um PR no `leve`. Ao atualizar o `leve.rb` daqui, troque também o `SUMS` em `tests/packaging.test.ts` pelo `SHA256SUMS.txt` da versão nova e acrescente os manifestos dela ao teste: ele compara o que está versionado com o gerador.
 
 ## 2. Homebrew: tap próprio
 
@@ -65,7 +87,7 @@ brew uninstall --cask leve
 ### A cada versão
 
 ```bash
-cp /tmp/leve-packaging/homebrew/Casks/leve.rb /tmp/homebrew-tap/Casks/leve.rb
+cp /tmp/leve-out/packaging/homebrew/Casks/leve.rb /tmp/homebrew-tap/Casks/leve.rb
 cd /tmp/homebrew-tap && git pull && git commit -am "leve X.Y.Z" && git push origin main
 ```
 
@@ -73,7 +95,7 @@ O cask tem `livecheck` pela release mais recente (`brew livecheck --cask moralia
 
 ## 3. winget: PR no `microsoft/winget-pkgs`
 
-O `PackageIdentifier` é `Moralia.Leve` (não existia no winget-pkgs em 2026-10-26). O PR da primeira versão é revisado por moderador; os seguintes passam pelo mesmo pipeline automático. Uma versão por PR.
+O `PackageIdentifier` é `Moralia.Leve`; não existia no winget-pkgs em 2026-10-26 (`gh api repos/microsoft/winget-pkgs/contents/manifests/m/Moralia` devolveu 404 às 11:55 UTC). Confira de novo antes do primeiro PR. O PR da primeira versão é revisado por moderador; os seguintes passam pelo mesmo pipeline automático. Uma versão por PR.
 
 ```bash
 gh repo fork microsoft/winget-pkgs --clone=false
@@ -82,7 +104,7 @@ cd /tmp/winget-pkgs
 git sparse-checkout set manifests/m/Moralia
 git switch -c Moralia.Leve-X.Y.Z
 mkdir -p manifests/m/Moralia/Leve/X.Y.Z
-cp /tmp/leve-packaging/winget/X.Y.Z/*.yaml manifests/m/Moralia/Leve/X.Y.Z/   # 0.2.0: packaging/winget/0.2.0 deste repo
+cp /tmp/leve-out/packaging/winget/X.Y.Z/*.yaml manifests/m/Moralia/Leve/X.Y.Z/   # 0.2.0: packaging/winget/0.2.0 deste repo
 git add manifests/m/Moralia/Leve/X.Y.Z
 git commit -m "New package: Moralia.Leve version X.Y.Z"
 git push -u origin HEAD

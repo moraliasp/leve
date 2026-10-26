@@ -100,6 +100,25 @@ Decisão estrutural nova entra aqui, no fim, no mesmo formato.
 - **Decisão:** `scripts/tamanho.mjs` (`pnpm size`, passo do CI logo depois do `pnpm build`) mede o `dist/`: total bruto e gzip, chunk de abertura (o `<script type="module">`, o CSS e os `modulepreload` linkados em `dist/index.html`) bruto e gzip, e o maior arquivo. Os limites ficam num objeto só, `ORCAMENTO`, com ~10% de folga sobre o medido em 2026-10-25, já sem o layout ELK do Mermaid (`dist` 4,44 MB / 1,44 MB gzip; abertura 391,3 kB / 124,2 kB gzip; maior arquivo um chunk do Mermaid, 629 kB). Estourar sai com erro dizendo o que e por quanto.
 - **Consequência:** subir um limite é decisão no mesmo PR, com o motivo. Quando o tamanho cai de verdade, o limite desce junto, senão a folga vira espaço para regressão: foi o que aconteceu quando o ELK saiu (−1,46 MB) e o orçamento, montado antes sobre 5,90 MB, foi refeito sobre o `dist` novo. O gzip é por arquivo, nível 9, só como referência de transferência: o app lê do disco.
 
+## TLS do sistema no atualizador (macOS e Windows)
+
+- **Contexto:** o binário de release (aarch64, perfil do repo, `--features tauri/custom-protocol` como o `tauri build`) tinha 5.126.592 B em 2026-10-26: ~2,22 MB de código (`__text`), ~1,30 MB do `dist` embutido em brotli (diferença do `__TEXT,__const` com e sem `custom-protocol`) e o resto em dados e tabelas. No `cargo bloat --crates`, a pilha HTTPS do `tauri-plugin-updater` (`reqwest` com `rustls` + `ring` + `rustls-webpki` + `rustls-platform-verifier`) somava ~370 KiB de `.text`; ela só existe para baixar o `latest.json` e o pacote.
+- **Decisão:** em macOS e Windows o updater entra com `default-features = false` e `features = ["native-tls", "system-proxy", "zip"]` (as mesmas do padrão, trocando `rustls-tls` por `native-tls`): TLS do Security.framework no macOS e do SChannel no Windows, que já estão no sistema. No Linux continua o padrão (`rustls`), porque `native-tls` lá é OpenSSL, dependência de sistema no build e no runtime. As duas tabelas `[target.'cfg(...)'.dependencies]` do `Cargo.toml` não se misturam (resolver 3). A assinatura minisign do pacote não muda.
+- **Medição (macOS aarch64, `cargo build --release`):**
+
+  | Build | Antes | Depois | Diferença |
+  |---|---|---|---|
+  | com `dist` (`custom-protocol`, o que vai na release) | 5.126.592 B | 4.513.152 B | −613.440 B (−12,0%) |
+  | sem `dist` (`cargo build --release` puro) | 3.805.632 B | 3.208.704 B | −596.928 B (−15,7%) |
+
+  Prova: cliente com o mesmo `reqwest` 0.13.5 e as mesmas features baixou o `latest.json` real do GitHub Releases (redireciona para `release-assets.githubusercontent.com`) e recusou `expired`, `self-signed`, `wrong.host` e `untrusted-root` do badssl.com. O binário novo abre `docs/exemplo.md`.
+- **Medido e descartado:**
+  - Tirar `dynamic-acl` das features padrão do `tauri`: −49.808 B (1,1%). Abaixo do corte de 100 KB, exige repetir à mão a lista de features padrão do Tauri (feature nova do Tauri passaria despercebida) e muda o ACL de runtime.
+  - Features dos plugins: `dialog` só tem `gtk3` (Linux); `opener`, `window-state`, `process` e `single-instance` não têm feature padrão para cortar. `compression` do Tauri fica: sem ela o `dist` entraria sem brotli.
+  - Crates duplicadas (`cargo tree -d`: `base64` 0.21/0.22/0.23, `getrandom`, `miniz_oxide` 0.8/0.9, `core-foundation`): cada uma pesa dezenas de KB e vem de dependências do Tauri, fora do nosso controle.
+  - Resto do `bloat`: nenhuma função acima de 34 KiB; `std` (~410 KiB, inclusive simbolização de backtrace) só sairia com `build-std` no nightly.
+- **Consequência:** no macOS o Security.framework (via `security-framework`/Secure Transport) negocia até TLS 1.2, contra 1.3 do `rustls`; o GitHub aceita 1.2, e a integridade do pacote continua garantida pela assinatura minisign. Se o Leve passar a distribuir Linux, ele segue com `rustls`. Trocar de volta é apagar as duas tabelas e voltar a `tauri-plugin-updater = "2"`.
+
 ## Leitura tolerante, com limite
 
 - **Contexto:** `read_to_string` recusava UTF-16, que é o padrão do Bloco de Notas, e qualquer byte fora de UTF-8, com erro em inglês. Também lia arquivos de qualquer tamanho, o que pode travar o WebView.
@@ -132,7 +151,7 @@ Decisão estrutural nova entra aqui, no fim, no mesmo formato.
 
 ## Avisos de terceiros (EPL/MPL/CDLA)
 
-- **Contexto:** MPL-2.0 (cinco crates do Rust: `cssparser`, `cssparser-macros`, `dtoa-short`, `option-ext`, `selectors`) e CDLA-Permissive-2.0 (`webpki-root-certs`, via `reqwest` do Tauri) pedem o texto da licença junto da distribuição e, no caso da MPL, indicação de onde está a fonte. DOMPurify é MPL-2.0 OR Apache-2.0. Nenhuma GPL/AGPL no grafo. A EPL-2.0 (elkjs) saiu com o corte do ELK (ver "Mermaid sem o layout ELK").
+- **Contexto:** MPL-2.0 (cinco crates do Rust: `cssparser`, `cssparser-macros`, `dtoa-short`, `option-ext`, `selectors`) e CDLA-Permissive-2.0 (`webpki-root-certs`, que está no grafo só como dependência de `wasm32` do `rustls-platform-verifier`, ou seja, não entra no binário de macOS, Windows nem Linux; o aviso fica porque o gerador lê o grafo inteiro) pedem o texto da licença junto da distribuição e, no caso da MPL, indicação de onde está a fonte. DOMPurify é MPL-2.0 OR Apache-2.0. Nenhuma GPL/AGPL no grafo. A EPL-2.0 (elkjs) saiu com o corte do ELK (ver "Mermaid sem o layout ELK").
 - **Decisão:** `THIRD_PARTY_NOTICES.md` traz o texto integral de cada licença e a fonte de cada componente (crates.io por versão). Do DOMPurify, o Leve redistribui sob a **Apache-2.0**. `scripts/third-party.mjs` gera `THIRD_PARTY.md` com a seção "Licenças com obrigação de aviso (EPL/MPL/CDLA)", e `tests/notices.test.ts` exige no NOTICES um título com nome e versão de cada um.
 - **Consequência:** dependência nova com EPL/MPL/CDLA, ou bump de versão de uma listada, derruba o teste depois que `node scripts/third-party.mjs` regenera `THIRD_PARTY.md` (o gerador não roda no CI; regerar faz parte de atualizar dependência). Dupla nova com `OR` só avisa no gerador até entrar em `escolhas`; pacote instalado mas cortado do bundle entra em `foraDoBundle`. As escolhas e os textos aqui são orientação técnica, não parecer jurídico.
 

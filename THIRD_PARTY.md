@@ -159,10 +159,11 @@ Fora do bundle (dependência instalada, não distribuída no app):
 | [uuid](https://github.com/uuidjs/uuid#readme) | 14.0.3 | MIT |
 | [yaml](https://eemeli.org/yaml/) | 2.9.1 | ISC |
 
-## Rust (crates diretos; o grafo completo tem 520 crates)
+## Rust (crates diretos; o grafo completo tem 529 crates)
 
 | Pacote | Versão | Licença |
 |---|---|---|
+| [base64](https://github.com/marshallpierce/rust-base64) | 0.22.1 | MIT OR Apache-2.0 |
 | [notify](https://github.com/notify-rs/notify.git) | 8.2.0 | CC0-1.0 |
 | [notify-debouncer-mini](https://github.com/notify-rs/notify.git) | 0.6.0 | MIT OR Apache-2.0 |
 | [serde](https://github.com/serde-rs/serde) | 1.0.229 | MIT OR Apache-2.0 |
@@ -177,4 +178,4 @@ Fora do bundle (dependência instalada, não distribuída no app):
 | [tauri-plugin-updater](https://github.com/tauri-apps/plugins-workspace) | 2.14.0 | Apache-2.0 OR MIT |
 | [tauri-plugin-window-state](https://github.com/tauri-apps/plugins-workspace) | 2.5.0 | Apache-2.0 OR MIT |
 
-Licenças no grafo completo do Rust: MIT OR Apache-2.0 (241), MIT (119), Apache-2.0 OR MIT (53), Zlib OR Apache-2.0 OR MIT (18), Unicode-3.0 (18), MIT/Apache-2.0 (13), Unlicense OR MIT (9), MPL-2.0 (5), ISC (5), Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT (5), BSD-3-Clause (3), Apache-2.0/MIT (3), Apache-2.0 OR ISC OR MIT (3), Zlib (2), MIT OR Zlib OR Apache-2.0 (2), BSD-3-Clause OR MIT OR Apache-2.0 (2), MIT OR Apache-2.0 OR LGPL-2.1-or-later (2), MIT OR Apache-2.0 OR Zlib (2), Unlicense/MIT (2), Apache-2.0 (2), 0BSD OR MIT OR Apache-2.0 (1), BSD-3-Clause AND MIT (1), BSD-3-Clause/MIT (1), Apache-2.0 AND MIT (1), CC0-1.0 OR MIT-0 OR Apache-2.0 (1), Apache-2.0 / MIT (1), CC0-1.0 (1), Apache-2.0 AND ISC (1), Apache-2.0 WITH LLVM-exception (1), (MIT OR Apache-2.0) AND Unicode-3.0 (1), CDLA-Permissive-2.0 (1).
+Licenças no grafo completo do Rust: MIT OR Apache-2.0 (242), MIT (121), Apache-2.0 OR MIT (53), MIT/Apache-2.0 (18), Zlib OR Apache-2.0 OR MIT (18), Unicode-3.0 (18), Unlicense OR MIT (9), MPL-2.0 (5), ISC (5), Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT (5), BSD-3-Clause (3), Apache-2.0/MIT (3), Apache-2.0 OR ISC OR MIT (3), Apache-2.0 (3), Zlib (2), MIT OR Zlib OR Apache-2.0 (2), BSD-3-Clause OR MIT OR Apache-2.0 (2), MIT OR Apache-2.0 OR LGPL-2.1-or-later (2), MIT OR Apache-2.0 OR Zlib (2), Unlicense/MIT (2), 0BSD OR MIT OR Apache-2.0 (1), BSD-3-Clause AND MIT (1), BSD-3-Clause/MIT (1), Apache-2.0 AND MIT (1), CC0-1.0 OR MIT-0 OR Apache-2.0 (1), Apache-2.0 / MIT (1), CC0-1.0 (1), Apache-2.0 AND ISC (1), Apache-2.0 WITH LLVM-exception (1), (MIT OR Apache-2.0) AND Unicode-3.0 (1), CDLA-Permissive-2.0 (1).

@@ -26,6 +26,7 @@ import { checkForUpdates, maybeDailyCheck, type UpdateUi } from "./updater";
 import { type Tab, canGoBack, canGoForward, commitDoc, cycleTarget, findTab, insertTab, removeTab, restoreSaved, serializeTabs, stepHistory, tabFactory } from "./tabs";
 import { SAMPLE_SESSION_KEY, SESSION_KEY, isSample, sampleOnLaunch, samplePath, sampleText, sampleToReplace } from "./sample";
 import { installErrorReporting } from "./errors";
+import { reportPainted } from "./bench";
 
 // Erro não tratado (promessa com `void`, exceção em callback) aparece na barra, não só no console.
 // Instalado antes de tudo; `reportUnexpected` cobre o erro que chega antes de `els` existir.
@@ -630,6 +631,7 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   else pending = { anchor: sample ? TOP : restoreScroll(doc.path) };
   applyPending();
   performance.measure("leve:layout", "leve:start");
+  reportPainted(doc.path);
 
   if (!els.find.classList.contains("hidden") && els.findInput.value) finder.search(els.findInput.value);
   onImagesSettled(els.content, applyPending);

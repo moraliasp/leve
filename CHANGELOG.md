@@ -8,6 +8,7 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 - Sample document: a Markdown primer (history, syntax, good practices, uses) in English and Portuguese that also shows what Leve renders. It opens when Leve is started directly with no tabs to restore, from *Help › Sample Document* at any time, and can be turned off with "Show sample document at startup" in Settings. It lives in memory: no file is written, read or authorized.
 - File › Export HTML… saves the document as a single self-contained `.html` file that opens offline in any browser: light theme, highlighted code, KaTeX math with its fonts, Mermaid diagrams as SVG, callouts and front matter, local images up to 5 MB embedded, no scripts. Links to other `.md` files become text or point to the sibling `.html`. File › Copy as HTML… copies the same HTML to the clipboard.
+- Edit › Copy as Formatted Text (Cmd/Ctrl+Shift+C) copies the document, or only the selection, as rich text with inline styles plus the Markdown source as plain text, so pasting into Google Docs, Gmail, Apple Mail, Word, Notion or Slack keeps headings, bold, lists, links, tables, callouts and code blocks (with syntax colors). Mermaid diagrams are pasted as PNG images and math as its LaTeX source (`$...$`); the sample document can be copied too.
 
 ### Changed
 

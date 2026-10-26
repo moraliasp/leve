@@ -952,6 +952,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
     let print = item("print", s.print, Some("CmdOrCtrl+P"))?;
     let export_html = item("export-html", s.export_html, None)?;
     let copy_html = item("copy-html", s.copy_html, None)?;
+    let copy_rich = item("copy-rich", s.copy_rich, Some("CmdOrCtrl+Shift+C"))?;
     let find = item("find", s.find, Some("CmdOrCtrl+F"))?;
     let toc = item("toggle-toc", s.toc, Some("CmdOrCtrl+B"))?;
     let theme = item("cycle-theme", s.theme, Some("CmdOrCtrl+Shift+L"))?;
@@ -991,6 +992,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .build()?;
     let edit = SubmenuBuilder::new(app, s.edit)
         .copy_with_text(s.copy)
+        .item(&copy_rich)
         .select_all_with_text(s.select_all)
         .separator()
         .item(&find);

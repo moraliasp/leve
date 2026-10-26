@@ -56,6 +56,7 @@ export const SHORTCUTS: Shortcut[] = [
   // Mesmo texto do item de menu nativo ("Mostrar no Finder / Explorer"), por plataforma.
   { id: "reveal", label: (p) => (p === "mac" ? "shortcuts.revealMac" : "shortcuts.revealPc"), keys: "Mod+Shift+R" },
   { id: "print", label: "shortcuts.print", keys: "Mod+P" },
+  { id: "copy-rich", label: "shortcuts.copyRich", keys: "Mod+Shift+C" },
   { id: "find", label: "shortcuts.find", keys: "Mod+F" },
   { id: "toggle-toc", label: "shortcuts.toc", keys: "Mod+B" },
   { id: "cycle-theme", label: "shortcuts.theme", keys: "Mod+Shift+L" },

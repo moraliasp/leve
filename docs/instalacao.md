@@ -2,9 +2,9 @@
 
 Os instaladores ainda saem sem assinatura (macOS até a Moralia ter conta Apple Developer própria; Windows sem certificado), então o sistema avisa na primeira abertura. É esperado e acontece uma vez. No Linux não há aviso de sistema: a origem se confere pelo `SHA256SUMS.txt` e pela attestation da release.
 
-## Por gerenciador de pacotes (em breve)
+## Por gerenciador de pacotes
 
-Ainda não publicado; quando estiver, estas linhas deixam de dizer "em breve".
+Homebrew já publicado (tap próprio, [`moraliasp/homebrew-tap`](https://github.com/moraliasp/homebrew-tap)). winget em breve: o pacote `Moralia.Leve` está em revisão no `microsoft/winget-pkgs`, e a linha abaixo só funciona depois de aceito.
 
 ```bash
 brew install --cask moraliasp/tap/leve   # macOS, tap próprio da Moralia

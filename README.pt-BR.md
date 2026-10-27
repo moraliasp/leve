@@ -37,11 +37,14 @@ Baixe a versão mais recente em [Releases](https://github.com/moraliasp/leve/rel
 - **Windows 10/11** (x64): `Leve_x.y.z_x64-setup.exe` (por usuário, sem administrador) ou `.msi`
 - **Linux** (x86_64, compilado no Ubuntu 22.04, exige glibc 2.35+): `Leve_x.y.z_amd64.AppImage` (sem instalar) ou `Leve_x.y.z_amd64.deb` (Debian, Ubuntu e derivados). Novo e ainda não testado num desktop Linux real: só compilado e com teste de fumaça sem tela no CI. Relatos são bem-vindos.
 
-Por gerenciador de pacotes (em breve):
+Por gerenciador de pacotes:
 
 ```bash
 brew install --cask moraliasp/tap/leve   # macOS
-winget install Moralia.Leve              # Windows
+```
+
+```powershell
+winget install Moralia.Leve              # Windows (em breve: em revisão no winget-pkgs)
 ```
 
 Cada release traz os SHA-256 em `SHA256SUMS.txt` e [attestations de proveniência](https://github.com/moraliasp/leve/attestations) (`gh attestation verify <arquivo> --repo moraliasp/leve`).

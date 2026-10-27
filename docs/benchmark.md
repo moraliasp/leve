@@ -2,11 +2,32 @@
 
 Quanto tempo o Leve leva para abrir um documento, quanta memória ocupa e quanto pesa. Os números saem de um script (`scripts/bench.mjs`) que qualquer pessoa pode rodar de novo. O método está abaixo, e o porquê de cada escolha está em [`decisoes.md`](decisoes.md), no registro "Benchmark reproduzível, com gancho opt-in".
 
-## Resultado (2026-10-26)
+## Resultado (2026-10-27)
 
-**Máquina:** Apple M5 Pro, 48 GB, macOS 26.7.2 (25G325). **App:** Leve 0.2.0, commit `0ca42eb`, `pnpm tauri build` local (aarch64).
+**Máquina:** Apple M5 Pro, 48 GB, macOS 26.7.2 (25G325). **App:** Leve 0.3.0, commit `0f14986`, o `Leve.app` universal de dentro do `Leve_0.3.0_universal.dmg` da pre-release [v0.3.0-rc.1](https://github.com/moraliasp/leve/releases/tag/v0.3.0-rc.1) (o mesmo build que vai para quem baixa).
 
-São 10 execuções por documento, mais uma de aquecimento que é descartada. Cada célula traz a **mediana / p90**. A memória é lida 10 s depois do layout.
+São 10 execuções por documento, mais uma de aquecimento que é descartada. Cada célula traz a **mediana / p90**. A memória é lida 10 s depois do layout. Nesta rodada a janela ficou à vista em todas as execuções (o 1º quadro chegou em 10 de 10).
+
+| Documento | Abertura até o layout (ms) | Até o 1º quadro (ms) | `leve:render` (ms) | `leve:layout` (ms) | Memória total (MB) | App | WebContent | GPU | Networking | RSS somado (MB) |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| `docs/exemplo.md` (4,2 kB) | 647 / 683 | 686 / 723 | 22 / 24 | 72 / 78 | 171,1 / 189,2 | 33,0 / 33,3 | 110,4 / 128,6 | 22,9 / 23,2 | 4,7 / 4,8 | 301,2 / 307,1 |
+| sintético 1 MB (1.001.174 B) | 1025 / 1038 | 1067 / 1079 | 216 / 219 | 451 / 513 | 275,7 / 278,5 | 31,9 / 32,3 | 219,5 / 222,8 | 19,3 / 19,5 | 4,7 / 4,8 | 704,7 / 708,2 |
+| sintético 5 MB (5.001.860 B) | 2440 / 2956 | 2490 / 2995 | 795 / 1134 | 1857 / 2374 | 772,8 / 910,2 | 40,9 / 41,9 | 710,9 / 844,5 | 19,1 / 19,3 | 4,7 / 4,7 | 1.333,1 / 1.346,4 |
+
+| Tamanho (release v0.3.0-rc.1) | Bytes | MB |
+|---|--:|--:|
+| `Leve.app` universal (soma dos arquivos, medido aqui) | 9.980.793 | 10,0 |
+| `Leve_0.3.0_universal.dmg` | 6.464.452 | 6,5 |
+| `Leve_0.3.0_x64-setup.exe` | 2.822.592 | 2,8 |
+| `Leve_0.3.0_x64_en-US.msi` | 3.395.584 | 3,4 |
+| `Leve_0.3.0_amd64.deb` | 4.241.134 | 4,2 |
+| `Leve_0.3.0_amd64.AppImage` (leva WebKitGTK e GTK dentro) | 82.737.656 | 82,7 |
+
+Contra a 0.2.0, o `.dmg` universal caiu de 8,0 para 6,5 MB, o `setup.exe` de 3,6 para 2,8 MB e o `.msi` de 4,2 para 3,4 MB (Mermaid sem ELK e TLS do sistema no atualizador, ver `decisoes.md`).
+
+### Rodada anterior (0.2.0, 2026-10-26)
+
+Build local aarch64 (`0ca42eb`), não universal, e com a janela coberta na maior parte das execuções, então **não se compara direto** com a tabela acima: o binário é outro e janela coberta não pinta, o que reduz a memória do WebContent. Ficam aqui para histórico.
 
 | Documento | Abertura até o layout (ms) | Até o 1º quadro (ms) | `leve:render` (ms) | `leve:layout` (ms) | Memória total (MB) | App | WebContent | GPU | Networking | RSS somado (MB) |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
@@ -14,25 +35,14 @@ São 10 execuções por documento, mais uma de aquecimento que é descartada. Ca
 | sintético 1 MB (1.001.174 B) | 1001 / 1175 | 1091 / 1208 (3/10) | 220 / 286 | 455 / 557 | 233,7 / 273,3 | 30,2 / 32,0 | 180,7 / 218,5 | 17,7 / 19,4 | 4,8 / 4,8 | 684,5 / 703,5 |
 | sintético 5 MB (5.001.860 B) | 2779 / 3720 | 2811 / 4631 (9/10) | 937 / 1321 | 2142 / 2946 | 612,6 / 907,5 | 40,9 / 41,4 | 551,1 / 843,4 | 19,2 / 20,4 | 4,8 / 5,5 | 1.197,1 / 1.342,7 |
 
-| Tamanho (medido aqui) | Bytes | MB |
-|---|--:|--:|
-| `Leve.app` (soma dos arquivos) | 4.605.673 | 4,6 |
-| executável `leve` (arm64) | 4.513.200 | 4,5 |
-| `Leve_0.2.0_aarch64.dmg` | 3.242.479 | 3,2 |
-| `Leve_0.2.0_universal.dmg` da release v0.2.0 (API do GitHub) | 7.984.262 | 8,0 |
-| `Leve_0.2.0_x64-setup.exe` da release v0.2.0 (API do GitHub) | 3.556.686 | 3,6 |
-| `Leve_0.2.0_x64_en-US.msi` da release v0.2.0 (API do GitHub) | 4.173.824 | 4,2 |
-
-O `.dmg` local tem uma arquitetura só (aarch64). O da release é universal, com código para Apple silicon e Intel, e por isso tem mais que o dobro do tamanho.
-
 ### Como ler
 
 - **Abertura até o layout:** vai do `open` até o fim do `leve:layout` do documento pedido. Nesse ponto o documento já foi renderizado, sanitizado, posto no DOM e teve o layout calculado (o `applyPending` lê posições). É o número principal.
-- **Até o 1º quadro:** o primeiro `requestAnimationFrame` depois do layout. O WebKit não pinta janela coberta por outras, e a máquina estava em uso durante a medição, então o quadro só chegou nas execuções com a janela à vista. Entre parênteses vai quantas execuções tiveram quadro. Quando ele vem, chega 30 a 50 ms depois do layout.
+- **Até o 1º quadro:** o primeiro `requestAnimationFrame` depois do layout. O WebKit não pinta janela coberta por outras; na rodada da 0.2.0 a máquina estava em uso e o quadro só chegou nas execuções com a janela à vista (entre parênteses, quantas). Ele chega 30 a 50 ms depois do layout.
 - **Memória total:** soma do `phys_footprint` (o "Memória" do Monitor de Atividade) do processo do app e dos processos do WebKit atribuídos a ele. O RSS somado conta mais de uma vez as páginas compartilhadas do WebKit e serve só de referência.
 - O documento de 5 MB passa de 2 MiB e abre em modo documento grande: sem links automáticos, sem realce e com sumário até h2 (`src/limits.ts`). O de 1 MB abre no modo normal, e o realce dele continua em segundo plano depois do layout.
-- **A memória depende de a janela estar à vista.** No 1 MB, as três execuções com quadro ficaram em 268 a 275 MB, contra 216 a 259 MB nas que não tiveram. Numa rodada de teste anterior, com a janela à vista e a memória lida 3 s depois do layout, o mesmo documento deu ~560 MB, com o realce ainda rodando, e `docs/exemplo.md` deu ~174 MB. Os números da tabela são da janela como ficou durante a medição. Não representam o pior caso.
-- Os 132,7 MB de `docs/exemplo.md` não se comparam direto com os 134 MB de "Modo documento grande" (`decisoes.md`): aqui o total soma app, WebContent, GPU e Networking (o WebContent sozinho dá 78,4 MB), e lá o registro é do WebContent sozinho, medido à mão por outro método.
+- **A memória depende de a janela estar à vista e do realce em segundo plano.** Nesta rodada a janela ficou à vista em todas as execuções, por isso `docs/exemplo.md` deu 171 MB (na 0.2.0, com a janela coberta, 133 MB) e o WebContent sobe junto. No 1 MB, uma execução em dez leu 550 MB (causa não investigada; a mediana e o p90 não a mostram). No 5 MB a memória se divide em dois grupos, ~600 MB e ~890 MB, também sem causa confirmada. Os números não representam o pior caso.
+- Os 171,1 MB de `docs/exemplo.md` não se comparam direto com os 134 MB de "Modo documento grande" (`decisoes.md`): aqui o total soma app, WebContent, GPU e Networking (o WebContent sozinho dá 110,4 MB), e lá o registro é do WebContent sozinho, medido à mão por outro método.
 
 ## Método
 

@@ -76,18 +76,18 @@ Sem telemetria. O Leve só lê arquivos que você abriu (diálogo, duplo-clique,
 
 ## Tamanho
 
-Tamanho do instalador da última release do Leve e de outros visualizadores de Markdown, como publicado no GitHub (campo `size` dos assets na API de Releases do GitHub, `releases/latest`, consultada em 2026-10-26; MB = 10⁶ bytes). A arquitetura é a que consta no nome de cada asset; que o `tinta.exe` do Tinta é portátil, sem instalador, vem do README do projeto. Um build universal do macOS leva código para Apple silicon e Intel, então é maior que um build de uma arquitetura só do mesmo app.
+Tamanho do instalador da última release do Leve e de outros visualizadores de Markdown, como publicado no GitHub (campo `size` dos assets na API de Releases do GitHub, `releases/latest`, consultada em 2026-10-26; MB = 10⁶ bytes; a linha do Leve é o build da v0.3.0). A arquitetura é a que consta no nome de cada asset; que o `tinta.exe` do Tinta é portátil, sem instalador, vem do README do projeto. Um build universal do macOS leva código para Apple silicon e Intel, então é maior que um build de uma arquitetura só do mesmo app. No Linux, o AppImage leva o WebKitGTK e o resto da pilha gráfica dentro dele, enquanto `.deb` e `.rpm` usam as bibliotecas do sistema; compare formato com formato.
 
-| App | Release | macOS | Windows |
-|---|---|--:|--:|
-| **Leve** | v0.2.0 (2026-10-25) | 8,0 MB `.dmg` (universal) | 3,6 MB `setup.exe` · 4,2 MB `.msi` (x64) |
-| [Markdown Preview](https://github.com/pluk-inc/markdown-preview) | v0.0.69 (2026-10-23) | 9,0 MB `.dmg` (não informada) | — |
-| [MD Reader](https://github.com/Neilooo/md-reader) | v0.3.12 (2026-10-10) | 8,8 MB `.dmg` (universal) | 4,4 MB `.msi` · 6,5 MB `.exe` portátil (x64) |
-| [MDHero](https://github.com/vaibhav-kakde-in/mdhero) | v0.2.10 (2026-09-13) | 11,5 MB `.dmg` (Apple silicon) | 5,4 MB `setup.exe` · 6,9 MB `.msi` (x64) |
-| [Tinta](https://github.com/oipoistar/tinta) | v3.9.0 (2026-10-21) | — | 2,8 MB `tinta.exe` portátil, sem instalador (não informada) |
-| [mdview](https://github.com/c3er/mdview) | v4.0.2 (2026-08-02) | 119,3 MB `.dmg` (Apple silicon) | 102,6 MB `.exe` · 114,9 MB `.msi` (x64) |
-| [MarkText](https://github.com/marktext/marktext) | v0.23.0 (2026-10-21) | 157,8 MB (Apple silicon) · 164,7 MB (Intel) `.dmg` | 132,4 MB `setup.exe` (x64) |
-| [Moji](https://github.com/alexishida/Moji) | v1.0.7 (2026-09-10) | 246,4 MB `.dmg` (universal) | 131,2 MB `Setup.exe` (não informada) |
+| App | Release | macOS | Windows | Linux (x86_64) |
+|---|---|--:|--:|--:|
+| **Leve** | v0.3.0 | 6,5 MB `.dmg` (universal) | 2,8 MB `setup.exe` · 3,4 MB `.msi` (x64) | 4,2 MB `.deb` · 82,7 MB AppImage |
+| [Markdown Preview](https://github.com/pluk-inc/markdown-preview) | v0.0.69 (2026-10-23) | 9,0 MB `.dmg` (não informada) | — | — |
+| [MD Reader](https://github.com/Neilooo/md-reader) | v0.3.12 (2026-10-10) | 8,8 MB `.dmg` (universal) | 4,4 MB `.msi` · 6,5 MB `.exe` portátil (x64) | 4,8 MB `.deb` · 4,8 MB `.rpm` · 83,1 MB AppImage |
+| [MDHero](https://github.com/vaibhav-kakde-in/mdhero) | v0.2.10 (2026-09-13) | 11,5 MB `.dmg` (Apple silicon) | 5,4 MB `setup.exe` · 6,9 MB `.msi` (x64) | 8,4 MB `.deb` · 8,4 MB `.rpm` · 85,6 MB AppImage |
+| [Tinta](https://github.com/oipoistar/tinta) | v3.9.3 (2026-10-26) | — | 3,0 MB `tinta.exe` portátil, sem instalador (não informada) | — |
+| [mdview](https://github.com/c3er/mdview) | v4.0.2 (2026-08-02) | 119,3 MB `.dmg` (Apple silicon) | 102,6 MB `.exe` · 114,9 MB `.msi` (x64) | 134,1 MB AppImage |
+| [MarkText](https://github.com/marktext/marktext) | v0.23.0 (2026-10-21) | 157,8 MB (Apple silicon) · 164,7 MB (Intel) `.dmg` | 132,4 MB `setup.exe` (x64) | 126,7 MB `.deb` · 111,0 MB `.rpm` · 165,0 MB AppImage |
+| [Moji](https://github.com/alexishida/Moji) | v1.0.7 (2026-09-10) | 246,4 MB `.dmg` (universal) | 131,2 MB `Setup.exe` (não informada) | 118,5 MB `.deb` · 154,8 MB AppImage |
 
 É só o tamanho do download; não diz nada sobre recursos, e cada app faz coisas diferentes. Tempo de abertura e memória são medidos só no Leve, porque não temos medição comparável dos outros: método, máquina e números em [`docs/benchmark.md`](docs/benchmark.md).
 

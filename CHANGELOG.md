@@ -4,9 +4,12 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-28
+
 ### Added
 
 - After each reload, Leve marks what changed since the previous version: a bar in the left margin next to blocks that were added or edited, and a small triangle where something was removed. The toolbar says how many sections changed (click to jump to the first), and *View › Next Change* (⌘⇧↓ / Ctrl+Shift+↓) and *Previous Change* (⌘⇧↑ / Ctrl+Shift+↑) walk through them; *View › Clear Change Marks* removes them. The comparison is per tab and only in memory: no copy of the document is written to disk, and marks don't appear in exported, copied or printed output.
+- Nothing in a document stays hidden from the reader: when a document has HTML comments, invisible or text-direction characters (zero-width spaces, bidi overrides, Unicode tag characters) or elements hidden by markup or style, the toolbar says how many hidden passages it has, and *Show* reveals them in place, marked, as inert text: comments as labeled blocks, each invisible character as a chip with its code point, hidden elements with a dashed outline. *View › Show Hidden Content* (also in Settings) shows them in every document. Legitimate uses don't count: closed `<details>`, emoji sequences, Arabic and Hebrew text, a leading BOM. Exported, copied and printed output stays as the document is.
 - Flatpak packaging (`br.com.moralia.leve`), built from source on the GNOME 51 runtime, with AppStream metadata in English and Portuguese. Each release now includes `Leve_x.y.z_x86_64.flatpak` (install with `flatpak install --user --bundle <file>`; the GNOME runtime comes from Flathub), listed in `SHA256SUMS.txt` and in the build provenance attestation. Leve on Flathub is coming.
 - Each release now includes an `.rpm` for Fedora, openSUSE and derivatives: the same build as the `.deb`, about 4 MB, using the system's WebKitGTK, registered for `text/markdown` and updated from *Help › Check for Updates…*.
 
@@ -16,6 +19,7 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ### Fixed
 
+- The *Show in Finder / Explorer* menu item now names only the current platform's file manager: *Show in Finder* on macOS, *Show in Explorer* on Windows, *Show in Folder* on Linux.
 - *Edit › Copy as Formatted Text*: Mermaid diagrams pasted into TextEdit (and other apps that size images by the file's resolution) came out about twice as large as on screen. The PNG now carries its density, so they paste at the on-screen width (up to 640 pt) and stay sharp.
 - *Edit › Copy as Formatted Text*: two code blocks in a row no longer paste into TextEdit as one block. A selection that ends at the end of a code block now pastes that block as a whole paragraph.
 
@@ -60,6 +64,7 @@ First public release.
 
 - Raw HTML is sanitized (DOMPurify); remote images and resources are blocked until requested; the window never navigates away from the app; documents can only reach files by relative path; file access is granted per file.
 
-[Unreleased]: https://github.com/moraliasp/leve/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/moraliasp/leve/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/moraliasp/leve/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/moraliasp/leve/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/moraliasp/leve/releases/tag/v0.2.0

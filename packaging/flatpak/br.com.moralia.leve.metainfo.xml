@@ -88,6 +88,17 @@
   </screenshots>
 
   <releases>
+    <release version="0.4.0" date="2026-10-28">
+      <url type="details">https://github.com/moraliasp/leve/releases/tag/v0.4.0</url>
+      <description>
+        <ul>
+          <li>Marks what changed in a document since the last reload</li>
+          <li>Warns about hidden content (HTML comments, invisible characters, hidden text) and shows it on request</li>
+          <li>Flatpak and .rpm packages</li>
+          <li>Copy as formatted text fixes for TextEdit</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.0" date="2026-10-27">
       <url type="details">https://github.com/moraliasp/leve/releases/tag/v0.3.0</url>
       <description>

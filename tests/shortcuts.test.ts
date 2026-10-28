@@ -39,7 +39,7 @@ describe("atalhos por plataforma", () => {
     const rows = shortcutRows("windows");
     expect(rows.find(([w]) => w === "Sumário")?.[1]).toBe(keysFor("toggle-toc", "windows"));
     expect(rows.find(([w]) => w === "Mostrar no Explorer")).toBeDefined();
-    expect(shortcutRows("linux").find(([w]) => w === "Mostrar no Explorer")).toBeDefined();
+    expect(shortcutRows("linux").find(([w]) => w === "Mostrar na pasta")).toBeDefined();
     expect(shortcutRows("mac").find(([w]) => w === "Mostrar no Finder")).toBeDefined();
     expect(rows.some(([, k]) => k.includes("⌘"))).toBe(false);
   });

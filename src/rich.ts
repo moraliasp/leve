@@ -160,6 +160,58 @@ export interface RasterImage {
 /** Largura máxima do diagrama colado, em px CSS: cabe na coluna de um documento ou e-mail. */
 export const MERMAID_MAX_WIDTH = 640;
 
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+
+function crc32(bytes: Uint8Array): number {
+  let c = 0xffffffff;
+  for (const b of bytes) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+/**
+ * Densidade no PNG (bloco `pHYs`) para que ele meça `cssWidth` px de largura em quem ignora os
+ * atributos da `<img>` e usa a densidade do arquivo: o TextEdit conta 1 px do PNG como 1 pt sem
+ * `pHYs`, e o PNG do canvas sai a 2× sem ele (#26). Recebe e devolve data URI; o `pHYs` que já
+ * houver sai, o novo vai logo depois do `IHDR`. O que não for PNG volta igual.
+ */
+export function withPngDensity(data: string, cssWidth: number): string {
+  const prefix = "data:image/png;base64,";
+  if (!data.startsWith(prefix) || !(cssWidth > 0)) return data;
+  let bin: string;
+  try {
+    bin = atob(data.slice(prefix.length));
+  } catch {
+    return data;
+  }
+  const png = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+  const view = new DataView(png.buffer);
+  const type = (at: number): string => String.fromCharCode(...png.subarray(at + 4, at + 8));
+  if (png.length < 33 || view.getUint32(0) !== 0x89504e47 || type(8) !== "IHDR") return data;
+  // 1 pt = 1/72 pol.: px do PNG por polegada = largura em px / (largura em pt / 72).
+  const ppm = Math.round((view.getUint32(16) * 72) / cssWidth / 0.0254);
+  const phys = new Uint8Array(21);
+  const pv = new DataView(phys.buffer);
+  pv.setUint32(0, 9);
+  phys.set([0x70, 0x48, 0x59, 0x73], 4); // "pHYs"
+  pv.setUint32(8, ppm);
+  pv.setUint32(12, ppm);
+  phys[16] = 1; // metro
+  pv.setUint32(17, crc32(phys.subarray(4, 17)));
+  const parts: Uint8Array[] = [png.subarray(0, 33), phys];
+  for (let at = 33; at + 12 <= png.length; ) {
+    const end = at + 12 + view.getUint32(at);
+    if (type(at) !== "pHYs") parts.push(png.subarray(at, end));
+    at = end;
+  }
+  let out = "";
+  for (const part of parts) for (let i = 0; i < part.length; i += 0x8000) out += String.fromCharCode(...part.subarray(i, i + 0x8000));
+  return prefix + btoa(out);
+}
+
 /**
  * Mermaid: o SVG inline não sobrevive à colagem na maioria dos destinos; vira `<img>` PNG em data
  * URI pela função dada (`svgToPng`, canvas no WebView). O que não rasterizar fica para
@@ -177,8 +229,8 @@ export async function mermaidToImages(root: HTMLElement, rasterize: (svg: SVGSVG
     }
     if (!got) continue;
     const img = root.ownerDocument.createElement("img");
-    img.setAttribute("src", got.data);
     const w = Math.min(got.width, MERMAID_MAX_WIDTH);
+    img.setAttribute("src", withPngDensity(got.data, w));
     img.setAttribute("width", String(Math.round(w)));
     img.setAttribute("height", String(Math.round((got.height * w) / got.width)));
     img.setAttribute("alt", t("rich.mermaidAlt"));
@@ -264,6 +316,27 @@ function scrub(root: HTMLElement): void {
     for (const attr of Array.from(el.attributes)) {
       const n = attr.name.toLowerCase();
       if (n.startsWith("on") || n === "id" || n === "class" || n.startsWith("data-") || n.startsWith("aria-") || n === "role" || n === "tabindex") el.removeAttribute(attr.name);
+    }
+  }
+}
+
+/**
+ * Blocos de código no TextEdit (importador de HTML do macOS): a margem do `pre` é ignorada, então
+ * dois blocos seguidos colam como um só. Um parágrafo vazio entre eles separa lá e não ocupa espaço
+ * no navegador (as margens atravessam o bloco vazio). E o `\n` final que a seleção cortou volta,
+ * para o bloco colado terminar em fim de parágrafo, como na cópia do documento inteiro. Roda depois
+ * do `scrub`, que desfaz o `.code-wrap` em volta de cada `pre`.
+ */
+function codeBlockBreaks(root: HTMLElement): void {
+  for (const pre of root.querySelectorAll("pre")) {
+    const code = pre.querySelector(":scope > code") ?? pre;
+    if (code.textContent && !code.textContent.endsWith("\n")) code.append("\n");
+    let next = pre.nextSibling;
+    while (next?.nodeType === 3 && !next.nodeValue?.trim()) next = next.nextSibling;
+    if (next?.nodeName === "PRE") {
+      const gap = root.ownerDocument.createElement("p");
+      gap.setAttribute("style", "margin:0");
+      pre.after(gap);
     }
   }
 }
@@ -366,6 +439,7 @@ export function toRichHtml(root: HTMLElement, images: Record<string, ImageEmbed>
   links(root);
   inlineStyles(root);
   scrub(root);
+  codeBlockBreaks(root);
   const div = retag(root, "div");
   div.setAttribute("style", `font-family:${SANS};font-size:16px;line-height:1.5;color:${FG}`);
   return { html: `<meta charset="utf-8">${div.outerHTML}`, oversized, text: plainText(div) };

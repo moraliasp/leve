@@ -5,8 +5,9 @@
 // macOS: um `.app.tar.gz` universal serve às duas arquiteturas. Windows: o `-setup.exe` (NSIS) é o
 // padrão; o `.msi` entra como `windows-x86_64-msi` para quem instalou por ele. Linux: o `.AppImage`
 // é o padrão (`linux-x86_64`, o próprio arquivo assinado, sem .tar.gz); o `.deb` entra como
-// `linux-x86_64-deb`, que o atualizador procura antes do padrão quando o app veio do .deb (sem essa
-// entrada, quem instalou pelo .deb baixaria o AppImage e o `dpkg` recusaria).
+// `linux-x86_64-deb` e o `.rpm` como `linux-x86_64-rpm`, que o atualizador procura antes do padrão
+// quando o app veio de um deles (sem a entrada, quem instalou pelo .deb ou pelo .rpm baixaria o
+// AppImage e o `dpkg`/`rpm` recusaria).
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -32,6 +33,7 @@ export function buildLatest({ tag, files, sig, date = new Date(), notes }) {
   const msi = pick(/\.msi$/, "Windows (.msi)");
   const appimage = pick(/_amd64\.AppImage$/, "Linux (.AppImage)");
   const deb = pick(/_amd64\.deb$/, "Linux (.deb)");
+  const rpm = pick(/\.x86_64\.rpm$/, "Linux (.rpm)");
   return {
     version,
     notes: notes ?? `https://github.com/${REPO}/releases/tag/${tag}`,
@@ -45,6 +47,7 @@ export function buildLatest({ tag, files, sig, date = new Date(), notes }) {
       "linux-x86_64": appimage,
       "linux-x86_64-appimage": appimage,
       "linux-x86_64-deb": deb,
+      "linux-x86_64-rpm": rpm,
     },
   };
 }

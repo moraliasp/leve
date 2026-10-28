@@ -35,7 +35,7 @@ Get the latest version from [Releases](https://github.com/moraliasp/leve/release
 
 - **macOS 11+** (Apple silicon and Intel): `Leve_x.y.z_universal.dmg`
 - **Windows 10/11** (x64): `Leve_x.y.z_x64-setup.exe` (per-user, no admin) or `.msi`
-- **Linux** (x86_64, built on Ubuntu 22.04, needs glibc 2.35+): `Leve_x.y.z_amd64.AppImage` (no install) or `Leve_x.y.z_amd64.deb` (Debian, Ubuntu and derivatives), plus `Leve_x.y.z_x86_64.flatpak` for Fedora, openSUSE and other distributions with Flatpak (from the first release after 0.3.0; `flatpak install --user --bundle <file>`). New and not yet tested on a real Linux desktop: only built and smoke-tested headless in CI. Reports welcome.
+- **Linux** (x86_64, built on Ubuntu 22.04, needs glibc 2.35+): `Leve_x.y.z_amd64.AppImage` (no install) or `Leve_x.y.z_amd64.deb` (Debian, Ubuntu and derivatives), plus `Leve-x.y.z-1.x86_64.rpm` (Fedora, openSUSE) and `Leve_x.y.z_x86_64.flatpak` for Fedora, openSUSE and other distributions with Flatpak (from the first release after 0.3.0; `flatpak install --user --bundle <file>`). New and not yet tested on a real Linux desktop: only built and smoke-tested headless in CI. Reports welcome.
 
 Package managers:
 
@@ -58,7 +58,7 @@ Each release lists SHA-256 checksums in `SHA256SUMS.txt` and carries [build prov
 Leve isn't signed with an Apple or Microsoft certificate yet, so the system warns you once.
 **macOS:** open Leve, click *Done*, then go to *System Settings › Privacy & Security* and click *Open Anyway* (or run `xattr -dr com.apple.quarantine /Applications/Leve.app`).
 **Windows:** in the SmartScreen prompt, click *More info › Run anyway*.
-**Linux:** make the AppImage executable (`chmod +x Leve_*.AppImage`) and run it, or install the `.deb` with `sudo apt install ./Leve_*_amd64.deb`.
+**Linux:** make the AppImage executable (`chmod +x Leve_*.AppImage`) and run it, install the `.deb` with `sudo apt install ./Leve_*_amd64.deb`, or the `.rpm` with `sudo dnf install ./Leve-*.x86_64.rpm`.
 
 Updates are signed separately and verified by the app before installing: *Leve › Check for Updates…* (on Windows and Linux, *Help › Check for Updates…*), or turn on the daily check in *Settings*.
 
@@ -106,7 +106,7 @@ Requirements: Node 22+, pnpm, stable Rust, and Xcode Command Line Tools (macOS),
 pnpm install
 pnpm tauri dev -- -- docs/sample.md   # run with a document
 pnpm test                              # unit and golden tests
-pnpm tauri build                       # .app/.dmg on macOS, .exe/.msi on Windows, .deb/.AppImage on Linux (--bundles deb,appimage)
+pnpm tauri build                       # .app/.dmg on macOS, .exe/.msi on Windows, .deb/.rpm/.AppImage on Linux (--bundles deb,rpm,appimage)
 ```
 
 From a Mac you can also build the Windows NSIS installer with `pnpm build:windows` (needs `cargo-xwin`, `llvm`, `lld` and `makensis`; see `scripts/build-windows.sh`).

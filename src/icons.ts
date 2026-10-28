@@ -19,6 +19,7 @@ import triangleAlert from "lucide-static/icons/triangle-alert.svg?raw";
 import octagonAlert from "lucide-static/icons/octagon-alert.svg?raw";
 import imageOff from "lucide-static/icons/image-off.svg?raw";
 import globeLock from "lucide-static/icons/globe-lock.svg?raw";
+import eyeOff from "lucide-static/icons/eye-off.svg?raw";
 import monitor from "lucide-static/icons/monitor.svg?raw";
 import sun from "lucide-static/icons/sun.svg?raw";
 import moon from "lucide-static/icons/moon.svg?raw";
@@ -43,6 +44,7 @@ const RAW = {
   "octagon-alert": octagonAlert,
   "image-off": imageOff,
   "globe-lock": globeLock,
+  "eye-off": eyeOff,
   monitor,
   sun,
   moon,
@@ -84,6 +86,7 @@ const CSS_VARS: Record<string, IconName> = {
   "--icon-fold": "chevron-down",
   "--icon-image-off": "image-off",
   "--icon-remote": "globe-lock",
+  "--icon-hidden": "eye-off",
 };
 
 /** Preenche `<span data-icon="nome">` do HTML estático e publica as variáveis de máscara. */

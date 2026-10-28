@@ -80,6 +80,7 @@ pub struct Strings {
     pub width_wide: &'static str,
     pub font: &'static str,
     pub remote: &'static str,
+    pub show_hidden: &'static str,
     pub copy: &'static str,
     pub select_all: &'static str,
     // Menu do app, só no macOS.
@@ -189,6 +190,7 @@ const PT: Strings = Strings {
     width_wide: "Larga",
     font: "Fonte",
     remote: "Carregar imagens remotas",
+    show_hidden: "Mostrar conteúdo oculto",
     copy: "Copiar",
     select_all: "Selecionar tudo",
     services: "Serviços",
@@ -263,6 +265,7 @@ const EN: Strings = Strings {
     width_wide: "Wide",
     font: "Font",
     remote: "Load Remote Images",
+    show_hidden: "Show Hidden Content",
     copy: "Copy",
     select_all: "Select All",
     services: "Services",

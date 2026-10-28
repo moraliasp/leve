@@ -153,6 +153,8 @@ struct AppState {
     view_checks: Mutex<Vec<CheckMenuItem<Wry>>>,
     /// Exibir › Carregar imagens remotas (liga/desliga); a preferência vive no frontend.
     remote_check: Mutex<Option<CheckMenuItem<Wry>>>,
+    /// Exibir › Mostrar conteúdo oculto (liga/desliga); a preferência vive no frontend.
+    hidden_check: Mutex<Option<CheckMenuItem<Wry>>>,
     /// Arquivos que o app pode ler: só os que chegaram por diálogo, SO, drop ou link de um
     /// documento já aberto. O frontend não concede nada; só pede. Persistido em `grants_file`
     /// para os "Recentes" continuarem abrindo.
@@ -333,6 +335,14 @@ fn sync_view_menu(state: State<AppState>, width: String, font: String) {
 #[tauri::command]
 fn sync_remote_menu(state: State<AppState>, on: bool) {
     if let Some(item) = state.remote_check.lock().unwrap().as_ref() {
+        let _ = item.set_checked(on);
+    }
+}
+
+/// Frontend informa se "Mostrar conteúdo oculto" está ligado (no início e a cada troca).
+#[tauri::command]
+fn sync_hidden_menu(state: State<AppState>, on: bool) {
+    if let Some(item) = state.hidden_check.lock().unwrap().as_ref() {
         let _ = item.set_checked(on);
     }
 }
@@ -1170,7 +1180,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
     #[cfg(not(target_os = "macos"))]
     let edit = edit.separator().item(&preferences);
     let edit = edit.build()?;
-    // Marcação vem do frontend (`sync_view_menu`, `sync_remote_menu`) logo depois de montar.
+    // Marcação vem do frontend (`sync_view_menu`, `sync_remote_menu`, `sync_hidden_menu`) logo depois de montar.
     let mut checks = Vec::new();
     let mut radio = |id: &str, label: &str, on: bool| -> tauri::Result<CheckMenuItem<Wry>> {
         let item = CheckMenuItemBuilder::with_id(id, label)
@@ -1191,6 +1201,11 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .checked(false)
         .build(app)?;
     *app.state::<AppState>().remote_check.lock().unwrap() = Some(remote_auto.clone());
+    // Desligado por padrão: o documento só avisa; o frontend liga se a preferência mandar.
+    let show_hidden = CheckMenuItemBuilder::with_id("show-hidden", s.show_hidden)
+        .checked(false)
+        .build(app)?;
+    *app.state::<AppState>().hidden_check.lock().unwrap() = Some(show_hidden.clone());
     let width = SubmenuBuilder::new(app, s.width)
         .items(&[&w_narrow, &w_normal, &w_wide])
         .build()?;
@@ -1206,6 +1221,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .item(&font)
         .separator()
         .item(&remote_auto)
+        .item(&show_hidden)
         .separator()
         .item(&zoom_in)
         .item(&zoom_out)
@@ -1317,6 +1333,7 @@ pub fn run() {
             save_html,
             sync_view_menu,
             sync_remote_menu,
+            sync_hidden_menu,
             resolve_wikilinks,
             open_external,
             reveal_in_folder,

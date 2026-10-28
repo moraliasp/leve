@@ -196,4 +196,5 @@ jobs:
           set -e
           cat "$RUNNER_TEMP/fumaca.log"
           if [ "$rc" -ne 124 ]; then echo "::error::o Flatpak saiu antes dos 15 s (código $rc)"; exit 1; fi
+          if grep -q "panicked" "$RUNNER_TEMP/fumaca.log"; then echo "::error::pânico do Rust no log"; exit 1; fi
           echo "Flatpak ficou de pé por 15 s"

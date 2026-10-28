@@ -21,6 +21,17 @@ export interface UpdateUi {
 
 let running = false;
 
+/**
+ * Quem atualiza esta instalação: o próprio app, o Flatpak (`flatpak update`, sem o atualizador do
+ * app) ou ninguém (modo navegador). Por quê: docs/decisoes.md, "Flatpak a partir do fonte".
+ */
+export type UpdateSource = "app" | "flatpak" | "none";
+
+export function updateSource(isTauri: boolean, flatpak: boolean): UpdateSource {
+  if (!isTauri) return "none";
+  return flatpak ? "flatpak" : "app";
+}
+
 /** Hora de procurar de novo? Checagem diária ligada e 24 h desde a última (ou relógio voltou). */
 export function dailyCheckDue(now: number, last: number | null, enabled: boolean): boolean {
   if (!enabled) return false;

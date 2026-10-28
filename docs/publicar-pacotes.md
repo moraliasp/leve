@@ -141,7 +141,7 @@ Por que assim: "Flatpak a partir do fonte" em [`decisoes.md`](decisoes.md). O bu
 1. Fork de `flathub/flathub` na sua conta, branch a partir da `new-pr`, PR contra a `new-pr` com o template preenchido (o processo está em Submission).
 2. Manifesto `br.com.moralia.leve.yml` escrito por você. Os fatos técnicos que ele precisa refletir: runtime `org.gnome.Platform` 51; extensões `rust-stable` e `node24`; pnpm da versão do `packageManager` do `package.json`; `pnpm install --offline --frozen-lockfile` e `pnpm tauri build --no-bundle`; binário `src-tauri/target/release/leve` em `/app/bin/leve`; `.desktop`, metainfo e ícones de `packaging/flatpak/` e `src-tauri/icons/`; permissões e o motivo de cada uma em `decisoes.md`.
 3. `cargo-sources.json` e `node-sources.json` gerados pela ferramenta (`scripts/flatpak-sources.sh` grava em `packaging/flatpak/`) a partir dos lockfiles da tag; são saída de ferramenta, não de IA.
-4. Sem `flathub.json`: o Flathub builda `x86_64` e `aarch64`, e o Tauri compila nos dois. Se o `aarch64` falhar no bot, aí sim `{"only-arches": ["x86_64"]}`.
+4. `flathub.json`: por padrão o Flathub builda `x86_64` e `aarch64` (Requirements). O job `flatpak` só prova `x86_64`; o `aarch64` aparece no `bot, build` do PR. Se falhar e não houver correção simples, `{"only-arches": ["x86_64"]}`.
 5. No PR, a declaração de IA pedida pela política, com as partes afetadas.
 
 ### Verificação (opcional)

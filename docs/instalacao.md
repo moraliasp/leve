@@ -63,7 +63,14 @@ flatpak install --user --bundle Leve_x.y.z_x86_64.flatpak
 flatpak run br.com.moralia.leve documento.md
 ```
 
-Na primeira vez o `flatpak` adiciona o Flathub e baixa o runtime do GNOME (algumas centenas de MB, compartilhados com outros apps GNOME). O Leve aparece no menu de aplicativos e é registrado para `text/markdown`. Para atualizar, baixe o `.flatpak` da versão nova e rode `flatpak install --user --reinstall --bundle Leve_x.y.z_x86_64.flatpak` (as preferências e os arquivos recentes ficam, em `~/.var/app/br.com.moralia.leve`): o arquivo não se atualiza sozinho nem pela loja. Para remover: `flatpak uninstall --user br.com.moralia.leve`.
+Na primeira vez o `flatpak` adiciona o Flathub e baixa o runtime do GNOME (algumas centenas de MB, compartilhados com outros apps GNOME). O Leve aparece no menu de aplicativos e é registrado para `text/markdown`. Para atualizar, baixe o `.flatpak` da versão nova, desinstale a atual e instale a nova (o `flatpak` recusa instalar o arquivo por cima, mesmo com `--reinstall`); as preferências e os arquivos recentes ficam em `~/.var/app/br.com.moralia.leve`, porque o `uninstall` sem `--delete-data` não apaga essa pasta:
+
+```bash
+flatpak uninstall --user br.com.moralia.leve
+flatpak install --user --bundle Leve_x.y.z_x86_64.flatpak
+```
+
+O arquivo não se atualiza sozinho nem pela loja. Para remover: `flatpak uninstall --user br.com.moralia.leve`.
 
 No Flathub, em breve (a linha abaixo só funciona depois de aceito; aí a atualização passa a vir pela loja e pelo `flatpak update`):
 

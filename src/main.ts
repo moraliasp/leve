@@ -1149,7 +1149,7 @@ function wirePreferences(): void {
         break;
       case "auto-update":
         setBoolPref(PREF_KEYS.autoUpdate, t.checked);
-        if (t.checked && IS_TAURI) maybeDailyCheck(updateUi, appInfo.version);
+        if (t.checked && IS_TAURI && !appInfo.flatpak) maybeDailyCheck(updateUi, appInfo.version);
         break;
       case "lang":
         changeLang(t.value as LangPref);
@@ -1183,10 +1183,12 @@ interface AppInfo {
   name: string;
   version: string;
   repo: string;
+  /** Instalado pelo Flatpak: atualização pelo `flatpak update`, sem o atualizador do app. */
+  flatpak: boolean;
 }
 
 const REPO_URL = "https://github.com/moraliasp/leve";
-let appInfo: AppInfo = { name: "Leve", version: "dev", repo: REPO_URL };
+let appInfo: AppInfo = { name: "Leve", version: "dev", repo: REPO_URL, flatpak: false };
 
 /** Versão e repositório vêm do Rust (Cargo.toml); no navegador fica "dev". */
 async function loadAppInfo(): Promise<void> {
@@ -1203,6 +1205,10 @@ const updateUi: UpdateUi = { flash, confirm: confirmDialog };
 function checkUpdatesNow(): void {
   if (!IS_TAURI) {
     flash(t("update.browser"), true);
+    return;
+  }
+  if (appInfo.flatpak) {
+    flash(t("update.flatpak"));
     return;
   }
   void checkForUpdates(updateUi, true, appInfo.version);
@@ -1545,7 +1551,9 @@ async function main(): Promise<void> {
   await openAtLaunch();
   if (!active) showEmpty();
   await loadAppInfo();
-  if (IS_TAURI) {
+  // No Flatpak a checagem diária não existe: some a linha dela nas Preferências.
+  $("prefs-auto-update-row").hidden = appInfo.flatpak;
+  if (IS_TAURI && !appInfo.flatpak) {
     maybeDailyCheck(updateUi, appInfo.version);
     window.setInterval(() => maybeDailyCheck(updateUi, appInfo.version), 60 * 60 * 1000);
   }

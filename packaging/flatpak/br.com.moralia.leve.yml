@@ -1,0 +1,71 @@
+# Flatpak do Leve a partir do fonte: prova do CI (job `flatpak` do ci.yml) e build local.
+# Não é o manifesto do Flathub: lá ele mora no repositório do app no Flathub, aponta para uma tag e
+# leva os arquivos gerados junto. Por quê e o que muda: docs/decisoes.md, "Flatpak a partir do fonte".
+# cargo-sources.json e node-sources.json saem dos lockfiles na hora (scripts/flatpak-sources.sh) e não
+# são versionados.
+id: br.com.moralia.leve
+runtime: org.gnome.Platform
+# 51 é o último GNOME com o WebKitGTK 4.1 (GTK 3), o que o Tauri 2 usa; suporte até setembro de 2027.
+runtime-version: '51'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.node24
+command: leve
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Imagens remotas que o leitor pede para carregar e links abertos no navegador.
+  - --share=network
+  # Só leitura: imagens e links relativos, [[wikilinks]] e o vigia da pasta precisam enxergar os
+  # vizinhos do documento, que o portal de documentos não entrega. O app continua lendo só o que
+  # foi concedido (grant/granted em lib.rs).
+  - --filesystem=home:ro
+modules:
+  - name: leve
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node24/bin
+      prepend-path: /run/build/leve/flatpak-pnpm/bin
+      env:
+        CARGO_HOME: /run/build/leve/cargo
+        CARGO_NET_OFFLINE: 'true'
+        XDG_CACHE_HOME: /run/build/leve/flatpak-node/cache
+        CI: 'true'
+    build-commands:
+      - pnpm install --offline --frozen-lockfile
+      # beforeBuildCommand (pnpm build) roda dentro; sem bundle, o Flatpak é o pacote.
+      - pnpm tauri build --no-bundle
+      - install -Dm755 src-tauri/target/release/leve /app/bin/leve
+      - install -Dm644 packaging/flatpak/br.com.moralia.leve.desktop /app/share/applications/br.com.moralia.leve.desktop
+      - install -Dm644 packaging/flatpak/br.com.moralia.leve.metainfo.xml /app/share/metainfo/br.com.moralia.leve.metainfo.xml
+      - install -Dm644 src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/br.com.moralia.leve.png
+      - install -Dm644 src-tauri/icons/128x128@2x.png /app/share/icons/hicolor/256x256/apps/br.com.moralia.leve.png
+      - install -Dm644 src-tauri/icons/icon.png /app/share/icons/hicolor/512x512/apps/br.com.moralia.leve.png
+      - install -Dm644 LICENSE /app/share/licenses/br.com.moralia.leve/LICENSE
+      - install -Dm644 THIRD_PARTY_NOTICES.md /app/share/licenses/br.com.moralia.leve/THIRD_PARTY_NOTICES.md
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - .git
+          - node_modules
+          - dist
+          - src-tauri/target
+          - .flatpak-builder
+          - flatpak-build
+          - flatpak-repo
+      # pnpm da versão do packageManager (package.json), do registro do npm, conferido por hash.
+      - type: archive
+        url: https://registry.npmjs.org/pnpm/-/pnpm-10.33.2.tgz
+        sha256: 7a7bcf13d7f6ceb3946c03978373d99be9fde1cafc3000bdfed4c4f791167610
+        dest: flatpak-pnpm/lib
+      - type: script
+        dest: flatpak-pnpm/bin
+        dest-filename: pnpm
+        commands:
+          - exec node /run/build/leve/flatpak-pnpm/lib/bin/pnpm.cjs "$@"
+      - cargo-sources.json
+      - node-sources.json

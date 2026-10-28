@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Leve
+GenericName=Markdown Viewer
+GenericName[pt_BR]=Visualizador de Markdown
+Comment=A lightweight Markdown viewer
+Comment[pt_BR]=Um visualizador de Markdown leve
+Exec=leve %F
+Icon=br.com.moralia.leve
+Terminal=false
+Categories=Office;Viewer;
+Keywords=markdown;md;viewer;preview;
+Keywords[pt_BR]=markdown;md;visualizador;leitor;
+MimeType=text/markdown;text/x-markdown;
+StartupWMClass=leve

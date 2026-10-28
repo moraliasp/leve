@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { decorateCodeBlocks } from "../src/code";
 import { makeTabbable } from "../src/a11y";
 import { EXPORT_IMAGE_MAX_BYTES, cloneContent } from "../src/export";
-import { ALERT_COLORS, MERMAID_MAX_WIDTH, docRange, mermaidToImages, plainText, richCopyJob, safeHref, toRichHtml } from "../src/rich";
+import { ALERT_COLORS, MERMAID_MAX_WIDTH, docRange, mermaidToImages, plainText, richCopyJob, safeHref, toRichHtml, withPngDensity } from "../src/rich";
 import { render, renderMermaid, type MermaidLike } from "../src/render";
 import { loadRemote } from "../src/remote-ui";
 
@@ -335,5 +335,69 @@ describe("Copiar como texto formatado: seleção e limite (richCopyJob)", () => 
     const d = document.createElement("div");
     d.innerHTML = "<h2>T</h2>\n<table><tr><td>a</td><td>b</td></tr></table>\n<ol><li>x</li><li>y</li></ol><pre>  if (a)\n    b</pre>";
     expect(plainText(d)).toBe("T\na\tb\n1. x\n2. y\n  if (a)\n    b");
+  });
+});
+
+/** PNG mínimo: assinatura, `IHDR` com a largura dada, os blocos extras e `IEND` (CRC zerado: não é lido). */
+function png(width: number, extra: [string, number[]][] = []): string {
+  const chunk = (type: string, data: number[]): number[] => {
+    const len = data.length;
+    return [len >>> 24, (len >>> 16) & 255, (len >>> 8) & 255, len & 255, ...Array.from(type, (c) => c.charCodeAt(0)), ...data, 0, 0, 0, 0];
+  };
+  const ihdr = [width >>> 24, (width >>> 16) & 255, (width >>> 8) & 255, width & 255, 0, 0, 0, 10, 8, 2, 0, 0, 0];
+  const bytes = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...chunk("IHDR", ihdr), ...extra.flatMap(([t, d]) => chunk(t, d)), ...chunk("IEND", [])];
+  return "data:image/png;base64," + btoa(String.fromCharCode(...bytes));
+}
+
+/** Blocos do PNG em ordem: tipo, dados e CRC gravado. */
+function chunks(data: string): { type: string; data: Uint8Array; crc: number; raw: Uint8Array }[] {
+  const b = Uint8Array.from(atob(data.slice(data.indexOf(",") + 1)), (c) => c.charCodeAt(0));
+  const v = new DataView(b.buffer);
+  const out = [];
+  for (let at = 8; at < b.length; ) {
+    const len = v.getUint32(at);
+    out.push({ type: String.fromCharCode(...b.subarray(at + 4, at + 8)), data: b.subarray(at + 8, at + 8 + len), crc: v.getUint32(at + 8 + len), raw: b.subarray(at + 4, at + 8 + len) });
+    at += 12 + len;
+  }
+  return out;
+}
+
+describe("withPngDensity (Mermaid colado no tamanho certo no TextEdit/Pages)", () => {
+  it("põe pHYs logo depois do IHDR, com a densidade que faz a largura em px virar a largura em pt", async () => {
+    const { crc32 } = (await import("node:zlib" as string)) as { crc32(b: Uint8Array): number };
+    const out = chunks(withPngDensity(png(1280, [["IDAT", [1, 2, 3]]]), 640));
+    expect(out.map((c) => c.type)).toEqual(["IHDR", "pHYs", "IDAT", "IEND"]);
+    const phys = out[1];
+    const v = new DataView(phys.data.buffer, phys.data.byteOffset, 9);
+    // 2×: 144 dpi = 5669 px/m nos dois eixos, unidade metro.
+    expect([v.getUint32(0), v.getUint32(4), phys.data[8]]).toEqual([5669, 5669, 1]);
+    expect(phys.crc).toBe(crc32(phys.raw));
+    expect(out[2].data).toEqual(new Uint8Array([1, 2, 3]));
+  });
+
+  it("diagrama mais largo que o limite: a densidade acompanha a redução (1800 px em 640 pt)", () => {
+    const phys = chunks(withPngDensity(png(1800), 640)).find((c) => c.type === "pHYs")!;
+    expect(new DataView(phys.data.buffer, phys.data.byteOffset, 9).getUint32(0)).toBe(Math.round((1800 * 72) / 640 / 0.0254));
+  });
+
+  it("troca o pHYs que já houver, sem duplicar", () => {
+    const out = chunks(withPngDensity(png(200, [["pHYs", [0, 0, 11, 19, 0, 0, 11, 19, 1]], ["IDAT", [9]]]), 100));
+    expect(out.map((c) => c.type)).toEqual(["IHDR", "pHYs", "IDAT", "IEND"]);
+    expect(new DataView(out[1].data.buffer, out[1].data.byteOffset, 9).getUint32(0)).toBe(5669);
+  });
+
+  it("o que não é PNG volta igual", () => {
+    for (const d of ["data:image/png;base64,AAAA", "data:image/jpeg;base64,/9j/", "data:image/png;base64,***"]) expect(withPngDensity(d, 640)).toBe(d);
+    expect(withPngDensity(png(10), 0)).toBe(png(10));
+  });
+
+  it("mermaidToImages grava a densidade da largura final na <img>", async () => {
+    const root = cloneContent(content("```mermaid\ngraph TD; A-->B\n```"));
+    root.querySelector<HTMLElement>("pre.mermaid")!.innerHTML = '<svg viewBox="0 0 400 100"></svg>';
+    await mermaidToImages(root, async () => ({ data: png(800), width: 400, height: 100 }));
+    const img = root.querySelector("img")!;
+    expect(img.getAttribute("width")).toBe("400");
+    const phys = chunks(img.getAttribute("src")!).find((c) => c.type === "pHYs")!;
+    expect(new DataView(phys.data.buffer, phys.data.byteOffset, 9).getUint32(0)).toBe(5669);
   });
 });

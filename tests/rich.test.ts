@@ -77,7 +77,7 @@ describe("Copiar como texto formatado", () => {
     expect(style(pre)).toMatch(/white-space:pre-wrap/);
     expect(style(pre.querySelector("code"))).toMatch(/background-color:transparent/);
     expect(style(pre.querySelector("span"))).toBe("color:#d73a49");
-    expect(pre.textContent).toBe("const a = 1;");
+    expect(pre.textContent).toBe("const a = 1;\n");
     expect(dom.querySelector(".code-tools, button")).toBeNull();
     expect(dom.textContent).not.toContain("js");
   });
@@ -156,7 +156,7 @@ describe("Copiar como texto formatado", () => {
     out.innerHTML = toRichHtml(failed).html;
     expect(out.querySelector("svg, img")).toBeNull();
     expect(out.textContent).toContain("Diagrama Mermaid (fonte):");
-    expect(out.querySelector("pre code")!.textContent).toBe("graph TD; A-->B");
+    expect(out.querySelector("pre code")!.textContent).toBe("graph TD; A-->B\n");
   });
 
   it("front matter vira tabela aberta, sem <details>", () => {
@@ -296,6 +296,39 @@ describe("Copiar como texto formatado: seleção e limite (richCopyJob)", () => 
     expect(j.html).not.toContain("Título");
     expect(j.html).not.toContain("Fim.");
     c.remove();
+  });
+
+  it("seleção com dois blocos de código seguidos (#28): separados por parágrafo vazio, cada um terminando em \\n", async () => {
+    const src = "## Código\n\n```ts\nconst a = 1;\n```\n\n```bash\npnpm dev\n```\n\nDepois.";
+    const c = content(src);
+    document.body.appendChild(c);
+    const r = document.createRange();
+    r.setStart(c.querySelector("h2")!.firstChild!, 0);
+    // Como o arrasto do mouse: termina no fim do texto do 2º bloco, sem o `\n` final.
+    const last = c.querySelectorAll("pre code")[1].lastChild!;
+    r.setEnd(last, (last.textContent ?? "").replace(/\n$/, "").length);
+    const j = await richCopyJob({ content: c, range: r, source: src, large: true, readImages: async () => ({}) });
+    c.remove();
+    const dom = document.createElement("div");
+    dom.innerHTML = j.html;
+    const pres = dom.querySelectorAll("pre");
+    expect(pres).toHaveLength(2);
+    for (const pre of pres) {
+      expect(style(pre)).toContain("background-color:#f6f8fa");
+      expect(pre.textContent).toMatch(/\n$/);
+    }
+    const gap = pres[0].nextElementSibling!;
+    expect(gap.tagName).toBe("P");
+    expect(gap.textContent).toBe("");
+    expect(gap.nextElementSibling).toBe(pres[1]);
+    expect(j.html).not.toMatch(/>\s*(ts|bash)\s*</);
+    expect(j.plain).toBe("Código\nconst a = 1;\npnpm dev");
+  });
+
+  it("documento inteiro: o mesmo parágrafo vazio entre blocos de código seguidos, e só entre eles", () => {
+    const { dom } = richOf("```js\na\n```\n\n```js\nb\n```\n\ntexto\n\n```js\nc\n```");
+    const kids = Array.from(dom.querySelector("div")!.children,(el) => el.tagName + (el.textContent === "" ? "·" : ""));
+    expect(kids).toEqual(["PRE", "P·", "PRE", "P", "PRE"]);
   });
 
   it("seleção dentro de uma fórmula é ampliada para a fórmula inteira", () => {

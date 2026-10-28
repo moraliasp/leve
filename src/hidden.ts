@@ -149,6 +149,23 @@ export function newCommentSink(): CommentSink {
 
 export const COMMENT_ATTR = "data-leve-comment";
 
+/**
+ * As marcas do app (classes `leve-*`, atributos `data-leve-*`) não podem vir do documento: um
+ * `class="leve-mark"` escaparia da detecção e um `data-leve-orig` faria o export restaurar um
+ * atributo que o sanitize nunca viu. Roda no hook do sanitize, em todo elemento do documento; o
+ * marcador de comentário só fica com o nonce do render em curso.
+ */
+export function stripAppMarks(el: Element, nonce: string | null): void {
+  for (const attr of Array.from(el.attributes)) {
+    if (!attr.name.startsWith("data-leve-")) continue;
+    if (attr.name === COMMENT_ATTR && nonce && attr.value.startsWith(`${nonce}:`)) continue;
+    el.removeAttribute(attr.name);
+  }
+  if (el.classList.length === 0) return;
+  for (const c of Array.from(el.classList)) if (c.startsWith("leve-")) el.classList.remove(c);
+  if (el.getAttribute("class") === "") el.removeAttribute("class");
+}
+
 // ---------- elementos escondidos ----------
 
 /** Classes do próprio app que escondem (styles.css); o documento pode usá-las. */

@@ -128,11 +128,32 @@ describe("scanHidden + render", () => {
     expect(root.querySelector("code")?.textContent).toBe("<!-- código -->");
   });
 
+  it("comentário dentro de SVG: marcador depois do SVG, mantido pelo sanitize", () => {
+    const { root, sink } = mount("<svg><g><!-- em svg --></g></svg>\n");
+    const s = scanHidden(root, sink);
+    expect(s.comments).toHaveLength(1);
+    expect(s.comments[0].previousElementSibling?.tagName.toLowerCase()).toBe("svg");
+  });
+
   it("marcador escrito no documento não conta e perde o atributo", () => {
     const { root, sink } = mount('<span data-leve-comment="00:0">falso</span>\n');
     expect(scanHidden(root, sink).comments).toHaveLength(0);
     expect(root.querySelector("[data-leve-comment]")).toBeNull();
     expect(root.textContent).toContain("falso");
+  });
+
+  it("marcas do app escritas no documento saem no sanitize", () => {
+    const src = '<span class="leve-mark x" style="display:none">a</span> <span class="leve-mark">b\u200Bc</span> <span hidden data-leve-hidden="x" data-leve-orig=\'{"style":"background:url(http://t/p)"}\'>d</span>\n';
+    const { root, sink } = mount(src);
+    expect(root.querySelector("[data-leve-hidden], [data-leve-orig], .leve-mark")).toBeNull();
+    expect(root.querySelector("span")?.className).toBe("x");
+    const s = scanHidden(root, sink, src);
+    expect(s.elements.map((e) => e.reason)).toEqual(["display:none", "hidden"]);
+    expect(s.invisible).toBe(1);
+    revealHidden(root, s, sink, LABELS);
+    const clone = root.cloneNode(true) as HTMLElement;
+    stripHiddenMarks(clone);
+    expect(clone.innerHTML).not.toContain("url(");
   });
 
   it("conta só o elemento escondido mais externo", () => {

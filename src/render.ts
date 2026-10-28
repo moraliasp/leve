@@ -11,7 +11,7 @@ import { scrubMermaidSource, stripRemote, stripRemoteTree } from "./remote";
 import { math } from "./math";
 import { wikilinks } from "./wikilinks";
 import { t } from "./i18n";
-import { COMMENT_ATTR, type CommentSink } from "./hidden";
+import { COMMENT_ATTR, type CommentSink, stripAppMarks } from "./hidden";
 
 /** Slug no estilo GitHub: minúsculas, sem pontuação, espaços viram hífen. */
 export function slugify(s: string): string {
@@ -110,16 +110,18 @@ export function stripFixed(el: Element): void {
   if (out !== style) el.setAttribute("style", out);
 }
 
+/** Comentários do render em curso (`RenderOpts.comments`); fora de `render`, nada é guardado. */
+let commentSink: CommentSink | null = null;
+
 // Privacidade: todo recurso remoto sai do HTML aqui, antes de chegar à página (src/remote.ts).
 // Janela: o documento não cobre a interface (stripFixed, antes de stripRemote guardar o style).
+// Marcas do conteúdo oculto só o app escreve (stripAppMarks, src/hidden.ts).
 DOMPurify.addHook("afterSanitizeAttributes", (node) => {
   if (node.nodeType !== 1) return;
+  stripAppMarks(node as Element, commentSink?.nonce ?? null);
   stripFixed(node as Element);
   stripRemote(node as Element);
 });
-
-/** Comentários do render em curso (`RenderOpts.comments`); fora de `render`, nada é guardado. */
-let commentSink: CommentSink | null = null;
 
 /**
  * Nada escondido de quem lê (src/hidden.ts): o sanitize tira os comentários HTML, e aqui o texto

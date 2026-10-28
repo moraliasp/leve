@@ -15,6 +15,7 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 ### Fixed
 
 - *Edit › Copy as Formatted Text*: Mermaid diagrams pasted into TextEdit (and other apps that size images by the file's resolution) came out about twice as large as on screen. The PNG now carries its density, so they paste at the on-screen width (up to 640 pt) and stay sharp.
+- *Edit › Copy as Formatted Text*: two code blocks in a row no longer paste into TextEdit as one block. A selection that ends at the end of a code block now pastes that block as a whole paragraph.
 
 ## [0.3.0] - 2026-10-27
 

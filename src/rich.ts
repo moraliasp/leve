@@ -320,6 +320,27 @@ function scrub(root: HTMLElement): void {
   }
 }
 
+/**
+ * Blocos de código no TextEdit (importador de HTML do macOS): a margem do `pre` é ignorada, então
+ * dois blocos seguidos colam como um só. Um parágrafo vazio entre eles separa lá e não ocupa espaço
+ * no navegador (as margens atravessam o bloco vazio). E o `\n` final que a seleção cortou volta,
+ * para o bloco colado terminar em fim de parágrafo, como na cópia do documento inteiro. Roda depois
+ * do `scrub`, que desfaz o `.code-wrap` em volta de cada `pre`.
+ */
+function codeBlockBreaks(root: HTMLElement): void {
+  for (const pre of root.querySelectorAll("pre")) {
+    const code = pre.querySelector(":scope > code") ?? pre;
+    if (code.textContent && !code.textContent.endsWith("\n")) code.append("\n");
+    let next = pre.nextSibling;
+    while (next?.nodeType === 3 && !next.nodeValue?.trim()) next = next.nextSibling;
+    if (next?.nodeName === "PRE") {
+      const gap = root.ownerDocument.createElement("p");
+      gap.setAttribute("style", "margin:0");
+      pre.after(gap);
+    }
+  }
+}
+
 /** Estilos por tag e por classe de realce. Roda antes do `scrub`, que tira as classes. */
 function inlineStyles(root: HTMLElement): void {
   for (const el of root.querySelectorAll<HTMLElement>("*")) {
@@ -418,6 +439,7 @@ export function toRichHtml(root: HTMLElement, images: Record<string, ImageEmbed>
   links(root);
   inlineStyles(root);
   scrub(root);
+  codeBlockBreaks(root);
   const div = retag(root, "div");
   div.setAttribute("style", `font-family:${SANS};font-size:16px;line-height:1.5;color:${FG}`);
   return { html: `<meta charset="utf-8">${div.outerHTML}`, oversized, text: plainText(div) };

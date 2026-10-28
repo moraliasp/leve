@@ -14,16 +14,9 @@ OUT="${1:?uso: scripts/flatpak-build.sh <saída.flatpak>}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_ID=br.com.moralia.leve
 MANIFEST="packaging/flatpak/$APP_ID.yml"
-METAINFO="packaging/flatpak/$APP_ID.metainfo.xml"
 cd "$ROOT"
 
-V="$(node scripts/version.mjs)"
-V="${V%%-*}"
-TOP="$(grep -o '<release version="[^"]*"' "$METAINFO" | head -n1 | cut -d'"' -f2)"
-if [ "$TOP" != "$V" ]; then
-  echo "::error::$METAINFO tem $TOP como release mais recente, e o app está em $V. Acrescente <release version=\"$V\" date=\"AAAA-MM-DD\"> no topo de <releases>."
-  exit 1
-fi
+node scripts/metainfo.mjs
 
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends flatpak dbus

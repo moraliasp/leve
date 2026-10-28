@@ -153,6 +153,8 @@ jobs:
       - name: Instalação
         run: |
           flatpak install --user -y --noninteractive --bundle out/leve.flatpak
+          # O caminho de atualização que docs/instalacao.md ensina: reinstalar por cima, mesmo arquivo.
+          flatpak install --user -y --noninteractive --reinstall --bundle out/leve.flatpak
           flatpak info --user "$APP_ID"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

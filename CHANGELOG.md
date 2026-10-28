@@ -6,7 +6,7 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ### Added
 
-- Flatpak packaging (`br.com.moralia.leve`), built from source on the GNOME 51 runtime, with AppStream metadata in English and Portuguese. Each release now includes `Leve_x.y.z_x86_64.flatpak` (install with `flatpak install --user <file>`; the GNOME runtime comes from Flathub), listed in `SHA256SUMS.txt` and in the build provenance attestation. Leve on Flathub is coming.
+- Flatpak packaging (`br.com.moralia.leve`), built from source on the GNOME 51 runtime, with AppStream metadata in English and Portuguese. Each release now includes `Leve_x.y.z_x86_64.flatpak` (install with `flatpak install --user --bundle <file>`; the GNOME runtime comes from Flathub), listed in `SHA256SUMS.txt` and in the build provenance attestation. Leve on Flathub is coming.
 
 ### Changed
 

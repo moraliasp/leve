@@ -35,7 +35,7 @@ Get the latest version from [Releases](https://github.com/moraliasp/leve/release
 
 - **macOS 11+** (Apple silicon and Intel): `Leve_x.y.z_universal.dmg`
 - **Windows 10/11** (x64): `Leve_x.y.z_x64-setup.exe` (per-user, no admin) or `.msi`
-- **Linux** (x86_64, built on Ubuntu 22.04, needs glibc 2.35+): `Leve_x.y.z_amd64.AppImage` (no install) or `Leve_x.y.z_amd64.deb` (Debian, Ubuntu and derivatives), plus `Leve_x.y.z_x86_64.flatpak` for Fedora, openSUSE and other distributions with Flatpak (from the first release after 0.3.0; `flatpak install --user <file>`). New and not yet tested on a real Linux desktop: only built and smoke-tested headless in CI. Reports welcome.
+- **Linux** (x86_64, built on Ubuntu 22.04, needs glibc 2.35+): `Leve_x.y.z_amd64.AppImage` (no install) or `Leve_x.y.z_amd64.deb` (Debian, Ubuntu and derivatives), plus `Leve_x.y.z_x86_64.flatpak` for Fedora, openSUSE and other distributions with Flatpak (from the first release after 0.3.0; `flatpak install --user --bundle <file>`). New and not yet tested on a real Linux desktop: only built and smoke-tested headless in CI. Reports welcome.
 
 Package managers:
 

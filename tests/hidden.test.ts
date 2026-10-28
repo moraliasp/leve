@@ -9,8 +9,10 @@ import {
   revealHidden,
   runLabel,
   scanHidden,
+  stableCommentMarks,
   stripHiddenMarks,
 } from "../src/hidden";
+import { blockKeys } from "../src/changes";
 import { render } from "../src/render";
 import { buildExportHtml, cloneContent } from "../src/export";
 import { toRichHtml } from "../src/rich";
@@ -267,5 +269,32 @@ describe("Exportar HTML e Copiar formatado com o oculto à mostra", () => {
     const { html, text } = toRichHtml(cloneContent(revealed()));
     expect(html).not.toMatch(/leve-|data-leve|Comentário|nota/);
     expect(text).not.toContain("Comentário");
+  });
+});
+
+describe("com as marcas de mudança (changes.ts)", () => {
+  const keysOf = (src: string): number[] => {
+    const { root, sink } = mount(src);
+    return blockKeys(root, (h) => stableCommentMarks(h, sink));
+  };
+
+  it("o nonce do comentário não vira mudança; o texto do comentário vira", () => {
+    const src = "a\n\n<!-- nota -->\n\nb <!-- x --> c\n";
+    expect(keysOf(src)).toEqual(keysOf(src));
+    const a = keysOf(src);
+    const b = keysOf(src.replace("nota", "outra"));
+    expect(b.filter((k, i) => k !== a[i])).toHaveLength(1);
+  });
+
+  it("revelar não acrescenta nem tira filho de topo", () => {
+    const { root, sink } = mount(fixture);
+    const before = Array.from(root.children);
+    revealHidden(root, scanHidden(root, sink, fixture), sink, LABELS);
+    expect(Array.from(root.children)).toEqual(before);
+    const tpl = mount("a\n\n<template><p>tpl</p></template>\n\nb\n");
+    const n = tpl.root.children.length;
+    revealHidden(tpl.root, scanHidden(tpl.root, tpl.sink), tpl.sink, LABELS);
+    expect(tpl.root.children.length).toBe(n);
+    expect(tpl.root.querySelector("template .leve-hidden-text")?.textContent).toBe("Oculto: <template>tpl");
   });
 });

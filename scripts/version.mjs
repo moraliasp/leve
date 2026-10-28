@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Versão do app num lugar só: `node scripts/version.mjs <x.y.z>` grava nos três arquivos
-// (e no Cargo.lock); sem argumento imprime a versão atual e sai 1 se os arquivos divergirem.
+// (e no Cargo.lock), mais o `<release>` no metainfo do Flatpak; sem argumento imprime a versão atual e sai 1 se os arquivos divergirem.
 // Tolera CRLF (checkout do Windows) e não depende da ordem das chaves em [package].
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { METAINFO, addRelease } from "./metainfo.mjs";
 
 export const FILES = ["package.json", "src-tauri/tauri.conf.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock"];
 export const SEMVER = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/;
@@ -64,13 +65,25 @@ export function current(root = defaultRoot()) {
   };
 }
 
-/** Grava a versão nos quatro arquivos. */
-export function set(root = defaultRoot(), version) {
+/** Data de hoje no fuso de quem roda (AAAA-MM-DD): a release não pode ter data no futuro. */
+const today = () => new Date().toLocaleDateString("sv-SE");
+
+/**
+ * Grava a versão nos quatro arquivos e põe o `<release>` de X.Y.Z (sem o sufixo de pre-release,
+ * como o metainfo.mjs e o teste comparam) com a data `date` no topo do metainfo do Flatpak
+ * (`addRelease`), se ele existir. O metainfo é calculado antes de gravar qualquer arquivo: se ele
+ * estiver malformado, nada muda.
+ */
+export function set(root = defaultRoot(), version, date = today()) {
   const p = (rel) => join(root, rel);
+  const meta = existsSync(p(METAINFO))
+    ? addRelease(readFileSync(p(METAINFO), "utf8"), version.replace(/[-+].*$/, ""), date)
+    : null;
   writeJson(p("package.json"), version);
   writeJson(p("src-tauri/tauri.conf.json"), version);
   writeToml(p("src-tauri/Cargo.toml"), inPackage, version);
   writeToml(p("src-tauri/Cargo.lock"), inLockEntry, version);
+  if (meta !== null) writeFileSync(p(METAINFO), meta);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

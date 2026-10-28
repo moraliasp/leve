@@ -11,13 +11,14 @@ import { cancelHighlight, highlightAll, highlightLazily } from "./highlight";
 import { LARGE_TOC_MAX_LEVEL, isLargeDoc } from "./limits";
 import { applyRemotePolicy, remotePrefEnabled, setRemotePref } from "./remote-ui";
 import { applyHiddenPolicy } from "./hidden-ui";
-import { type CommentSink, newCommentSink } from "./hidden";
+import { type CommentSink, newCommentSink, stableCommentMarks } from "./hidden";
 import { buildToc, updateActive, type TocItem } from "./toc";
 import { Finder } from "./find";
 import { keepTabbable, tabKeyTarget } from "./a11y";
 import { applyAnchor, captureAnchor, onImagesSettled, type ScrollAnchor } from "./scroll";
 import { copyText, decorateCodeBlocks } from "./code";
 import { renderMath } from "./math";
+import { blockKeys, markChanges, stepChange, track, type Hunk, type Snapshot } from "./changes";
 import type { ExportResult, ImageEmbed } from "./export";
 import { MD_EXT, collectWikilinkTargets, markWikilinks } from "./wikilinks";
 import { applyTooltips, detectPlatform, shortcutRows, tooltip } from "./shortcuts";
@@ -70,6 +71,7 @@ const els = {
   tabs: $("tabs"),
   remoteBanner: $("remote-banner"),
   hiddenBanner: $("hidden-banner"),
+  changes: $<HTMLButtonElement>("changes"),
 };
 
 let current: Doc | null = null;
@@ -345,6 +347,7 @@ function updateNavButtons(): void {
 function showEmpty(): void {
   current = null;
   setDocNotice("", false);
+  showChanges([]);
   els.remoteBanner.hidden = true;
   els.hiddenBanner.hidden = true;
   els.content.hidden = true;
@@ -577,6 +580,46 @@ function setWindowTitle(t: string): void {
   if (IS_TAURI) void getCurrentWindow().setTitle(t);
 }
 
+// ---------- o que mudou desde a recarga anterior (src/changes.ts): só em memória, por aba ----------
+
+/** Versão anterior de cada aba nesta sessão; some com a aba. Nada vai para o disco. */
+const snapshots = new WeakMap<Tab, Snapshot>();
+/** Um bloco por trecho marcado, em ordem: alvo de Próxima/Anterior mudança. */
+let changeTargets: HTMLElement[] = [];
+
+function showChanges(hunks: readonly Hunk[]): void {
+  changeTargets = markChanges(els.content, hunks);
+  const n = hunks.length;
+  els.changes.hidden = n === 0;
+  els.changes.textContent = n === 1 ? t("changes.one") : t("changes.many", { n });
+}
+
+/** Rola até o trecho `i` como o sumário rola até um título, e leva o foco junto. */
+function goToChange(i: number): void {
+  const el = changeTargets[i];
+  if (!el) return;
+  els.main.scrollTop = el.offsetTop - 16;
+  if (!el.hasAttribute("tabindex")) el.tabIndex = -1;
+  el.focus({ preventScroll: true });
+  flash(t("changes.position", { i: i + 1, n: changeTargets.length }));
+}
+
+function stepToChange(dir: 1 | -1): void {
+  if (changeTargets.length === 0) {
+    flash(t("changes.none"));
+    return;
+  }
+  // +16: o trecho para onde `goToChange` rolou está no topo e não conta como "próximo".
+  goToChange(stepChange(changeTargets.map((el) => el.offsetTop), els.main.scrollTop + 16, dir));
+}
+
+/** Exibir › Limpar marcas de mudança: a versão atual vira a base, sem marcas. */
+function clearChanges(): void {
+  const snap = active && snapshots.get(active);
+  if (active && snap) snapshots.set(active, { ...snap, hunks: [] });
+  showChanges([]);
+}
+
 async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   let doc: Doc;
   try {
@@ -607,10 +650,13 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   // Modo documento grande (src/limits.ts): sem links automáticos, sem realce, sumário até h2.
   const large = isLargeDoc(doc.content);
   let comments: CommentSink | null = newCommentSink();
+  let keys: number[] = [];
   try {
     const html = render(doc.content, { large, comments });
     performance.measure("leve:render", "leve:start");
     els.content.innerHTML = html;
+    // Antes dos pós-processos, que mudam o DOM sem o documento mudar (src/changes.ts).
+    keys = blockKeys(els.content, (h) => stableCommentMarks(h, comments));
   } catch (e) {
     // Markdown patológico não deixa a tela vazia: o erro aparece no lugar do documento.
     els.content.replaceChildren(renderErrorBlock("Markdown", String(e), doc.content.slice(0, 4000)));
@@ -623,6 +669,10 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   applyRemote(doc);
   await hydrateImages(els.content, doc.dir, IS_TAURI);
   decorateCodeBlocks(els.content);
+  const snap = track(snapshots.get(tab), doc.path, keys);
+  snapshots.set(tab, snap);
+  showChanges(snap.hunks);
+  performance.measure("leve:changes", "leve:start");
   const wikiTargets = collectWikilinkTargets(els.content);
   // O exemplo não tem pasta: seus wikilinks para outras notas aparecem como não encontrados.
   if (sample) markWikilinks(els.content, {});
@@ -925,6 +975,9 @@ const actions: Record<string, () => void> = {
   "copy-html": () => openExport("copy"),
   "copy-rich": copyRich,
   find: openFind,
+  "next-change": () => stepToChange(1),
+  "prev-change": () => stepToChange(-1),
+  "clear-changes": clearChanges,
   "toggle-toc": toggleToc,
   "cycle-theme": () => flashTheme(theme.cycle()),
   "zoom-in": () => {
@@ -1339,6 +1392,7 @@ function wire(): void {
   $("btn-theme").addEventListener("click", actions["cycle-theme"]);
   $("btn-open").addEventListener("click", actions.open);
   $("empty-open").addEventListener("click", actions.open);
+  els.changes.addEventListener("click", () => goToChange(0));
   $("find-prev").addEventListener("click", () => finder.prev());
   $("find-next").addEventListener("click", () => finder.next());
   $("find-close").addEventListener("click", closeFind);

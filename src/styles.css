@@ -9,6 +9,7 @@
   --error: #cf222e;
   --find-bg: #fff8c5;
   --find-current: #ff9800;
+  --change: #9a6700;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
@@ -25,6 +26,7 @@
   --error: #ff7b72;
   --find-bg: #6a5300;
   --find-current: #d29922;
+  --change: #d29922;
 }
 
 * {
@@ -88,6 +90,28 @@ body,
   color: var(--error);
 }
 
+/* "N trechos mudaram": vai para o primeiro. A barrinha repete a forma da marca na margem. */
+button.changes {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+button.changes::before {
+  content: "";
+  width: 3px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--change);
+}
+
+button.changes[hidden] {
+  display: none;
+}
+
 /* ---------- foco e leitor de tela ---------- */
 
 /* Um anel só, na cor de destaque, para teclado em todo o app. Clique de mouse não mostra. */
@@ -120,6 +144,52 @@ body,
 /* Título alvo do sumário recebe foco só para o Tab continuar dali; sem anel. */
 .markdown-body :is(h1, h2, h3, h4, h5, h6)[tabindex="-1"]:focus {
   outline: none;
+}
+
+/* Bloco alvo de Próxima/Anterior mudança: mesmo motivo, a marca na margem já mostra onde está. */
+#content > [tabindex="-1"]:focus {
+  outline: none;
+}
+
+/* ---------- marcas de mudança (src/changes.ts) ---------- */
+/* Só aqui, não em document.css: o exportado e o colado não levam as marcas (o atributo também sai).
+   Bloco que entrou ou mudou: barra de 4 px a 12 px da margem, feita de duas sombras (a de cima, na
+   cor da página, abre o vão). Sombra não mexe no layout nem na âncora de rolagem e não é cortada
+   pelo overflow do próprio bloco (tabela, código). */
+#content > [data-change="changed"] {
+  box-shadow:
+    -12px 0 0 0 var(--page-bg),
+    -16px 0 0 0 var(--change);
+}
+
+/* Remoção pura: triângulo na fronteira, outra forma além da cor. Sem `position` no bloco, o
+   bloco de contenção é #content (`contain: layout`): `left` conta da borda dele, que fica na mesma
+   coluna da barra, e o overflow do bloco (tabela, Mermaid) não corta o triângulo. */
+#content > [data-change^="removed"]::before,
+#content > [data-change^="removed"]::after {
+  position: absolute;
+  left: 29px;
+  width: 0;
+  height: 0;
+  border: 5px solid transparent;
+  border-left: 8px solid var(--change);
+  border-right-width: 0;
+}
+
+#content > [data-change="removed-before"]::before {
+  content: "";
+  margin-top: -13px;
+}
+
+#content > [data-change="removed-after"]::after {
+  content: "";
+  margin-top: 3px;
+}
+
+/* .code-wrap é `position: relative`: ali o triângulo conta da borda do bloco. */
+#content > .code-wrap[data-change^="removed"]::before,
+#content > .code-wrap[data-change^="removed"]::after {
+  left: -19px;
 }
 
 /* "Ir para o documento": invisível até receber foco de teclado; pula barra, abas e sumário. */
@@ -452,6 +522,11 @@ body[data-font="mono"] #content {
 
   #content {
     padding: 24px 20px 72px;
+  }
+
+  #content > [data-change^="removed"]::before,
+  #content > [data-change^="removed"]::after {
+    left: 1px;
   }
 }
 
@@ -1129,5 +1204,12 @@ button.text.danger {
   .markdown-body {
     max-width: none;
     padding: 0;
+  }
+  #content > [data-change] {
+    box-shadow: none;
+  }
+  #content > [data-change]::before,
+  #content > [data-change]::after {
+    display: none;
   }
 }

@@ -75,7 +75,7 @@ export const CSS_NOTICE = `/*! Leve (MIT). Estilos embutidos: github-markdown-cs
 const CSP = "default-src 'none'; img-src * data:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'";
 
 /** Atributos que só servem ao app (foco, filas de realce, fontes guardadas, caminhos locais). */
-const UI_ATTRS = ["tabindex", "data-hl", "data-rendered", "data-src", "data-local-src", "data-path", "data-target", "data-hash", "data-tooltip", "data-shortcut"];
+const UI_ATTRS = ["tabindex", "data-change", "data-hl", "data-rendered", "data-src", "data-local-src", "data-path", "data-target", "data-hash", "data-tooltip", "data-shortcut"];
 
 const escapeHtml = (s: string): string =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Confere os pacotes Linux antes de publicar (release.yml) e no job bundle-linux (ci.yml):
-#   scripts/check-linux-packages.sh <pasta com o .deb e o .AppImage>
-# Falha se: faltar pacote ou assinatura; o .desktop (do .deb e do AppImage) não tiver `%F`/`%U`
+#   scripts/check-linux-packages.sh <pasta com o .deb, o .rpm e o .AppImage>
+# Falha se: faltar pacote ou assinatura; o .desktop (do .deb, do .rpm e do AppImage) não tiver `%F`/`%U`
 # no Exec (sem isso, abrir um .md pelo gerenciador de arquivos abre o Leve vazio) ou não tiver
 # `MimeType=text/markdown`; o binário pedir glibc acima de GLIBC_MAX (o piso declarado nos docs).
 set -euo pipefail
@@ -14,11 +14,14 @@ trap 'rm -rf "$TMP"' EXIT
 shopt -s nullglob
 debs=("$DIR"/*_amd64.deb)
 appimages=("$DIR"/*_amd64.AppImage)
+rpms=("$DIR"/*.x86_64.rpm)
 [ "${#debs[@]}" -eq 1 ] || { echo "::error::esperado um .deb em $DIR, achei ${#debs[@]}"; exit 1; }
 [ "${#appimages[@]}" -eq 1 ] || { echo "::error::esperado um .AppImage em $DIR, achei ${#appimages[@]}"; exit 1; }
+[ "${#rpms[@]}" -eq 1 ] || { echo "::error::esperado um .rpm em $DIR, achei ${#rpms[@]}"; exit 1; }
 DEB="$(realpath "${debs[0]}")"
+RPM="$(realpath "${rpms[0]}")"
 APPIMAGE="$(realpath "${appimages[0]}")"
-for f in "$DEB" "$APPIMAGE"; do
+for f in "$DEB" "$RPM" "$APPIMAGE"; do
   [ -s "$f.sig" ] || { echo "::error::falta a assinatura $f.sig"; exit 1; }
 done
 
@@ -32,6 +35,12 @@ confere_desktop() { # $1 = arquivo .desktop, $2 = de onde veio
 dpkg-deb --info "$DEB"
 dpkg-deb -x "$DEB" "$TMP/deb"
 confere_desktop "$TMP/deb/usr/share/applications/Leve.desktop" ".deb"
+
+# O .rpm leva o mesmo binário do .deb (o glibc é conferido nele abaixo); aqui, só o .desktop.
+mkdir -p "$TMP/rpm"
+# bsdtar (libarchive) lê o .rpm direto e tira a "/" do começo dos caminhos, que no .rpm são absolutos.
+bsdtar -xf "$RPM" -C "$TMP/rpm" || { echo "::error::não consegui extrair $RPM"; exit 1; }
+confere_desktop "$TMP/rpm/usr/share/applications/Leve.desktop" ".rpm"
 
 # O Leve.desktop da raiz do AppImage é link para este.
 (cd "$TMP" && "$APPIMAGE" --appimage-extract usr/share/applications/Leve.desktop >/dev/null)

@@ -6,11 +6,13 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ### Added
 
+- After each reload, Leve marks what changed since the previous version: a bar in the left margin next to blocks that were added or edited, and a small triangle where something was removed. The toolbar says how many sections changed (click to jump to the first), and *View › Next Change* (⌘⇧↓ / Ctrl+Shift+↓) and *Previous Change* (⌘⇧↑ / Ctrl+Shift+↑) walk through them; *View › Clear Change Marks* removes them. The comparison is per tab and only in memory: no copy of the document is written to disk, and marks don't appear in exported, copied or printed output.
 - Flatpak packaging (`br.com.moralia.leve`), built from source on the GNOME 51 runtime, with AppStream metadata in English and Portuguese. Each release now includes `Leve_x.y.z_x86_64.flatpak` (install with `flatpak install --user --bundle <file>`; the GNOME runtime comes from Flathub), listed in `SHA256SUMS.txt` and in the build provenance attestation. Leve on Flathub is coming.
+- Each release now includes an `.rpm` for Fedora, openSUSE and derivatives: the same build as the `.deb`, about 4 MB, using the system's WebKitGTK, registered for `text/markdown` and updated from *Help › Check for Updates…*.
 
 ### Changed
 
-- Inside Flatpak, Leve doesn't use its own updater: *Check for Updates…* points to your software store or `flatpak update`, and the daily check is hidden in Settings.
+- Inside Flatpak, Leve doesn't use its own updater: *Check for Updates…* points to your software store or `flatpak update` (or, for the `.flatpak` file from Releases, to installing the new one), and the daily check is hidden in Settings.
 
 ### Fixed
 

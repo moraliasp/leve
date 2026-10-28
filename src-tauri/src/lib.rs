@@ -1135,6 +1135,9 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
     let copy_rich = item("copy-rich", s.copy_rich, Some("CmdOrCtrl+Shift+C"))?;
     let find = item("find", s.find, Some("CmdOrCtrl+F"))?;
     let toc = item("toggle-toc", s.toc, Some("CmdOrCtrl+B"))?;
+    let next_change = item("next-change", s.next_change, Some("CmdOrCtrl+Shift+Down"))?;
+    let prev_change = item("prev-change", s.prev_change, Some("CmdOrCtrl+Shift+Up"))?;
+    let clear_changes = item("clear-changes", s.clear_changes, None)?;
     let theme = item("cycle-theme", s.theme, Some("CmdOrCtrl+Shift+L"))?;
     let zoom_in = item("zoom-in", s.zoom_in, Some("CmdOrCtrl+="))?;
     let zoom_out = item("zoom-out", s.zoom_out, Some("CmdOrCtrl+-"))?;
@@ -1222,6 +1225,10 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .separator()
         .item(&remote_auto)
         .item(&show_hidden)
+        .separator()
+        .item(&next_change)
+        .item(&prev_change)
+        .item(&clear_changes)
         .separator()
         .item(&zoom_in)
         .item(&zoom_out)

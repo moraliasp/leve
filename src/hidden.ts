@@ -150,6 +150,15 @@ export function newCommentSink(): CommentSink {
 export const COMMENT_ATTR = "data-leve-comment";
 
 /**
+ * O HTML com cada marcador de comentário trocado pelo texto do comentário: igual entre dois renders
+ * do mesmo documento (o nonce muda), diferente se o comentário mudou. Para as chaves de `changes.ts`.
+ */
+export function stableCommentMarks(html: string, sink: CommentSink | null): string {
+  if (!sink || sink.texts.length === 0) return html;
+  return html.replace(new RegExp(`${COMMENT_ATTR}="${sink.nonce}:(\\d+)"`, "g"), (_, i: string) => `${COMMENT_ATTR}="${sink.texts[Number(i)] ?? ""}"`);
+}
+
+/**
  * As marcas do app (classes `leve-*`, atributos `data-leve-*`) não podem vir do documento: um
  * `class="leve-mark"` escaparia da detecção e um `data-leve-orig` faria o export restaurar um
  * atributo que o sanitize nunca viu. Roda no hook do sanitize, em todo elemento do documento; o
@@ -341,8 +350,12 @@ function revealElement(el: HTMLElement, reason: string, labels: RevealLabels): v
     el.setAttribute("readonly", "");
   }
   if (tag === "datalist") el.style.display = "block";
-  // `<template>` não desenha o conteúdo: vai como texto logo depois.
-  if (el instanceof HTMLTemplateElement) el.after(mark(doc, "leve-hidden-text", `${labels.element}: ${reason}`, el.content.textContent ?? ""));
+  // `<template>` não desenha o conteúdo: vai como texto dentro dele, que passa a desenhar. Dentro,
+  // não ao lado: os filhos de topo de `#content` não mudam (marcas de mudança e rolagem contam neles).
+  if (el instanceof HTMLTemplateElement) {
+    el.style.display = "block";
+    el.append(mark(doc, "leve-hidden-text", `${labels.element}: ${reason}`, el.content.textContent ?? ""));
+  }
   el.classList.add("leve-hidden-el");
   el.setAttribute(REVEALED_ATTR, `${labels.element}: ${reason}`);
 }

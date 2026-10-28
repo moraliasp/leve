@@ -56,16 +56,24 @@ sudo apt install ./Leve_x.y.z_amd64.deb
 
 O `apt` puxa o WebKitGTK e o GTK se faltarem. O pacote instala o Leve no menu de aplicativos e o registra para `text/markdown`; para torná-lo o padrão, use **Abrir com › Leve** e marque "sempre", ou `xdg-mime default Leve.desktop text/markdown`.
 
-**Flatpak** (em breve no Flathub; a linha abaixo só funciona depois de aceito):
+**Flatpak** (Fedora, openSUSE e qualquer distribuição com Flatpak; a partir da primeira versão depois da 0.3.0). Baixe `Leve_x.y.z_x86_64.flatpak` da release e instale para o seu usuário:
 
 ```bash
-flatpak install flathub br.com.moralia.leve
+flatpak install --user Leve_x.y.z_x86_64.flatpak
 flatpak run br.com.moralia.leve documento.md
 ```
 
-O Flatpak é compilado a partir do fonte sobre o runtime do GNOME e roda no sandbox com leitura (só leitura) da pasta pessoal, para achar imagens e links relativos do documento; arquivo de fora da pasta pessoal abre pelo portal, sem os vizinhos. Atualiza pela loja de aplicativos ou com `flatpak update`, não pelo menu do Leve. Abrir no editor só oferece o aplicativo padrão: os editores instalados no sistema ficam fora do sandbox.
+Na primeira vez o `flatpak` adiciona o Flathub e baixa o runtime do GNOME (algumas centenas de MB, compartilhados com outros apps GNOME). O Leve aparece no menu de aplicativos e é registrado para `text/markdown`. Para atualizar, baixe o `.flatpak` da versão nova e rode o mesmo `flatpak install --user`: o arquivo não se atualiza sozinho nem pela loja. Para remover: `flatpak uninstall --user br.com.moralia.leve`.
 
-Sem `.rpm` por enquanto: no Fedora e no openSUSE, até o Flathub, use o AppImage.
+No Flathub, em breve (a linha abaixo só funciona depois de aceito; aí a atualização passa a vir pela loja e pelo `flatpak update`):
+
+```bash
+flatpak install flathub br.com.moralia.leve
+```
+
+O Flatpak é compilado a partir do fonte sobre o runtime do GNOME e roda no sandbox com leitura (só leitura) da pasta pessoal, para achar imagens e links relativos do documento; arquivo de fora da pasta pessoal abre pelo portal, sem os vizinhos. O menu Verificar atualizações do Leve não atualiza o Flatpak: ele indica a loja ou o `flatpak update`. Abrir no editor só oferece o aplicativo padrão: os editores instalados no sistema ficam fora do sandbox.
+
+Sem `.rpm` por enquanto: no Fedora e no openSUSE, use o `.flatpak` (ou o AppImage).
 
 ## Comando `leve` no terminal
 

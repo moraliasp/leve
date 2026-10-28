@@ -12,6 +12,10 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 - Inside Flatpak, Leve doesn't use its own updater: *Check for Updates…* points to your software store or `flatpak update`, and the daily check is hidden in Settings.
 
+### Fixed
+
+- *Edit › Copy as Formatted Text*: Mermaid diagrams pasted into TextEdit (and other apps that size images by the file's resolution) came out about twice as large as on screen. The PNG now carries its density, so they paste at the on-screen width (up to 640 pt) and stay sharp.
+
 ## [0.3.0] - 2026-10-27
 
 ### Added

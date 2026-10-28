@@ -56,6 +56,14 @@ sudo apt install ./Leve_x.y.z_amd64.deb
 
 O `apt` puxa o WebKitGTK e o GTK se faltarem. O pacote instala o Leve no menu de aplicativos e o registra para `text/markdown`; para torná-lo o padrão, use **Abrir com › Leve** e marque "sempre", ou `xdg-mime default Leve.desktop text/markdown`.
 
+**.rpm** (Fedora, openSUSE e derivados; a partir da primeira versão depois da 0.3.0):
+
+```bash
+sudo dnf install ./Leve-x.y.z-1.x86_64.rpm
+```
+
+O mesmo binário do `.deb`. O `dnf` (no openSUSE, `sudo zypper install`) puxa `webkit2gtk4.1` e `gtk3` se faltarem; no Fedora com GNOME eles costumam já estar instalados, e o Leve ocupa uns 4 MB. Registra o Leve para `text/markdown`, como o `.deb`, e se atualiza pelo próprio Leve.
+
 **Flatpak** (Fedora, openSUSE e qualquer distribuição com Flatpak; a partir da primeira versão depois da 0.3.0). Baixe `Leve_x.y.z_x86_64.flatpak` da release e instale para o seu usuário:
 
 ```bash
@@ -80,7 +88,7 @@ flatpak install flathub br.com.moralia.leve
 
 O Flatpak é compilado a partir do fonte sobre o runtime do GNOME e roda no sandbox com leitura (só leitura) da pasta pessoal, para achar imagens e links relativos do documento; arquivo de fora da pasta pessoal abre pelo portal, sem os vizinhos. O menu Verificar atualizações do Leve não atualiza o Flatpak: ele indica a loja ou o `flatpak update`. Abrir no editor só oferece o aplicativo padrão: os editores instalados no sistema ficam fora do sandbox.
 
-Sem `.rpm` por enquanto: no Fedora e no openSUSE, use o `.flatpak` (ou o AppImage).
+No Fedora e no openSUSE, até essa versão sair, use o AppImage.
 
 ## Comando `leve` no terminal
 
@@ -114,7 +122,7 @@ Abra um terminal novo e use `leve arquivo.md`. Se instalou em outra pasta, troqu
 
 ## Atualizações
 
-**Leve › Verificar atualizações…** (no Windows e no Linux, **Ajuda › Verificar atualizações…**) procura uma versão nova nas releases do GitHub, pergunta antes de baixar e reinicia o app ao terminar. Em **Preferências › Atualizações** dá para ligar a checagem diária (desligada por padrão). O pacote baixado é conferido pela assinatura do atualizador antes de instalar. No Linux, o AppImage se substitui no lugar (precisa de permissão de escrita no arquivo); o `.deb` é reinstalado pelo `dpkg` e o sistema pede a senha de administrador (`pkexec`).
+**Leve › Verificar atualizações…** (no Windows e no Linux, **Ajuda › Verificar atualizações…**) procura uma versão nova nas releases do GitHub, pergunta antes de baixar e reinicia o app ao terminar. Em **Preferências › Atualizações** dá para ligar a checagem diária (desligada por padrão). O pacote baixado é conferido pela assinatura do atualizador antes de instalar. No Linux, o AppImage se substitui no lugar (precisa de permissão de escrita no arquivo); o `.deb` é reinstalado pelo `dpkg` e o `.rpm` pelo `rpm -U`, e o sistema pede a senha de administrador (`pkexec`).
 
 ## Dados do app
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build Linux do release.yml e do job bundle-linux do ci.yml (o mesmo caminho nos dois):
-#   scripts/bundle-linux.sh <args do `tauri bundle`>   ex.: --bundles deb,appimage --config '{...}'
+#   scripts/bundle-linux.sh <args do `tauri bundle`>   ex.: --bundles deb,rpm,appimage --config '{...}'
 # 1. Compila com rede (crates do Cargo.lock), sem empacotar.
 # 2. Empacota num namespace de rede vazio (`unshare --net`): o bundler não alcança a internet, então
 #    só usa as ferramentas que scripts/linux-tools.sh pré-carregou e conferiu por hash. Se ele

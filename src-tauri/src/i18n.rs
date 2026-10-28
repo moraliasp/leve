@@ -133,6 +133,23 @@ pub struct Strings {
     pub cli_unsupported: &'static str,
 }
 
+/// Arquivo › Mostrar no gerenciador de arquivos: o nome muda por plataforma (o menu nativo é
+/// compilado para uma só), como os rótulos do frontend (`shortcuts.reveal*`).
+const REVEAL_PT: &str = if cfg!(target_os = "macos") {
+    "Mostrar no Finder"
+} else if cfg!(windows) {
+    "Mostrar no Explorer"
+} else {
+    "Mostrar na pasta"
+};
+const REVEAL_EN: &str = if cfg!(target_os = "macos") {
+    "Show in Finder"
+} else if cfg!(windows) {
+    "Show in Explorer"
+} else {
+    "Show in Folder"
+};
+
 const PT: Strings = Strings {
     file: "Arquivo",
     edit: "Editar",
@@ -141,7 +158,7 @@ const PT: Strings = Strings {
     help: "Ajuda",
     open: "Abrir…",
     reload: "Recarregar",
-    reveal: "Mostrar no Finder / Explorer",
+    reveal: REVEAL_PT,
     open_in_editor: "Abrir no editor",
     install_cli: "Instalar comando 'leve' no terminal…",
     clear_recent: "Limpar recentes…",
@@ -215,7 +232,7 @@ const EN: Strings = Strings {
     help: "Help",
     open: "Open…",
     reload: "Reload",
-    reveal: "Show in Finder / Explorer",
+    reveal: REVEAL_EN,
     open_in_editor: "Open in Editor",
     install_cli: "Install 'leve' Command in Terminal…",
     clear_recent: "Clear Recent…",
@@ -325,6 +342,16 @@ mod tests {
             assert!(s.write_failed.contains("{path}") && s.write_failed.contains("{error}"));
             assert!(s.editor_not_found.contains("{name}") && s.editor_unknown.contains("{id}"));
             assert!(s.editor_failed.contains("{name}") && s.editor_failed.contains("{error}"));
+        }
+    }
+
+    #[test]
+    fn mostrar_na_pasta_cita_so_o_gerenciador_desta_plataforma() {
+        for l in [Lang::Pt, Lang::En] {
+            let r = strings_for(l).reveal;
+            assert!(!r.contains('/'), "{r}");
+            assert_eq!(r.contains("Finder"), cfg!(target_os = "macos"), "{r}");
+            assert_eq!(r.contains("Explorer"), cfg!(windows), "{r}");
         }
     }
 }

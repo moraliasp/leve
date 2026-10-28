@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Versão do app num lugar só: `node scripts/version.mjs <x.y.z>` grava nos três arquivos
-// (e no Cargo.lock); sem argumento imprime a versão atual e sai 1 se os arquivos divergirem.
+// (e no Cargo.lock), mais o `<release>` no metainfo do Flatpak; sem argumento imprime a versão atual e sai 1 se os arquivos divergirem.
 // Tolera CRLF (checkout do Windows) e não depende da ordem das chaves em [package].
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { METAINFO, addRelease } from "./metainfo.mjs";
 
 export const FILES = ["package.json", "src-tauri/tauri.conf.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock"];
 export const SEMVER = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/;
@@ -64,13 +65,19 @@ export function current(root = defaultRoot()) {
   };
 }
 
-/** Grava a versão nos quatro arquivos. */
-export function set(root = defaultRoot(), version) {
+/**
+ * Grava a versão nos quatro arquivos e, se for estável (X.Y.Z), põe o `<release>` dela com a data
+ * `date` (padrão: hoje, UTC) no topo do metainfo do Flatpak (`addRelease`).
+ */
+export function set(root = defaultRoot(), version, date = new Date().toISOString().slice(0, 10)) {
   const p = (rel) => join(root, rel);
   writeJson(p("package.json"), version);
   writeJson(p("src-tauri/tauri.conf.json"), version);
   writeToml(p("src-tauri/Cargo.toml"), inPackage, version);
   writeToml(p("src-tauri/Cargo.lock"), inLockEntry, version);
+  if (/^\d+\.\d+\.\d+$/.test(version) && existsSync(p(METAINFO))) {
+    writeFileSync(p(METAINFO), addRelease(readFileSync(p(METAINFO), "utf8"), version, date));
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

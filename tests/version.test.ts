@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import metainfo from "../packaging/flatpak/br.com.moralia.leve.metainfo.xml?raw";
 import { current, SEMVER } from "../scripts/version.mjs";
-import { latestRelease } from "../scripts/metainfo.mjs";
+import { addRelease, latestRelease } from "../scripts/metainfo.mjs";
 
 /**
  * Tripwire: a versão vive em package.json, tauri.conf.json, Cargo.toml e Cargo.lock.
@@ -33,5 +33,30 @@ describe("metainfo do Flatpak", () => {
     expect(latestRelease('<!-- <release version="9.9.9"> --><release version="0.3.0">')).toBe("0.3.0");
     expect(latestRelease("<releases></releases>")).toBeNull();
     expect(latestRelease('<release date="x">')).toBeNull();
+  });
+});
+
+describe("addRelease (pnpm version:set)", () => {
+  const xml = "<component>\n  <releases>\n    <release version=\"0.3.0\" date=\"2026-10-27\"/>\n  </releases>\n</component>\n";
+
+  it("põe a versão nova no topo, com data e link das notas, e ela vira a mais recente", () => {
+    const out = addRelease(xml, "0.4.0", "2026-11-02");
+    expect(latestRelease(out)).toBe("0.4.0");
+    expect(out).toContain(
+      '  <releases>\n    <release version="0.4.0" date="2026-11-02">\n' +
+        '      <url type="details">https://github.com/moraliasp/leve/releases/tag/v0.4.0</url>\n' +
+        '    </release>\n    <release version="0.3.0"',
+    );
+  });
+
+  it("não duplica quando a versão já é a mais recente", () => {
+    const once = addRelease(xml, "0.4.0", "2026-11-02");
+    expect(addRelease(once, "0.4.0", "2026-11-03")).toBe(once);
+  });
+
+  it("mantém CRLF e recusa metainfo sem <releases>", () => {
+    const crlf = addRelease(xml.replace(/\n/g, "\r\n"), "0.4.0", "2026-11-02");
+    expect(crlf.split("\n").every((l, i, a) => i === a.length - 1 || l.endsWith("\r"))).toBe(true);
+    expect(() => addRelease("<component/>", "0.4.0", "2026-11-02")).toThrow("<releases>");
   });
 });

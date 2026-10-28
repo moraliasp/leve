@@ -30,11 +30,17 @@ for (const [name, t] of [["claro", light], ["escuro", dark]]) {
       if (r < 4.5) bad++;
       console.log(`  ${fg} sobre ${bg}: ${r.toFixed(2)}${r < 4.5 ? "  << abaixo de 4,5" : ""}`);
     }
+  // Marca de mudança (barra na margem e na barra do app): gráfico, mínimo 3:1.
+  for (const bg of ["bar-bg", "page-bg"]) {
+    const r = ratio(t.change, t[bg]);
+    if (r < 3) bad++;
+    console.log(`  change (marca) sobre ${bg}: ${r.toFixed(2)}${r < 3 ? "  << abaixo de 3" : ""}`);
+  }
   const skip = ratio(t["page-bg"], t.accent);
   console.log(`  link de pulo (page-bg sobre accent): ${skip.toFixed(2)}`);
   for (const a of [0.55, 0.8]) console.log(`  ✕ da aba inativa (bar-muted a ${a} sobre bar-bg): ${ratio(blend(t["bar-muted"], t["bar-bg"], a), t["bar-bg"]).toFixed(2)}`);
 }
 if (bad) {
-  console.error(`${bad} combinação(ões) abaixo de 4,5:1`);
+  console.error(`${bad} combinação(ões) abaixo do mínimo`);
   process.exit(1);
 }

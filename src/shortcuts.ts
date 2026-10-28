@@ -31,8 +31,8 @@ export function detectPlatform(nav: NavigatorLike = navigator): Platform {
   return "linux";
 }
 
-const MAC: Record<string, string> = { Mod: "⌘", Shift: "⇧", Alt: "⌥", Enter: "↩", Esc: "Esc" };
-const PC: Record<string, string> = { Mod: "Ctrl+", Shift: "Shift+", Alt: "Alt+", Enter: "Enter", Esc: "Esc" };
+const MAC: Record<string, string> = { Mod: "⌘", Shift: "⇧", Alt: "⌥", Enter: "↩", Esc: "Esc", Up: "↑", Down: "↓" };
+const PC: Record<string, string> = { Mod: "Ctrl+", Shift: "Shift+", Alt: "Alt+", Enter: "Enter", Esc: "Esc", Up: "↑", Down: "↓" };
 
 /** "Mod+Shift+L" → "⌘⇧L" ou "Ctrl+Shift+L". Vários atalhos separados por espaço duplo. */
 export function formatKeys(spec: string, platform: Platform): string {
@@ -60,6 +60,7 @@ export const SHORTCUTS: Shortcut[] = [
   { id: "copy-rich", label: "shortcuts.copyRich", keys: "Mod+Shift+C" },
   { id: "find", label: "shortcuts.find", keys: "Mod+F" },
   { id: "toggle-toc", label: "shortcuts.toc", keys: "Mod+B" },
+  { id: "changes", label: "shortcuts.changes", keys: "Mod+Shift+Down  Mod+Shift+Up" },
   { id: "cycle-theme", label: "shortcuts.theme", keys: "Mod+Shift+L" },
   { id: "zoom", label: "shortcuts.zoom", keys: "Mod+=  Mod+-  Mod+0" },
   { id: "nav", label: "shortcuts.nav", keys: "Mod+[  Mod+]" },
@@ -81,6 +82,8 @@ const TOOLTIP_KEYS: Record<string, string> = {
   "find-prev": "Shift+Enter",
   "find-next": "Enter",
   "find-close": "Esc",
+  "next-change": "Mod+Shift+Down",
+  "prev-change": "Mod+Shift+Up",
 };
 
 /** Teclas formatadas de um id (tooltip), ou vazio se não houver. */

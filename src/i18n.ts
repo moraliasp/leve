@@ -209,6 +209,7 @@ const pt = {
   "update.installing": "Instalando atualização…",
   "update.failed": "Não foi possível atualizar: {error}",
   "update.browser": "Atualizações só no app",
+  "update.flatpak": "Instalado pelo Flatpak: atualize pela loja de aplicativos ou com flatpak update.",
 
   "shortcuts.title": "Atalhos",
   "shortcuts.open": "Abrir…",
@@ -429,6 +430,7 @@ const en: Dict = {
   "update.installing": "Installing update…",
   "update.failed": "Couldn’t update: {error}",
   "update.browser": "Updates are available only in the app",
+  "update.flatpak": "Installed with Flatpak: update from your software store or with flatpak update.",
 
   "shortcuts.title": "Keyboard Shortcuts",
   "shortcuts.open": "Open…",

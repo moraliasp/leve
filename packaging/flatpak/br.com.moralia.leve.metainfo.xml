@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2026 Moralia -->
+<component type="desktop-application">
+  <id>br.com.moralia.leve</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <name>Leve</name>
+  <summary>Read Markdown files the way they look</summary>
+  <summary xml:lang="pt-BR">Leia arquivos Markdown como eles aparecem</summary>
+
+  <developer id="br.com.moralia">
+    <name translate="no">Moralia</name>
+  </developer>
+
+  <description>
+    <p>
+      Leve is a small, fast and private Markdown viewer. Open a .md file and it shows the formatted
+      document; save it in your editor and Leve reloads it.
+    </p>
+    <p xml:lang="pt-BR">
+      O Leve é um visualizador de Markdown pequeno, rápido e privado. Abra um arquivo .md e ele mostra
+      o documento formatado; salve no seu editor e o Leve recarrega.
+    </p>
+    <ul>
+      <li>GitHub Flavored Markdown: tables, task lists, footnotes, alerts and callouts</li>
+      <li xml:lang="pt-BR">GitHub Flavored Markdown: tabelas, listas de tarefas, notas de rodapé, alertas e callouts</li>
+      <li>Syntax highlighting, Mermaid diagrams and KaTeX math</li>
+      <li xml:lang="pt-BR">Realce de código, diagramas Mermaid e fórmulas KaTeX</li>
+      <li>Table of contents, find in document, tabs, back and forward</li>
+      <li xml:lang="pt-BR">Sumário, busca no documento, abas, voltar e avançar</li>
+      <li>Light and dark themes, three reading widths and three fonts</li>
+      <li xml:lang="pt-BR">Temas claro e escuro, três larguras de leitura e três fontes</li>
+      <li>Export a self-contained HTML file or copy as formatted text</li>
+      <li xml:lang="pt-BR">Exportar um arquivo HTML autocontido ou copiar como texto formatado</li>
+      <li>English and Portuguese interface</li>
+      <li xml:lang="pt-BR">Interface em português e inglês</li>
+    </ul>
+    <p>
+      No telemetry. Leve reads only the files you open and the files they link to with a relative
+      path. Remote images stay blocked until you ask for them.
+    </p>
+    <p xml:lang="pt-BR">
+      Sem telemetria. O Leve lê só os arquivos que você abre e os que eles apontam por caminho
+      relativo. Imagens remotas ficam bloqueadas até você pedir.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">br.com.moralia.leve.desktop</launchable>
+
+  <provides>
+    <binary>leve</binary>
+    <mediatype>text/markdown</mediatype>
+  </provides>
+
+  <url type="homepage">https://github.com/moraliasp/leve</url>
+  <url type="bugtracker">https://github.com/moraliasp/leve/issues</url>
+  <url type="vcs-browser">https://github.com/moraliasp/leve</url>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#C9A6F2</color>
+    <color type="primary" scheme_preference="dark">#431A60</color>
+  </branding>
+
+  <content_rating type="oars-1.1"/>
+
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">480</display_length>
+  </requires>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/moraliasp/leve/v0.3.0/docs/img/screenshot-en-light.png</image>
+      <image xml:lang="pt-BR">https://raw.githubusercontent.com/moraliasp/leve/v0.3.0/docs/img/screenshot-pt-BR-light.png</image>
+      <caption>A document with a callout, a task list and a table, with the table of contents on the side</caption>
+      <caption xml:lang="pt-BR">Um documento com callout, lista de tarefas e tabela, com o sumário ao lado</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/moraliasp/leve/v0.3.0/docs/img/screenshot-en-dark.png</image>
+      <image xml:lang="pt-BR">https://raw.githubusercontent.com/moraliasp/leve/v0.3.0/docs/img/screenshot-pt-BR-dark.png</image>
+      <caption>The same document in the dark theme</caption>
+      <caption xml:lang="pt-BR">O mesmo documento no tema escuro</caption>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="0.3.0" date="2026-10-27">
+      <url type="details">https://github.com/moraliasp/leve/releases/tag/v0.3.0</url>
+      <description>
+        <ul>
+          <li>Linux builds: AppImage and .deb</li>
+          <li>Sample document with a Markdown primer</li>
+          <li>Open in Editor, the leve terminal command and Export HTML</li>
+          <li>Copy as formatted text for pasting into documents and email</li>
+          <li>Redesigned Settings</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+</component>

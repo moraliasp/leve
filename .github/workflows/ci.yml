@@ -1,12 +1,18 @@
 name: ci
 # Linux é barato e basta para tipos, testes, build do frontend e lint/compilação do Rust.
 # Mac e Windows compilam no release.yml (tag), inclusive nos release candidates.
-# `bundle-linux` só roda a pedido (workflow_dispatch): ver o comentário no job.
+# `bundle-linux` e `flatpak` só rodam a pedido (workflow_dispatch, entrada `pacote`): ver os comentários.
 on:
   pull_request:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      pacote:
+        description: "Prova de empacotamento: linux (AppImage + .deb), flatpak ou ambos"
+        type: choice
+        options: [linux, flatpak, ambos]
+        default: linux
 permissions: {}
 concurrency:
   group: ci-${{ github.ref }}
@@ -61,7 +67,7 @@ jobs:
     # A chave do atualizador é descartável, gerada aqui (a de verdade fica só no environment
     # release): serve para provar que os .sig do AppImage e do .deb saem. Os pacotes deste job não
     # valem para distribuição.
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.pacote != 'flatpak'
     permissions:
       contents: read # ler o código
     runs-on: ubuntu-22.04 # mesmo runner do release.yml (glibc 2.35)
@@ -123,3 +129,72 @@ jobs:
           # 124 = o `timeout` encerrou o processo aos 15 s, ou seja, ele ficou de pé até lá.
           if [ "$rc" -ne 124 ]; then echo "::error::o AppImage saiu antes dos 15 s (código $rc)"; exit 1; fi
           echo "AppImage ficou de pé por 15 s"
+
+  flatpak:
+    # Prova do Flatpak a partir do fonte (packaging/flatpak), sem rede no build, como o Flathub exige:
+    # `gh workflow run ci.yml --ref <branch> -f pacote=flatpak`. Gera as fontes do Cargo e do pnpm a
+    # partir dos lockfiles, builda com o flatpak-builder do org.flatpak.Builder (o mesmo do Flathub),
+    # passa o flatpak-builder-lint no manifesto e no repositório, instala o .flatpak e sobe o app sem
+    # tela por 15 s. Só a pedido, como o bundle-linux: baixa o SDK do GNOME e compila em release
+    # sem cache (~15 min). Por quê: docs/decisoes.md, "Flatpak a partir do fonte".
+    if: github.event_name == 'workflow_dispatch' && inputs.pacote != 'linux'
+    permissions:
+      contents: read # ler o código
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      MANIFEST: packaging/flatpak/br.com.moralia.leve.yml
+      APP_ID: br.com.moralia.leve
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Flatpak e Flathub
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak xvfb xauth dbus-x11
+          # O AppArmor do Ubuntu 24.04 barra o namespace de usuário sem privilégio que o bwrap usa.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y --noninteractive flathub org.flatpak.Builder
+          flatpak info --user org.flatpak.Builder
+      - name: Fontes do Cargo e do pnpm
+        run: scripts/flatpak-sources.sh
+      - name: Lint do manifesto
+        run: flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest "$MANIFEST"
+      - name: Build (sem rede)
+        # O builder instala SDK e extensões pelo `flatpak` do host, que pede uma sessão D-Bus. Sem
+        # `--sandbox`, que recusa a fonte `../..` (o checkout) fora da pasta do manifesto; o build já
+        # roda sem rede porque o manifesto não pede `--share=network` em build-args (o lint cobra).
+        run: |
+          dbus-run-session -- flatpak run org.flatpak.Builder --user --force-clean --install-deps-from=flathub \
+            --compose-url-policy=full --mirror-screenshots-url=https://dl.flathub.org/media/ --repo=flatpak-repo \
+            flatpak-build "$MANIFEST"
+      - name: Lint do repositório
+        run: flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo flatpak-repo
+      - name: Bundle e instalação
+        run: |
+          mkdir -p out
+          flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
+            flatpak-repo out/leve.flatpak "$APP_ID"
+          ls -l out
+          flatpak install --user -y --noninteractive --bundle out/leve.flatpak
+          flatpak info --user "$APP_ID"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: leve-flatpak-prova
+          path: out/leve.flatpak
+          if-no-files-found: error
+          retention-days: 7
+      # Mesma fumaça do AppImage: sobe com um documento e fica de pé por 15 s, agora dentro do sandbox.
+      - name: Fumaça do Flatpak (xvfb)
+        run: |
+          set +e
+          xvfb-run -a dbus-run-session -- timeout 15 \
+            flatpak run --user "$APP_ID" "$PWD/docs/exemplo.md" > "$RUNNER_TEMP/fumaca.log" 2>&1
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/fumaca.log"
+          if [ "$rc" -ne 124 ]; then echo "::error::o Flatpak saiu antes dos 15 s (código $rc)"; exit 1; fi
+          if grep -q "panicked" "$RUNNER_TEMP/fumaca.log"; then echo "::error::pânico do Rust no log"; exit 1; fi
+          echo "Flatpak ficou de pé por 15 s"

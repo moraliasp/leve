@@ -29,3 +29,10 @@ src-tauri/gen/schemas
 
 # Ferramentas locais
 .claude/
+
+# Flatpak (scripts/flatpak-sources.sh e flatpak-builder)
+packaging/flatpak/*-sources.json
+.flatpak-builder
+flatpak-build
+flatpak-repo
+*.flatpak

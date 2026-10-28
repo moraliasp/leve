@@ -56,7 +56,16 @@ sudo apt install ./Leve_x.y.z_amd64.deb
 
 O `apt` puxa o WebKitGTK e o GTK se faltarem. O pacote instala o Leve no menu de aplicativos e o registra para `text/markdown`; para torná-lo o padrão, use **Abrir com › Leve** e marque "sempre", ou `xdg-mime default Leve.desktop text/markdown`.
 
-Sem `.rpm` nem Flatpak por enquanto: no Fedora e no openSUSE, use o AppImage.
+**Flatpak** (em breve no Flathub; a linha abaixo só funciona depois de aceito):
+
+```bash
+flatpak install flathub br.com.moralia.leve
+flatpak run br.com.moralia.leve documento.md
+```
+
+O Flatpak é compilado a partir do fonte sobre o runtime do GNOME e roda no sandbox com leitura (só leitura) da pasta pessoal, para achar imagens e links relativos do documento; arquivo de fora da pasta pessoal abre pelo portal, sem os vizinhos. Atualiza pela loja de aplicativos ou com `flatpak update`, não pelo menu do Leve. Abrir no editor só oferece o aplicativo padrão: os editores instalados no sistema ficam fora do sandbox.
+
+Sem `.rpm` por enquanto: no Fedora e no openSUSE, até o Flathub, use o AppImage.
 
 ## Comando `leve` no terminal
 

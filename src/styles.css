@@ -695,7 +695,11 @@ button.ghost:hover:not(:disabled) {
   padding: 8px 12px 8px 14px;
 }
 
-.pref-row + .pref-row {
+.pref-row[hidden] {
+  display: none;
+}
+
+.pref-row:not([hidden]) ~ .pref-row {
   border-top: 1px solid var(--border);
 }
 

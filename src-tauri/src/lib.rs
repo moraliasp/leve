@@ -30,6 +30,8 @@ struct AppInfo {
     name: &'static str,
     version: &'static str,
     repo: &'static str,
+    /// Instalado pelo Flatpak: quem atualiza é o `flatpak update`, não o atualizador do app.
+    flatpak: bool,
 }
 
 /// Dados da tela Sobre (versão e repositório): um lugar só, o do Cargo.toml. Os textos do Sobre
@@ -40,7 +42,18 @@ fn app_info() -> AppInfo {
         name: "Leve",
         version: env!("CARGO_PKG_VERSION"),
         repo: REPO_URL,
+        flatpak: is_flatpak(),
     }
+}
+
+/// Dentro do sandbox do Flatpak existe `/.flatpak-info` (criado pelo `flatpak run`). Lá o pacote é
+/// do Flatpak: o atualizador do app não registra e a interface esconde a checagem diária.
+fn is_flatpak() -> bool {
+    flatpak_marker(Path::new("/.flatpak-info"))
+}
+
+fn flatpak_marker(info: &Path) -> bool {
+    info.is_file()
 }
 
 /// Gancho de benchmark (`scripts/bench.mjs`, método em `docs/benchmark.md`). Só existe com
@@ -1279,6 +1292,9 @@ pub fn run() {
             }
         }));
     }
+    if !is_flatpak() {
+        builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    }
     builder
         .plugin(
             tauri::plugin::Builder::<Wry>::new("navegacao")
@@ -1288,7 +1304,6 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
@@ -1778,6 +1793,19 @@ mod scope_tests {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn flatpak_so_com_o_arquivo_do_sandbox() {
+        let dir = std::env::temp_dir().join(format!("leve-flatpak-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let info = dir.join(".flatpak-info");
+        assert!(!flatpak_marker(&info));
+        fs::write(&info, "[Application]\nname=br.com.moralia.leve\n").unwrap();
+        assert!(flatpak_marker(&info));
+        // Pasta com o mesmo nome não conta.
+        assert!(!flatpak_marker(&dir));
+        fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn decode_text_trata_bom_utf16_e_utf8_invalido() {

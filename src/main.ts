@@ -22,7 +22,7 @@ import { applyTooltips, detectPlatform, shortcutRows, tooltip } from "./shortcut
 import { SCROLL_KEY, addRecent, clearRecent, readRecent, removeRecent, splitPath } from "./recent";
 import { PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, readJson, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "./prefs";
 import { applyI18n, detectLang, lang, langPref, setLangPref, t, type Key, type LangPref } from "./i18n";
-import { checkForUpdates, maybeDailyCheck, type UpdateUi } from "./updater";
+import { checkForUpdates, maybeDailyCheck, updateSource, type UpdateUi } from "./updater";
 import { type Tab, canGoBack, canGoForward, commitDoc, cycleTarget, findTab, insertTab, removeTab, restoreSaved, serializeTabs, stepHistory, tabFactory } from "./tabs";
 import { SAMPLE_SESSION_KEY, SESSION_KEY, isSample, sampleOnLaunch, samplePath, sampleText, sampleToReplace } from "./sample";
 import { installErrorReporting } from "./errors";
@@ -1149,7 +1149,7 @@ function wirePreferences(): void {
         break;
       case "auto-update":
         setBoolPref(PREF_KEYS.autoUpdate, t.checked);
-        if (t.checked && IS_TAURI) maybeDailyCheck(updateUi, appInfo.version);
+        if (t.checked && updateSource(IS_TAURI, appInfo.flatpak) === "app") maybeDailyCheck(updateUi, appInfo.version);
         break;
       case "lang":
         changeLang(t.value as LangPref);
@@ -1183,10 +1183,12 @@ interface AppInfo {
   name: string;
   version: string;
   repo: string;
+  /** Instalado pelo Flatpak: atualização pelo `flatpak update`, sem o atualizador do app. */
+  flatpak: boolean;
 }
 
 const REPO_URL = "https://github.com/moraliasp/leve";
-let appInfo: AppInfo = { name: "Leve", version: "dev", repo: REPO_URL };
+let appInfo: AppInfo = { name: "Leve", version: "dev", repo: REPO_URL, flatpak: false };
 
 /** Versão e repositório vêm do Rust (Cargo.toml); no navegador fica "dev". */
 async function loadAppInfo(): Promise<void> {
@@ -1201,8 +1203,13 @@ async function loadAppInfo(): Promise<void> {
 const updateUi: UpdateUi = { flash, confirm: confirmDialog };
 
 function checkUpdatesNow(): void {
-  if (!IS_TAURI) {
+  const source = updateSource(IS_TAURI, appInfo.flatpak);
+  if (source === "none") {
     flash(t("update.browser"), true);
+    return;
+  }
+  if (source === "flatpak") {
+    flash(t("update.flatpak"));
     return;
   }
   void checkForUpdates(updateUi, true, appInfo.version);
@@ -1545,7 +1552,10 @@ async function main(): Promise<void> {
   await openAtLaunch();
   if (!active) showEmpty();
   await loadAppInfo();
-  if (IS_TAURI) {
+  // No Flatpak a checagem diária não existe: some a linha dela nas Preferências.
+  const source = updateSource(IS_TAURI, appInfo.flatpak);
+  $("prefs-auto-update-row").hidden = source === "flatpak";
+  if (source === "app") {
     maybeDailyCheck(updateUi, appInfo.version);
     window.setInterval(() => maybeDailyCheck(updateUi, appInfo.version), 60 * 60 * 1000);
   }

@@ -1,7 +1,8 @@
 name: release
 # Tag `vX.Y.Z` publica a versão X.Y.Z; `vX.Y.Z-rc.N` compila a mesma X.Y.Z como pre-release de
 # teste (o atualizador ignora pre-release). Mac universal, Windows (NSIS + MSI) e Linux x86_64
-# (AppImage + .deb) com os pacotes do atualizador assinados; o job `publish` gera latest.json, SHA256SUMS.txt, a attestation de
+# (AppImage + .deb) com os pacotes do atualizador assinados, mais o .flatpak (job `flatpak`, sem
+# chave); o job `publish` gera latest.json, SHA256SUMS.txt, a attestation de
 # proveniência e a release em rascunho. Nada é publicado sem alguém revisar o rascunho.
 on:
   push:
@@ -183,9 +184,35 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  flatpak:
+    name: flatpak
+    # .flatpak a partir do fonte (packaging/flatpak), para instalar com `flatpak install --bundle`
+    # até o Leve estar no Flathub. Fora do environment `release`: não usa chave nem segredo (o
+    # Flatpak não usa o atualizador do app, e o pacote é provado pelo SHA256SUMS e pela attestation
+    # como os demais). Mesmo script do job `flatpak` do ci.yml. Por quê: docs/decisoes.md,
+    # "Flatpak a partir do fonte".
+    permissions:
+      contents: read # ler o código da tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build, lint e bundle
+        run: |
+          V="$(node scripts/version.mjs)"
+          scripts/flatpak-build.sh "out/Leve_${V}_x86_64.flatpak"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: leve-Flatpak
+          path: out/*.flatpak
+          if-no-files-found: error
+          retention-days: 7
+
   publish:
     name: publish
-    needs: build
+    needs: [build, flatpak]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -217,6 +244,7 @@ jobs:
             release/*.msi
             release/*.AppImage
             release/*.deb
+            release/*.flatpak
             release/latest.json
             release/SHA256SUMS.txt
       - name: Release em rascunho

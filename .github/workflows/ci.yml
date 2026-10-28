@@ -132,53 +132,33 @@ jobs:
 
   flatpak:
     # Prova do Flatpak a partir do fonte (packaging/flatpak), sem rede no build, como o Flathub exige:
-    # `gh workflow run ci.yml --ref <branch> -f pacote=flatpak`. Gera as fontes do Cargo e do pnpm a
-    # partir dos lockfiles, builda com o flatpak-builder do org.flatpak.Builder (o mesmo do Flathub),
-    # passa o flatpak-builder-lint no manifesto e no repositório, instala o .flatpak e sobe o app sem
-    # tela por 15 s. Só a pedido, como o bundle-linux: baixa o SDK do GNOME e compila em release
-    # sem cache (~15 min). Por quê: docs/decisoes.md, "Flatpak a partir do fonte".
+    # `gh workflow run ci.yml --ref <branch> -f pacote=flatpak`. Mesmo script do release.yml
+    # (scripts/flatpak-build.sh: fontes dos lockfiles, lint do manifesto, build com o org.flatpak.Builder,
+    # lint do repositório e bundle); só a instalação e a fumaça com xvfb ficam aqui. Só a pedido, como
+    # o bundle-linux: baixa o SDK do GNOME e compila em release sem cache (~15 min). Por quê:
+    # docs/decisoes.md, "Flatpak a partir do fonte".
     if: github.event_name == 'workflow_dispatch' && inputs.pacote != 'linux'
     permissions:
       contents: read # ler o código
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      MANIFEST: packaging/flatpak/br.com.moralia.leve.yml
       APP_ID: br.com.moralia.leve
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Flatpak e Flathub
+      - name: Build, lint e bundle
+        run: scripts/flatpak-build.sh out/leve.flatpak
+      - name: Instalação
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak xvfb xauth dbus-x11
-          # O AppArmor do Ubuntu 24.04 barra o namespace de usuário sem privilégio que o bwrap usa.
-          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          flatpak install --user -y --noninteractive flathub org.flatpak.Builder
-          flatpak info --user org.flatpak.Builder
-      - name: Fontes do Cargo e do pnpm
-        run: scripts/flatpak-sources.sh
-      - name: Lint do manifesto
-        run: flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest "$MANIFEST"
-      - name: Build (sem rede)
-        # O builder instala SDK e extensões pelo `flatpak` do host, que pede uma sessão D-Bus. Sem
-        # `--sandbox`, que recusa a fonte `../..` (o checkout) fora da pasta do manifesto; o build já
-        # roda sem rede porque o manifesto não pede `--share=network` em build-args (o lint cobra).
-        run: |
-          dbus-run-session -- flatpak run org.flatpak.Builder --user --force-clean --install-deps-from=flathub \
-            --compose-url-policy=full --mirror-screenshots-url=https://dl.flathub.org/media/ --repo=flatpak-repo \
-            flatpak-build "$MANIFEST"
-      - name: Lint do repositório
-        run: flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo flatpak-repo
-      - name: Bundle e instalação
-        run: |
-          mkdir -p out
-          flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
-            flatpak-repo out/leve.flatpak "$APP_ID"
-          ls -l out
           flatpak install --user -y --noninteractive --bundle out/leve.flatpak
+          # O caminho de atualização que docs/instalacao.md ensina: `install --bundle` recusa app já
+          # instalado (inclusive com --reinstall), então desinstala sem --delete-data e instala de novo.
+          mkdir -p ~/.var/app/"$APP_ID"/data && echo marca > ~/.var/app/"$APP_ID"/data/marca
+          flatpak uninstall --user -y --noninteractive "$APP_ID"
+          flatpak install --user -y --noninteractive --bundle out/leve.flatpak
+          test "$(cat ~/.var/app/"$APP_ID"/data/marca)" = marca
           flatpak info --user "$APP_ID"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -189,6 +169,7 @@ jobs:
       # Mesma fumaça do AppImage: sobe com um documento e fica de pé por 15 s, agora dentro do sandbox.
       - name: Fumaça do Flatpak (xvfb)
         run: |
+          sudo apt-get install -y --no-install-recommends xvfb xauth dbus-x11
           set +e
           xvfb-run -a dbus-run-session -- timeout 15 \
             flatpak run --user "$APP_ID" "$PWD/docs/exemplo.md" > "$RUNNER_TEMP/fumaca.log" 2>&1

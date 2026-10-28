@@ -65,19 +65,25 @@ export function current(root = defaultRoot()) {
   };
 }
 
+/** Data de hoje no fuso de quem roda (AAAA-MM-DD): a release não pode ter data no futuro. */
+const today = () => new Date().toLocaleDateString("sv-SE");
+
 /**
- * Grava a versão nos quatro arquivos e, se for estável (X.Y.Z), põe o `<release>` dela com a data
- * `date` (padrão: hoje, UTC) no topo do metainfo do Flatpak (`addRelease`).
+ * Grava a versão nos quatro arquivos e põe o `<release>` de X.Y.Z (sem o sufixo de pre-release,
+ * como o metainfo.mjs e o teste comparam) com a data `date` no topo do metainfo do Flatpak
+ * (`addRelease`), se ele existir. O metainfo é calculado antes de gravar qualquer arquivo: se ele
+ * estiver malformado, nada muda.
  */
-export function set(root = defaultRoot(), version, date = new Date().toISOString().slice(0, 10)) {
+export function set(root = defaultRoot(), version, date = today()) {
   const p = (rel) => join(root, rel);
+  const meta = existsSync(p(METAINFO))
+    ? addRelease(readFileSync(p(METAINFO), "utf8"), version.replace(/[-+].*$/, ""), date)
+    : null;
   writeJson(p("package.json"), version);
   writeJson(p("src-tauri/tauri.conf.json"), version);
   writeToml(p("src-tauri/Cargo.toml"), inPackage, version);
   writeToml(p("src-tauri/Cargo.lock"), inLockEntry, version);
-  if (/^\d+\.\d+\.\d+$/.test(version) && existsSync(p(METAINFO))) {
-    writeFileSync(p(METAINFO), addRelease(readFileSync(p(METAINFO), "utf8"), version, date));
-  }
+  if (meta !== null) writeFileSync(p(METAINFO), meta);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

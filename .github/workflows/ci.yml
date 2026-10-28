@@ -168,7 +168,7 @@ jobs:
         # roda sem rede porque o manifesto não pede `--share=network` em build-args (o lint cobra).
         run: |
           dbus-run-session -- flatpak run org.flatpak.Builder --user --force-clean --install-deps-from=flathub \
-            --mirror-screenshots-url=https://dl.flathub.org/media/ --repo=flatpak-repo \
+            --compose-url-policy=full --mirror-screenshots-url=https://dl.flathub.org/media/ --repo=flatpak-repo \
             flatpak-build "$MANIFEST"
       - name: Lint do repositório
         run: flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo flatpak-repo

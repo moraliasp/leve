@@ -35,7 +35,7 @@ Get the latest version from [Releases](https://github.com/moraliasp/leve/release
 
 - **macOS 11+** (Apple silicon and Intel): `Leve_x.y.z_universal.dmg`
 - **Windows 10/11** (x64): `Leve_x.y.z_x64-setup.exe` (per-user, no admin) or `.msi`
-- **Linux** (x86_64, built on Ubuntu 22.04, needs glibc 2.35+): `Leve_x.y.z_amd64.AppImage` (no install) or `Leve_x.y.z_amd64.deb` (Debian, Ubuntu and derivatives), plus `Leve-x.y.z-1.x86_64.rpm` (Fedora, openSUSE) and `Leve_x.y.z_x86_64.flatpak` for Fedora, openSUSE and other distributions with Flatpak (from the first release after 0.3.0; `flatpak install --user --bundle <file>`). New and not yet tested on a real Linux desktop: only built and smoke-tested headless in CI. Reports welcome.
+- **Linux** (x86_64, built on Ubuntu 22.04, needs glibc 2.35+): `Leve_x.y.z_amd64.AppImage` (no install) or `Leve_x.y.z_amd64.deb` (Debian, Ubuntu and derivatives), plus `Leve-x.y.z-1.x86_64.rpm` (Fedora, openSUSE) and `Leve_x.y.z_x86_64.flatpak` for Fedora, openSUSE and other distributions with Flatpak (from 0.4.0; `flatpak install --user --bundle <file>`). New and not yet tested on a real Linux desktop: only built and smoke-tested headless in CI. Reports welcome.
 
 Package managers:
 
@@ -68,6 +68,8 @@ Updates are signed separately and verified by the app before installing: *Leve �
 - Syntax highlighting, Mermaid diagrams and KaTeX math, loaded only when a document needs them
 - Front matter as a table, `[[wikilinks]]`, relative links and images
 - Table of contents, find in document, tabs, back/forward
+- After each reload, a mark in the margin shows what changed since the previous version; *View › Next Change* (⌘⇧↓ / Ctrl+Shift+↓) walks through the changes. The comparison stays in memory, per tab
+- Nothing stays hidden from the reader: the toolbar warns about HTML comments, invisible or text-direction characters and elements hidden by markup, and *Show* reveals them in place (*View › Show Hidden Content* for every document)
 - Light and dark themes, three reading widths, three fonts, zoom
 - Print or export to PDF; export a self-contained HTML file (offline, no scripts) or copy it as HTML
 - Copy as formatted text (Edit menu, Cmd/Ctrl+Shift+C): the document, or just the selection, pastes into Google Docs, Gmail, Apple Mail, Word, Notion and Slack with headings, lists, links, tables and code intact; diagrams go as images and formulas as their LaTeX source

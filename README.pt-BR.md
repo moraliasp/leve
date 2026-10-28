@@ -35,7 +35,7 @@ Baixe a versão mais recente em [Releases](https://github.com/moraliasp/leve/rel
 
 - **macOS 11+** (Apple silicon e Intel): `Leve_x.y.z_universal.dmg`
 - **Windows 10/11** (x64): `Leve_x.y.z_x64-setup.exe` (por usuário, sem administrador) ou `.msi`
-- **Linux** (x86_64, compilado no Ubuntu 22.04, exige glibc 2.35+): `Leve_x.y.z_amd64.AppImage` (sem instalar) ou `Leve_x.y.z_amd64.deb` (Debian, Ubuntu e derivados), mais `Leve_x.y.z_x86_64.flatpak` para Fedora, openSUSE e outras distribuições com Flatpak (a partir da primeira versão depois da 0.3.0; `flatpak install --user --bundle <arquivo>`). Novo e ainda não testado num desktop Linux real: só compilado e com teste de fumaça sem tela no CI. Relatos são bem-vindos.
+- **Linux** (x86_64, compilado no Ubuntu 22.04, exige glibc 2.35+): `Leve_x.y.z_amd64.AppImage` (sem instalar) ou `Leve_x.y.z_amd64.deb` (Debian, Ubuntu e derivados), mais `Leve-x.y.z-1.x86_64.rpm` (Fedora, openSUSE) e `Leve_x.y.z_x86_64.flatpak` para Fedora, openSUSE e outras distribuições com Flatpak (a partir da primeira versão depois da 0.3.0; `flatpak install --user --bundle <arquivo>`). Novo e ainda não testado num desktop Linux real: só compilado e com teste de fumaça sem tela no CI. Relatos são bem-vindos.
 
 Por gerenciador de pacotes:
 
@@ -58,7 +58,7 @@ Cada release traz os SHA-256 em `SHA256SUMS.txt` e [attestations de proveniênci
 O Leve ainda não tem assinatura Apple nem Microsoft, então o sistema avisa uma vez.
 **macOS:** abra o Leve, clique em *Concluído*, vá em *Ajustes do Sistema › Privacidade e Segurança* e clique em *Abrir Mesmo Assim* (ou rode `xattr -dr com.apple.quarantine /Applications/Leve.app`).
 **Windows:** no aviso do SmartScreen, clique em *Mais informações › Executar assim mesmo*.
-**Linux:** torne o AppImage executável (`chmod +x Leve_*.AppImage`) e abra, ou instale o `.deb` com `sudo apt install ./Leve_*_amd64.deb`.
+**Linux:** torne o AppImage executável (`chmod +x Leve_*.AppImage`) e abra, instale o `.deb` com `sudo apt install ./Leve_*_amd64.deb`, ou o `.rpm` com `sudo dnf install ./Leve-*.x86_64.rpm`.
 
 Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações têm assinatura própria, conferida pelo app antes de instalar: *Leve › Verificar atualizações…* (no Windows e no Linux, *Ajuda › Verificar atualizações…*), ou ligue a checagem diária nas *Preferências*.
 
@@ -106,7 +106,7 @@ Pré-requisitos: Node 22+, pnpm, Rust estável e Xcode Command Line Tools (macOS
 pnpm install
 pnpm tauri dev -- -- docs/exemplo.md   # roda com um documento
 pnpm test                               # testes unitários e golden
-pnpm tauri build                        # .app/.dmg no macOS, .exe/.msi no Windows, .deb/.AppImage no Linux (--bundles deb,appimage)
+pnpm tauri build                        # .app/.dmg no macOS, .exe/.msi no Windows, .deb/.rpm/.AppImage no Linux (--bundles deb,rpm,appimage)
 ```
 
 Do Mac também sai o instalador NSIS do Windows com `pnpm build:windows` (precisa de `cargo-xwin`, `llvm`, `lld` e `makensis`; ver `scripts/build-windows.sh`).

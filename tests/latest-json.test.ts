@@ -13,6 +13,8 @@ const files = [
   "Leve_0.2.0_amd64.AppImage.sig",
   "Leve_0.2.0_amd64.deb",
   "Leve_0.2.0_amd64.deb.sig",
+  "Leve-0.2.0-1.x86_64.rpm",
+  "Leve-0.2.0-1.x86_64.rpm.sig",
 ];
 const sig = (f: string) => `assinatura de ${f}\n`;
 
@@ -31,7 +33,7 @@ describe("latest.json do atualizador", () => {
     expect(l.platforms["windows-x86_64-msi"].url).toBe(`${base}Leve_0.2.0_x64_en-US.msi`);
   });
 
-  it("Linux: AppImage é o padrão e o .deb tem entrada própria, cada um com a sua assinatura", () => {
+  it("Linux: AppImage é o padrão e o .deb e o .rpm têm entrada própria, cada um com a sua assinatura", () => {
     const l = buildLatest({ tag: "v0.2.0", files, sig });
     const base = "https://github.com/moraliasp/leve/releases/download/v0.2.0/";
     expect(l.platforms["linux-x86_64"]).toEqual({
@@ -43,7 +45,11 @@ describe("latest.json do atualizador", () => {
       url: `${base}Leve_0.2.0_amd64.deb`,
       signature: "assinatura de Leve_0.2.0_amd64.deb",
     });
-    expect(Object.keys(l.platforms)).toHaveLength(8);
+    expect(l.platforms["linux-x86_64-rpm"]).toEqual({
+      url: `${base}Leve-0.2.0-1.x86_64.rpm`,
+      signature: "assinatura de Leve-0.2.0-1.x86_64.rpm",
+    });
+    expect(Object.keys(l.platforms)).toHaveLength(9);
   });
 
   it("release candidate anuncia a versão que compilou, com URLs da tag rc", () => {
@@ -59,5 +65,6 @@ describe("latest.json do atualizador", () => {
       /assinatura de Leve_0\.2\.0_amd64\.AppImage/,
     );
     expect(() => buildLatest({ tag: "v0.2.0", files: files.filter((f) => !f.includes(".deb")), sig })).toThrow(/\.deb/);
+    expect(() => buildLatest({ tag: "v0.2.0", files: files.filter((f) => !f.includes(".rpm")), sig })).toThrow(/\.rpm/);
   });
 });

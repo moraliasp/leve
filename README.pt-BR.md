@@ -47,6 +47,10 @@ brew install --cask moraliasp/tap/leve   # macOS
 winget install Moralia.Leve              # Windows (em breve: em revisão no winget-pkgs)
 ```
 
+```bash
+flatpak install flathub br.com.moralia.leve   # Linux (em breve: ainda não está no Flathub)
+```
+
 Cada release traz os SHA-256 em `SHA256SUMS.txt` e [attestations de proveniência](https://github.com/moraliasp/leve/attestations) (`gh attestation verify <arquivo> --repo moraliasp/leve`).
 
 ### Primeira abertura

@@ -163,8 +163,9 @@ jobs:
       - name: Lint do manifesto
         run: flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest "$MANIFEST"
       - name: Build (sem rede)
+        # O builder instala SDK e extensões pelo `flatpak` do host, que pede uma sessão D-Bus.
         run: |
-          flatpak run org.flatpak.Builder --user --sandbox --force-clean --install-deps-from=flathub \
+          dbus-run-session -- flatpak run org.flatpak.Builder --user --sandbox --force-clean --install-deps-from=flathub \
             --mirror-screenshots-url=https://dl.flathub.org/media/ --repo=flatpak-repo \
             flatpak-build "$MANIFEST"
       - name: Lint do repositório

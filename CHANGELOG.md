@@ -4,6 +4,14 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Added
+
+- Flatpak packaging (`br.com.moralia.leve`), built from source on the GNOME 51 runtime, with AppStream metadata in English and Portuguese. Submission to Flathub is coming; until then, Fedora and openSUSE users can keep using the AppImage.
+
+### Changed
+
+- Inside Flatpak, Leve doesn't use its own updater: *Check for Updates…* points to your software store or `flatpak update`, and the daily check is hidden in Settings.
+
 ## [0.3.0] - 2026-10-27
 
 ### Added

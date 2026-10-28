@@ -1,6 +1,6 @@
-# Publicar no Homebrew e no winget
+# Publicar no Homebrew, no winget e no Flathub
 
-Passo a passo do dono para levar uma release estável do Leve ao tap `moraliasp/homebrew-tap` (macOS) e ao `microsoft/winget-pkgs` (Windows). Por que assim: "Homebrew (tap próprio) e winget antes da assinatura" em [`decisoes.md`](decisoes.md). Nada aqui roda sozinho: cada passo publica algo fora deste repositório e é feito à mão.
+Passo a passo do dono para levar uma release estável do Leve ao tap `moraliasp/homebrew-tap` (macOS), ao `microsoft/winget-pkgs` (Windows) e ao Flathub (Linux, seção 4). Por que assim: "Homebrew (tap próprio) e winget antes da assinatura" em [`decisoes.md`](decisoes.md). Nada aqui roda sozinho: cada passo publica algo fora deste repositório e é feito à mão.
 
 Os arquivos de uma versão saem de `scripts/packaging.mjs` a partir do `SHA256SUMS.txt` da release:
 
@@ -124,7 +124,35 @@ winget uninstall Moralia.Leve
 
 O instalador não tem Authenticode: o pipeline pode marcar o PR para revisão manual (`Needs-Manual-Validation`), o que só atrasa. Erro de hash ou URL (`Validation-Hash-Verification-Failed`, `Validation-Url-Error`) quase sempre é release ainda em rascunho ou pacote trocado depois de gerar os manifestos; releases imutáveis evitam o segundo caso.
 
-## 4. Depois de publicar
+## 4. Flathub
 
-- Tirar o "em breve" das linhas de `winget install` e `brew install` nos READMEs e em [`instalacao.md`](instalacao.md).
+Por que assim: "Flatpak a partir do fonte" em [`decisoes.md`](decisoes.md). O build e o lint estão provados pelo job `flatpak` do `ci.yml`; o envio é do dono, sem agente de IA.
+
+**Regra do Flathub que manda neste passo** ([Requirements, "Generative AI policy"](https://docs.flathub.org/docs/for-app-authors/requirements#generative-ai-policy), lida em 2026-10-27): o manifesto do Flathub não pode ter conteúdo gerado ou assistido por IA, nem com declaração; agente de IA não abre nem automatiza o PR de envio nem escreve commits, descrição ou respostas aos revisores; o que houver de IA no app ou no empacotamento (aqui: metainfo, `.desktop`, ajustes de código e o manifesto de prova deste repositório) precisa ser declarado no envio. Descumprir pode render banimento da conta. Por isso o manifesto de `packaging/flatpak/` serve de prova de que o build funciona, não de texto para copiar.
+
+### Antes
+
+- Uma release estável com o metainfo e o atualizador desligado no Flatpak (a primeira depois da 0.3.0). O manifesto do Flathub aponta para a tag dela e o commit (`type: git`, `tag` + `commit`).
+- O job `flatpak` verde na tag: `gh workflow run ci.yml --ref vX.Y.Z -f pacote=flatpak`.
+- Ler [Submission](https://docs.flathub.org/docs/for-app-authors/submission) e o template do PR do Flathub.
+
+### Envio (à mão)
+
+1. Fork de `flathub/flathub` na sua conta, branch a partir da `new-pr`, PR contra a `new-pr` com o template preenchido (o processo está em Submission).
+2. Manifesto `br.com.moralia.leve.yml` escrito por você. Os fatos técnicos que ele precisa refletir: runtime `org.gnome.Platform` 51; extensões `rust-stable` e `node24`; pnpm da versão do `packageManager` do `package.json`; `pnpm install --offline --frozen-lockfile` e `pnpm tauri build --no-bundle`; binário `src-tauri/target/release/leve` em `/app/bin/leve`; `.desktop`, metainfo e ícones de `packaging/flatpak/` e `src-tauri/icons/`; permissões e o motivo de cada uma em `decisoes.md`.
+3. `cargo-sources.json` e `node-sources.json` gerados pela ferramenta (`scripts/flatpak-sources.sh` grava em `packaging/flatpak/`) a partir dos lockfiles da tag; são saída de ferramenta, não de IA.
+4. Sem `flathub.json`: o Flathub builda `x86_64` e `aarch64`, e o Tauri compila nos dois. Se o `aarch64` falhar no bot, aí sim `{"only-arches": ["x86_64"]}`.
+5. No PR, a declaração de IA pedida pela política, com as partes afetadas.
+
+### Verificação (opcional)
+
+O app aparece como não verificado até o dono provar o domínio: o token do Developer Portal do Flathub vai em `https://moralia.com.br/.well-known/org.flathub.VerifiedApps.txt` (ou num TXT do DNS). Sem isso o app é publicado igual, sem o selo.
+
+### Depois do aceite
+
+O Flathub cria `flathub/br.com.moralia.leve` e convida o dono. Cada versão nova é um PR lá (tag, commit e fontes regeradas), com a release nova também no `<releases>` do metainfo deste repositório.
+
+## 5. Depois de publicar
+
+- Tirar o "em breve" das linhas de `winget install`, `brew install` e `flatpak install` nos READMEs e em [`instalacao.md`](instalacao.md).
 - Com assinatura Apple e Authenticode, revisar a decisão: a `caveats` sai do cask (`scripts/packaging.mjs`) e o `homebrew/cask` oficial vira opção.

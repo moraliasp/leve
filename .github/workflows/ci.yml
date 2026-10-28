@@ -163,9 +163,11 @@ jobs:
       - name: Lint do manifesto
         run: flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest "$MANIFEST"
       - name: Build (sem rede)
-        # O builder instala SDK e extensões pelo `flatpak` do host, que pede uma sessão D-Bus.
+        # O builder instala SDK e extensões pelo `flatpak` do host, que pede uma sessão D-Bus. Sem
+        # `--sandbox`, que recusa a fonte `../..` (o checkout) fora da pasta do manifesto; o build já
+        # roda sem rede porque o manifesto não pede `--share=network` em build-args (o lint cobra).
         run: |
-          dbus-run-session -- flatpak run org.flatpak.Builder --user --sandbox --force-clean --install-deps-from=flathub \
+          dbus-run-session -- flatpak run org.flatpak.Builder --user --force-clean --install-deps-from=flathub \
             --mirror-screenshots-url=https://dl.flathub.org/media/ --repo=flatpak-repo \
             flatpak-build "$MANIFEST"
       - name: Lint do repositório

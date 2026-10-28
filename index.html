@@ -45,6 +45,7 @@
       </div>
 
       <div id="remote-banner" class="remote-banner" role="status" hidden></div>
+      <div id="hidden-banner" class="remote-banner" role="status" hidden></div>
       <div id="body">
         <nav id="toc" class="toc" data-i18n-aria-label="bar.toc"></nav>
         <main id="main" tabindex="0" data-i18n-aria-label="bar.document">
@@ -227,6 +228,13 @@
                   <span id="prefs-remote-hint" class="pref-hint" data-i18n="prefs.remoteHint"></span>
                 </span>
                 <input type="checkbox" role="switch" class="switch" id="prefs-remote" name="remote" aria-describedby="prefs-remote-hint" />
+              </div>
+              <div class="pref-row">
+                <span class="pref-text">
+                  <label class="pref-label" for="prefs-hidden" data-i18n="prefs.hidden"></label>
+                  <span id="prefs-hidden-hint" class="pref-hint" data-i18n="prefs.hiddenHint"></span>
+                </span>
+                <input type="checkbox" role="switch" class="switch" id="prefs-hidden" name="hidden" aria-describedby="prefs-hidden-hint" />
               </div>
               <div class="pref-row pref-row-block">
                 <span id="prefs-forget-hint" class="pref-hint" data-i18n="prefs.forgetHint"></span>

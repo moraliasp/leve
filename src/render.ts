@@ -11,6 +11,7 @@ import { scrubMermaidSource, stripRemote, stripRemoteTree } from "./remote";
 import { math } from "./math";
 import { wikilinks } from "./wikilinks";
 import { t } from "./i18n";
+import { COMMENT_ATTR, type CommentSink, stripAppMarks } from "./hidden";
 
 /** Slug no estilo GitHub: minúsculas, sem pontuação, espaços viram hífen. */
 export function slugify(s: string): string {
@@ -109,12 +110,36 @@ export function stripFixed(el: Element): void {
   if (out !== style) el.setAttribute("style", out);
 }
 
+/** Comentários do render em curso (`RenderOpts.comments`); fora de `render`, nada é guardado. */
+let commentSink: CommentSink | null = null;
+
 // Privacidade: todo recurso remoto sai do HTML aqui, antes de chegar à página (src/remote.ts).
 // Janela: o documento não cobre a interface (stripFixed, antes de stripRemote guardar o style).
+// Marcas do conteúdo oculto só o app escreve (stripAppMarks, src/hidden.ts).
 DOMPurify.addHook("afterSanitizeAttributes", (node) => {
   if (node.nodeType !== 1) return;
+  stripAppMarks(node as Element, commentSink?.nonce ?? null);
   stripFixed(node as Element);
   stripRemote(node as Element);
+});
+
+/**
+ * Nada escondido de quem lê (src/hidden.ts): o sanitize tira os comentários HTML, e aqui o texto
+ * de cada um fica guardado com um marcador vazio no lugar. Quem decide o que é comentário é o
+ * parser do navegador (`<!--` dentro de atributo ou de código não é). O marcador entra antes do
+ * comentário, já percorrido, então o sanitize não passa por ele; dentro de SVG/MathML vai depois do
+ * elemento estrangeiro mais externo, porque `<span>` ali dentro mudaria a árvore na reanálise.
+ */
+DOMPurify.addHook("uponSanitizeElement", (node) => {
+  if (!commentSink || node.nodeType !== 8 || !node.parentNode) return;
+  const sink = commentSink;
+  const m = node.ownerDocument!.createElement("span");
+  m.setAttribute(COMMENT_ATTR, `${sink.nonce}:${sink.texts.length}`);
+  sink.texts.push((node as Comment).data);
+  let foreign: Element | null = null;
+  for (let p = node.parentElement; p; p = p.parentElement) if (p.namespaceURI !== "http://www.w3.org/1999/xhtml") foreign = p;
+  if (foreign) foreign.after(m);
+  else node.parentNode.insertBefore(m, node);
 });
 
 // `form`: num visualizador não tem o que enviar, e `action`/`formaction` navegariam a janela para fora.
@@ -132,6 +157,8 @@ export interface RenderOpts {
    * é o mesmo; realce e sumário reduzidos ficam por conta de quem chama (`loadDoc`).
    */
   large?: boolean;
+  /** Guarda os comentários HTML que o sanitize tira e deixa marcador (`newCommentSink`, src/hidden.ts). */
+  comments?: CommentSink;
 }
 
 function toHtml(src: string, opts: RenderOpts): string {
@@ -149,7 +176,12 @@ function toHtml(src: string, opts: RenderOpts): string {
  * é mais lento num documento de 1 MB do que serializar e o navegador analisar de novo.
  */
 export function render(src: string, opts: RenderOpts = {}): string {
-  return DOMPurify.sanitize(toHtml(src, opts), PURIFY);
+  commentSink = opts.comments ?? null;
+  try {
+    return DOMPurify.sanitize(toHtml(src, opts), PURIFY);
+  } finally {
+    commentSink = null;
+  }
 }
 
 const ABSOLUTE_URL = /^(https?:|data:|blob:|asset:|file:)/i;

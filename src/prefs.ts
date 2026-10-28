@@ -16,6 +16,8 @@ export const PREF_KEYS = {
   zoom: "leve.zoom",
   toc: "leve.toc",
   remote: "leve.remote",
+  /** Mostrar marcado o conteúdo oculto de todo documento (desligado: só o aviso; `src/hidden-ui.ts`). */
+  showHidden: "leve.showHidden",
   /** Reabrir no ponto de leitura guardado (desligado: sempre no topo). */
   restoreScroll: "leve.restoreScroll",
   /** Reabrir as abas da última sessão ao iniciar. */

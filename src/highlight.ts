@@ -1,4 +1,5 @@
 import DOMPurify from "dompurify";
+import { markInvisibles } from "./hidden";
 
 /**
  * Realce de código fora do caminho crítico. O render só marca `<code class="language-x">` com o
@@ -44,8 +45,11 @@ export function highlightBlock(hljs: Hljs, code: HTMLElement): void {
   const lang = codeLanguage(code);
   if (!lang || !hljs.getLanguage(lang)) return;
   const html = hljs.highlight(code.textContent ?? "", { language: lang, ignoreIllegals: true }).value;
+  // Conteúdo oculto à mostra (src/hidden.ts): os chips não têm texto e somem com o realce; voltam depois.
+  const chip = code.querySelector<HTMLElement>(".leve-hidden-chip");
   // A saída do highlight.js já vem escapada; o sanitize mantém a regra de que nada entra no DOM sem passar por ele.
   code.innerHTML = DOMPurify.sanitize(html);
+  if (chip) markInvisibles(code, chip.title);
 }
 
 /** Ordem de realce: mais perto de `scrollTop` primeiro (o que o leitor está vendo). */

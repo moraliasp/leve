@@ -43,11 +43,12 @@ export function hashKey(s: string): number {
 /**
  * Chaves dos filhos de topo, na ordem. Texto solto entre blocos não conta (não há o que marcar).
  * Fora de `pre`/`textarea`, sequências de espaço viram um só: parágrafo reflowado (quebra de linha
- * suave em outro lugar) desenha igual e não é mudança para quem lê.
+ * suave em outro lugar) desenha igual e não é mudança para quem lê. `normalize` tira do HTML o que
+ * muda a cada render sem o documento mudar (o nonce dos marcadores de comentário, `hidden.ts`).
  */
-export function blockKeys(root: ParentNode): number[] {
+export function blockKeys(root: ParentNode, normalize: (html: string) => string = (h) => h): number[] {
   return Array.from(root.children, (el) => {
-    const html = el.outerHTML;
+    const html = normalize(el.outerHTML);
     const literal = el.tagName === "PRE" || el.querySelector("pre, textarea") !== null;
     return hashKey(literal ? html : html.replace(/\s+/g, " "));
   });

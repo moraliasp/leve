@@ -1,6 +1,7 @@
 import { MD_EXT } from "./wikilinks";
 import { remoteHost } from "./remote";
 import { t } from "./i18n";
+import { stripHiddenMarks } from "./hidden";
 
 /**
  * Exportar HTML: o documento renderizado vira UM arquivo `.html` que abre em qualquer navegador,
@@ -200,6 +201,8 @@ function embedImages(root: HTMLElement, images: Record<string, ImageEmbed>): num
  * quantas imagens ficaram de fora por tamanho.
  */
 export function prepareClone(root: HTMLElement, images: Record<string, ImageEmbed>, mdLinks: MdLinkMode): number {
+  // Antes de `keepRemoteBlocked`: o `data-remote-style` original volta e só então sai.
+  stripHiddenMarks(root);
   keepRemoteBlocked(root);
   const oversized = embedImages(root, images);
   rewriteMdLinks(root, mdLinks);

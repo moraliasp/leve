@@ -10,6 +10,8 @@ import { hydrateImages, joinPath, markBrokenImage, render, renderErrorBlock, ren
 import { cancelHighlight, highlightAll, highlightLazily } from "./highlight";
 import { LARGE_TOC_MAX_LEVEL, isLargeDoc } from "./limits";
 import { applyRemotePolicy, remotePrefEnabled, setRemotePref } from "./remote-ui";
+import { applyHiddenPolicy } from "./hidden-ui";
+import { type CommentSink, newCommentSink, stableCommentMarks } from "./hidden";
 import { buildToc, updateActive, type TocItem } from "./toc";
 import { Finder } from "./find";
 import { keepTabbable, tabKeyTarget } from "./a11y";
@@ -68,6 +70,7 @@ const els = {
   btnFwd: $<HTMLButtonElement>("btn-fwd"),
   tabs: $("tabs"),
   remoteBanner: $("remote-banner"),
+  hiddenBanner: $("hidden-banner"),
   changes: $<HTMLButtonElement>("changes"),
 };
 
@@ -346,6 +349,7 @@ function showEmpty(): void {
   setDocNotice("", false);
   showChanges([]);
   els.remoteBanner.hidden = true;
+  els.hiddenBanner.hidden = true;
   els.content.hidden = true;
   els.empty.hidden = false;
   els.title.textContent = "";
@@ -548,6 +552,29 @@ function syncRemoteMenu(): void {
   if (IS_TAURI) void invoke("sync_remote_menu", { on: remoteAuto });
 }
 
+// ---------- conteúdo oculto: avisado ao abrir, mostrado só a pedido (src/hidden-ui.ts) ----------
+
+/** Documentos em que o leitor pediu "Mostrar" (só nesta execução). */
+const hiddenShown = new Set<string>();
+let hiddenAuto = boolPref(PREF_KEYS.showHidden, false);
+
+/** Antes de `applyRemote`: a classe que ele põe nas imagens bloqueadas não é do documento. */
+function applyHidden(doc: Doc, comments: CommentSink | null): void {
+  applyHiddenPolicy(els.content, els.hiddenBanner, {
+    reveal: hiddenAuto || hiddenShown.has(doc.path),
+    comments,
+    source: doc.content,
+    onReveal: () => {
+      hiddenShown.add(doc.path);
+      els.main.focus({ preventScroll: true });
+    },
+  });
+}
+
+function syncHiddenMenu(): void {
+  if (IS_TAURI) void invoke("sync_hidden_menu", { on: hiddenAuto });
+}
+
 function setWindowTitle(t: string): void {
   document.title = t;
   if (IS_TAURI) void getCurrentWindow().setTitle(t);
@@ -622,20 +649,23 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   performance.mark("leve:start");
   // Modo documento grande (src/limits.ts): sem links automáticos, sem realce, sumário até h2.
   const large = isLargeDoc(doc.content);
+  let comments: CommentSink | null = newCommentSink();
   let keys: number[] = [];
   try {
-    const html = render(doc.content, { large });
+    const html = render(doc.content, { large, comments });
     performance.measure("leve:render", "leve:start");
     els.content.innerHTML = html;
     // Antes dos pós-processos, que mudam o DOM sem o documento mudar (src/changes.ts).
-    keys = blockKeys(els.content);
+    keys = blockKeys(els.content, (h) => stableCommentMarks(h, comments));
   } catch (e) {
     // Markdown patológico não deixa a tela vazia: o erro aparece no lugar do documento.
     els.content.replaceChildren(renderErrorBlock("Markdown", String(e), doc.content.slice(0, 4000)));
+    comments = null;
   }
   performance.measure("leve:dom", "leve:start");
   // Aviso de leitura e de modo grande ficam até o próximo documento; documento sem aviso limpa o anterior.
   setDocNotice([doc.warning, large ? t("doc.large") : ""].filter(Boolean).join(" · "), Boolean(doc.warning));
+  applyHidden(doc, comments);
   applyRemote(doc);
   await hydrateImages(els.content, doc.dir, IS_TAURI);
   decorateCodeBlocks(els.content);
@@ -986,6 +1016,15 @@ const actions: Record<string, () => void> = {
     flash(remoteAuto ? t("remote.always") : t("remote.blocked"));
     reloadCurrent();
   },
+  // Exibir › Mostrar conteúdo oculto: mesma forma da preferência acima.
+  "show-hidden": () => {
+    hiddenAuto = !hiddenAuto;
+    setBoolPref(PREF_KEYS.showHidden, hiddenAuto);
+    if (!hiddenAuto) hiddenShown.clear();
+    syncHiddenMenu();
+    flash(hiddenAuto ? t("hidden.always") : t("hidden.warnOnly"));
+    reloadCurrent();
+  },
 };
 
 // ---------- Abrir no editor e comando `leve` (Preferências › Integração) ----------
@@ -1099,6 +1138,7 @@ function syncPrefsUI(): void {
   $<HTMLInputElement>("prefs-restore-tabs").checked = boolPref(PREF_KEYS.restoreTabs, true);
   $<HTMLInputElement>("prefs-sample").checked = boolPref(PREF_KEYS.sample, true);
   $<HTMLInputElement>("prefs-remote").checked = remoteAuto;
+  $<HTMLInputElement>("prefs-hidden").checked = hiddenAuto;
   $<HTMLInputElement>("prefs-auto-update").checked = boolPref(PREF_KEYS.autoUpdate, false);
   choose("lang", langPref());
   renderEditorSelect();
@@ -1146,6 +1186,7 @@ function resetPreferences(): void {
   setTocVisible(true);
   // Reaplica ao documento aberto, como o item do menu.
   if (remoteAuto) actions["remote-auto"]();
+  if (hiddenAuto) actions["show-hidden"]();
   syncPrefsUI();
   flash(t("prefs.restored"));
   if (langBefore !== "auto") location.reload();
@@ -1199,6 +1240,9 @@ function wirePreferences(): void {
         break;
       case "remote":
         if (t.checked !== remoteAuto) actions["remote-auto"]();
+        break;
+      case "hidden":
+        if (t.checked !== hiddenAuto) actions["show-hidden"]();
         break;
       case "auto-update":
         setBoolPref(PREF_KEYS.autoUpdate, t.checked);
@@ -1594,6 +1638,7 @@ async function main(): Promise<void> {
   applyZoom();
   applyReading();
   syncRemoteMenu();
+  syncHiddenMenu();
   wire();
   wirePreferences();
   wireExport();

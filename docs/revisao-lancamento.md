@@ -69,3 +69,55 @@ Revisão feita antes do primeiro commit do repositório público `moraliasp/leve
 - Revisão jurídica de `THIRD_PARTY_NOTICES.md` (textos MPL-2.0, Apache-2.0 e CDLA-Permissive-2.0 reproduzidos na íntegra; as escolhas são orientação técnica).
 - Avisos "unmaintained" da cadeia Linux do Tauri (o alerta do Dependabot sobre `glib` foi dispensado como risco tolerável: não entra nos builds de Mac e Windows).
 - Rodar o instalador Windows numa máquina Windows (instalação, associação de `.md`, atualização).
+
+# Atualização 0.2.0 → 0.3.0 (issue #35, 28 de outubro de 2026)
+
+Prova de que quem tem a 0.2.0 instalada recebe a 0.3.0 pelo atualizador do app, sem perder preferências, abas e Recentes. Capturas em `docs/img/atualizacao-0.3.0/`.
+
+## macOS: passou
+
+Mac Apple Silicon, macOS 26.6 (Darwin 25.6.0). Pacotes da release pública, endpoint público (`releases/latest/download/latest.json`, anunciando 0.3.0).
+
+**Preparação.** O `.dmg` universal da v0.2.0 conferiu com o `SHA256SUMS.txt` (`f3b9d083…a4de`) e com `gh attestation verify`. O `.app` foi copiado para `/Applications`, num perfil limpo: o `Application Support`, o `WebKit` e o `Caches` de `br.com.moralia.leve` foram tirados do lugar antes e devolvidos depois. O perfil não pode ser isolado por `HOME`: ao terminar a instalação, o Tauri reabre o app pelo LaunchServices (`/usr/bin/open -n`, `tauri::process::restart`), que não herda o ambiente, então a 0.3.0 reaberta leria o perfil real.
+
+### Rodada 1: a pedido
+
+| Passo | Resultado |
+|---|---|
+| 0.2.0 aberta com `docs/exemplo.md`, `docs/assinatura.md` e `docs/decisoes.md`; Exibir › tema escuro, largura Estreita, fonte Serif, zoom +1; `assinatura.md` fechada (fica só nos Recentes) | localStorage da 0.2.0: `mdview.theme=dark`, `mdview.width=narrow`, `mdview.font=serif`, `mdview.zoom=1.1`, `mdview.tabs` com 2 abas (ativa `decisoes.md`), `mdview.recent` com 3; `grants.json` com os 3 caminhos. Sobre: 0.2.0 ([captura](img/atualizacao-0.3.0/01-sobre-0.2.0.jpg)). |
+| Leve › Check for Updates… | Diálogo "Leve 0.3.0 is available (you have 0.2.0)" ([captura](img/atualizacao-0.3.0/02-oferta-0.3.0.jpg)). |
+| Install | Baixou, conferiu a assinatura, trocou o bundle e reabriu sozinho em poucos segundos (novo processo de `/Applications/Leve.app/Contents/MacOS/leve`, `CFBundleShortVersionString` 0.3.0). |
+| Janela reaberta | Mesmo tema, largura, fonte e zoom; as 2 abas de volta, com `decisoes.md` ativa ([captura](img/atualizacao-0.3.0/03-reaberto-0.3.0.jpg)). Sobre: 0.3.0. |
+| Migração das chaves | Nenhuma `mdview.*` sobrou; `leve.theme/width/font/zoom/toc/tabs/recent/scroll/updateChecked` com os mesmos valores (`migrateLegacyKeys`). |
+| Recentes | Fechadas as abas, a tela vazia lista os 3 Recentes ([captura](img/atualizacao-0.3.0/05-recentes-0.3.0.jpg)); `assinatura.md` abriu pela concessão herdada da 0.2.0 (`grants.json`), sem diálogo. |
+| Bundle instalado | `diff -r` contra o `Leve_0.3.0_universal.app.tar.gz` da release: idêntico (o `.tar.gz` confere com o `SHA256SUMS.txt`, `e113063a…6491`). `minisign -V` do `.sig` contra a `pubkey` da 0.2.0: válido (`file:Leve.app.tar.gz version:0.3.0`). O bundle novo não ganha `com.apple.quarantine` (só `com.apple.provenance`), então o Gatekeeper não pergunta de novo. |
+
+### Rodada 2: checagem diária, sem pedir
+
+| Passo | Resultado |
+|---|---|
+| Perfil limpo de novo, 0.2.0 reinstalada do mesmo `.dmg`, 2 abas; tema Claro, largura Wide, fonte Mono; idioma Português | `mdview.lang=pt-BR` e as demais `mdview.*`. |
+| Preferências › "Check for updates once a day" ligado | A 0.2.0 checa na hora, porque ainda não há carimbo (`maybeDailyCheck` ao ligar), e oferece a 0.3.0. Cancelado, para provar o caminho das 24 h; a checagem gravou `mdview.updateChecked`. |
+| Carimbo envelhecido | Com o app fechado, `mdview.updateChecked` foi trocado para agora − 25 h direto no `localstorage.sqlite3` do WebKit (`~/Library/WebKit/br.com.moralia.leve/WebsiteData/Default/…/LocalStorage/`, valor em UTF-16LE). `dailyCheckDue` só olha `now - last >= 24 h`. |
+| Abertura sem documento (`open -a`, como pelo Dock), sem tocar no app | As abas restauradas e, por cima, "Atualização disponível: O Leve 0.3.0 está disponível (você tem o 0.2.0)" ([captura](img/atualizacao-0.3.0/09-rodada2-oferta-na-abertura.jpg)). |
+| Instalar | Reabriu na 0.3.0 em pt-BR, Claro, Mono, Larga, com as 2 abas; Preferências com "Procurar atualizações uma vez por dia" ligado; `leve.lang`, `leve.autoUpdate` e as demais migradas, nenhuma `mdview.*`; bundle idêntico ao `.tar.gz`. |
+| Sobre › Verificar atualizações… na 0.3.0 | "O Leve está atualizado (0.3.0)" ([captura](img/atualizacao-0.3.0/12-rodada2-sobre-atualizado.jpg)). |
+
+**Observações (sem bug):**
+
+- Na 0.2.0, "Procurar atualizações" fica no menu do app (Leve › Check for Updates…), não em Ajuda.
+- A checagem manual também grava o carimbo, então ela adia a diária em 24 h. É o comportamento do código (`finally` em `checkForUpdates`).
+
+**Estado devolvido.** O Leve 0.3.0 que estava em `/Applications` voltou (`diff -r` contra a cópia de segurança: idêntico), e o perfil real voltou com o `stat` de todos os arquivos igual ao de antes.
+
+## Windows: pendente
+
+Precisa de máquina Windows real ou VM. Roteiro para repetir, uma vez com o `-setup.exe` e outra com o `.msi`, cada uma num perfil limpo:
+
+1. Desinstalar o Leve, se houver, e tirar do lugar `%LOCALAPPDATA%\br.com.moralia.leve` (concessões em `grants.json`; localStorage do WebView2 em `EBWebView`).
+2. Baixar da release v0.2.0 o `Leve_0.2.0_x64-setup.exe` (ou o `_en-US.msi`) e o `SHA256SUMS.txt`; conferir com `Get-FileHash` e `gh attestation verify <arquivo> -R moraliasp/leve`. Instalar.
+3. Abrir três `.md`, mudar tema, largura e fonte (Exibir) e o zoom; fechar um deles, para ele ficar só nos Recentes, deixando duas abas.
+4. Editar › Preferências › Verificar atualizações… (ou Ajuda › Sobre). Esperado: oferta da 0.3.0; "Instalar" baixa e confere a assinatura. O instalador roda em modo `passive` (`installMode`), fecha o app e o reabre na 0.3.0. Conferir que o pacote veio do tipo certo: o `latest.json` tem `windows-x86_64-nsis` e `windows-x86_64-msi`.
+5. Depois de reabrir: Sobre mostra 0.3.0; tema, largura, fonte e zoom iguais; as duas abas de volta; o arquivo fechado abre pelos Recentes sem diálogo.
+6. Rodada da checagem diária: perfil limpo, 0.2.0 de novo, mudar as preferências e ligar "Procurar atualizações uma vez por dia" (ele checa na hora; Cancelar). Para não esperar 24 h, fechar o app e adiantar o relógio do Windows em 25 h (Configurações › Hora, desligar o ajuste automático); `dailyCheckDue` também dispara se o relógio voltar para antes do carimbo. Abrir o Leve sem documento: a oferta deve aparecer sozinha. Instalar e repetir o passo 5. Religar o ajuste automático da hora.
+7. Registrar aqui as versões, o que foi conferido e as capturas, e devolver o perfil do passo 1.

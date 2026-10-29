@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, migrateLegacyKeys, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "../src/prefs";
 import { RECENT_KEY, SCROLL_KEY } from "../src/recent";
-import { REMOTE_PREF_KEY } from "../src/remote-ui";
 
 describe("preferências", () => {
   beforeEach(() => localStorage.clear());
@@ -18,7 +17,7 @@ describe("preferências", () => {
   });
 
   it("as chaves do menu e da tela são as mesmas (uma fonte por preferência)", () => {
-    expect(REMOTE_PREF_KEY).toBe(PREF_KEYS.remote);
+    expect(PREF_KEYS.remote).toBe("leve.remote");
     expect(PREF_KEYS.toc).toBe("leve.toc");
     expect(PREF_KEYS.theme).toBe("leve.theme");
   });

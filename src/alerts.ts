@@ -1,5 +1,6 @@
 import type { MarkdownIt, StateCore } from "markdown-it";
 import { t, type Key } from "./i18n";
+import { escapeHtml } from "./html";
 
 /** Cinco tipos canônicos do GitHub; callouts Obsidian são mapeados para eles. */
 type Kind = "note" | "tip" | "important" | "warning" | "caution";
@@ -43,9 +44,6 @@ const ALIAS: Record<string, Kind> = {
 };
 
 const MARKER = /^\[!([a-zA-Z]+)\]([+-]?)[ \t]*([^\n]*)\n?/;
-
-const escapeHtml = (s: string): string =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /**
  * Transforma `> [!TIPO] Título` (GitHub alerts e callouts Obsidian) em

@@ -5,8 +5,7 @@
  * "Procurar atualizações uma vez por dia" ligado, no máximo uma vez a cada 24 h. Por quê:
  * docs/decisoes.md, "Atualização pela release do GitHub".
  */
-import { check, type Update } from "@tauri-apps/plugin-updater";
-import { relaunch } from "@tauri-apps/plugin-process";
+import type { Update } from "@tauri-apps/plugin-updater";
 import { t } from "./i18n";
 import { PREF_KEYS, boolPref } from "./prefs";
 
@@ -49,8 +48,13 @@ export async function checkForUpdates(ui: UpdateUi, manual: boolean, current: st
   try {
     if (manual) ui.flash(t("update.checking"), false, true);
     let update: Update | null;
+    // Plugins sob demanda: fora do chunk de abertura, e o `relaunch` já carregado antes de o pacote
+    // ser trocado. Falha ao importar conta como falha da checagem.
+    let relaunch: () => Promise<void>;
     try {
-      update = await check();
+      const [updater, proc] = await Promise.all([import("@tauri-apps/plugin-updater"), import("@tauri-apps/plugin-process")]);
+      relaunch = proc.relaunch;
+      update = await updater.check();
     } catch (e) {
       if (manual) ui.flash(t("update.failed", { error: String(e) }), true);
       else console.warn("updater:", e);

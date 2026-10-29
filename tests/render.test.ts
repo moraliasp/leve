@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { joinPath, render, renderMermaid, slugify } from "../src/render";
 import type { MermaidLike } from "../src/render";
 import { restoreRemote } from "../src/remote";
+import { hasFrontMatter, loadYaml } from "../src/yaml";
+
+// Front matter e dados de nó do Mermaid leem o `yaml`, que o app carrega sob demanda (src/yaml.ts).
+beforeAll(() => loadYaml());
 
 describe("slugify", () => {
   it("segue o GitHub: minúsculas, sem pontuação, espaços viram hífen", () => {
@@ -175,6 +179,23 @@ describe("render: frontmatter", () => {
   });
   it("sem frontmatter não gera o bloco", () => {
     expect(render("# H")).not.toContain("frontmatter");
+  });
+  it("sem o yaml carregado: front matter vira a fonte e dado de nó do Mermaid sai inteiro", async () => {
+    vi.resetModules();
+    const fresh = await import("../src/render");
+    const remote = await import("../src/remote");
+    expect((await import("../src/yaml")).loadedYaml()).toBeNull();
+    const html = fresh.render("---\ntitle: T\n---\n# H");
+    expect(html).toMatch(/<summary>[^<]+<\/summary><pre>title: T<\/pre>/);
+    expect(html).toContain('<h1 id="h"');
+    const r = remote.scrubMermaidSource('flowchart LR\n  A@{ label: "a" }');
+    expect(r).toEqual({ src: "flowchart LR\n  A", blocked: 1 });
+    vi.resetModules();
+  });
+  it("hasFrontMatter segue o plugin: só `---` no começo", () => {
+    expect(hasFrontMatter("---\na: 1\n---")).toBe(true);
+    expect(hasFrontMatter("# H\n---\na: 1")).toBe(false);
+    expect(hasFrontMatter(" ---")).toBe(false);
   });
 });
 

@@ -81,7 +81,7 @@ Updates are signed separately and verified by the app before installing: *Leve �
 
 ## Privacy
 
-No telemetry. Leve reads only files you open (dialog, double-click, drag and drop) and files an open document links to with a relative path. Remote images are blocked until you load them. The network is used only for links you open, remote images you ask for, and update checks.
+No telemetry. Leve reads only files you open (dialog, double-click, drag and drop), files an open document links to with a relative path, and the Markdown files inside a folder you open (*File › Open Folder…*), never other file types from it. Remote images are blocked until you load them. The network is used only for links you open, remote images you ask for, and update checks.
 
 ## Size
 

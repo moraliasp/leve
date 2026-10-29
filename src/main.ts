@@ -678,21 +678,7 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   snapshots.set(tab, snap);
   showChanges(snap.hunks);
   performance.measure("leve:changes", "leve:start");
-  const wikiTargets = collectWikilinkTargets(els.content);
-  // O exemplo não tem pasta: seus wikilinks para outras notas aparecem como não encontrados.
-  if (sample) markWikilinks(els.content, {});
-  else if (wikiTargets.length > 0) {
-    const content = els.content;
-    void resolveWikilinks(doc.dir, wikiTargets)
-      .then((r) => {
-        if (current?.path === doc.path) markWikilinks(content, r);
-      })
-      .catch((e) => {
-        // O erro do Rust pode trazer caminho do sistema: ao leitor, só a mensagem genérica.
-        console.warn("wikilinks:", e);
-        if (current?.path === doc.path) flash(t("doc.wikilinksFailed"), true);
-      });
-  }
+  linkWikilinks(doc);
   tocItems = buildToc(els.content, els.toc, large ? LARGE_TOC_MAX_LEVEL : undefined);
   // Sem foco em lugar nenhum (abriu pelo menu ou pelo sistema): foco no documento, setas já rolam.
   if (document.activeElement === document.body) els.main.focus({ preventScroll: true });
@@ -731,6 +717,25 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   return true;
 }
 
+/** Resolve os wikilinks do documento na tela (no `loadDoc` e quando uma pasta abre). */
+function linkWikilinks(doc: Doc): void {
+  const wikiTargets = collectWikilinkTargets(els.content);
+  // O exemplo não tem pasta: seus wikilinks para outras notas aparecem como não encontrados.
+  if (isSample(doc.path)) markWikilinks(els.content, {});
+  else if (wikiTargets.length > 0) {
+    const content = els.content;
+    void resolveWikilinks(doc.dir, wikiTargets)
+      .then((r) => {
+        if (current?.path === doc.path) markWikilinks(content, r);
+      })
+      .catch((e) => {
+        // O erro do Rust pode trazer caminho do sistema: ao leitor, só a mensagem genérica.
+        console.warn("wikilinks:", e);
+        if (current?.path === doc.path) flash(t("doc.wikilinksFailed"), true);
+      });
+  }
+}
+
 /** O diálogo roda no Rust: só o que o usuário escolher ali fica liberado para leitura. */
 async function pickAndOpen(): Promise<void> {
   if (!IS_TAURI) {
@@ -766,6 +771,8 @@ async function openFolder(root: string, atLaunch = false): Promise<void> {
     });
     addRecent(folderEntry(folder.root));
     if (!current) renderRecent();
+    // Wikilinks do documento aberto passam a resolver também pela raiz da pasta.
+    else linkWikilinks(current);
   } catch (e) {
     if (!atLaunch) flash(String(e), true);
     else {

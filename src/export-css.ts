@@ -1,5 +1,5 @@
 import documentCss from "./document.css?inline";
-import { LIGHT_DOC_CSS } from "./theme";
+import { DOC_CSS } from "./theme";
 import { iconCssVars } from "./icons";
 import { blobToDataUri, inlineFontFaces, normalWeight } from "./export";
 
@@ -10,7 +10,7 @@ import { blobToDataUri, inlineFontFaces, normalWeight } from "./export";
  * por `main.ts` (fora do caminho de abertura). A montagem do arquivo em si está em `export.ts`.
  */
 export async function exportCss(root: ParentNode): Promise<string> {
-  const parts = [LIGHT_DOC_CSS.markdown, LIGHT_DOC_CSS.highlight, documentCss, iconCssVars()];
+  const parts = [DOC_CSS, documentCss, iconCssVars()];
   if (root.querySelector(".katex")) {
     const { default: katexCss } = await import("katex/dist/katex.min.css?inline");
     parts.push(await inlineFontFaces(katexCss, await loadedFonts(), fontDataUri));

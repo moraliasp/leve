@@ -8,6 +8,10 @@
  * regras de classes que o Leve nunca gera (.pl-* do realce do GitHub, .markdown-alert, .octicon).
  * As `var(--borderColor-*)`/`--fgColor-*` sem definição vêm do original e ficam como estão (sem
  * elas, o anel de foco e a borda do <kbd> não aparecem, igual ao GitHub fora do github.com).
+ * Cinco cores do realce não são as do highlight.js: no claro, palavra-chave, variável, tag e
+ * inserção; no escuro, título de seção. As originais ficavam abaixo de 4,5:1 sobre o fundo do bloco
+ * de código e foram trocadas pelas do realce atual do github.com (as `.pl-*` do mesmo pacote) ou, no
+ * título de seção escuro, pela cor de link do tema (`node scripts/contraste.mjs`).
  * Avisos em THIRD_PARTY_NOTICES.md e no CSS_NOTICE do HTML exportado (src/export.ts).
  */
 :root {
@@ -29,19 +33,19 @@
   --md-focus: #0969da;
   --hl-fg: #24292e;
   --hl-bg: #ffffff;
-  --hl-keyword: #d73a49;
+  --hl-keyword: #cf222e;
   --hl-title: #6f42c1;
   --hl-constant: #005cc5;
   --hl-string: #032f62;
-  --hl-variable: #e36209;
+  --hl-variable: #953800;
   --hl-comment: #6a737d;
-  --hl-tag: #22863a;
+  --hl-tag: #116329;
   --hl-subst: #24292e;
   --hl-section: #005cc5;
   --hl-bullet: #735c0f;
   --hl-emphasis: #24292e;
   --hl-strong: #24292e;
-  --hl-addition: #22863a;
+  --hl-addition: #116329;
   --hl-addition-bg: #f0fff4;
   --hl-deletion: #b31d28;
   --hl-deletion-bg: #ffeef0;
@@ -70,7 +74,7 @@
   --hl-comment: #8b949e;
   --hl-tag: #7ee787;
   --hl-subst: #c9d1d9;
-  --hl-section: #1f6feb;
+  --hl-section: #4493f8;
   --hl-bullet: #f2cc60;
   --hl-emphasis: #c9d1d9;
   --hl-strong: #c9d1d9;

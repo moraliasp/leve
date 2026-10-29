@@ -55,11 +55,11 @@ export const EXPORT_TOKENS: Record<string, string> = {
   "--hover": "rgba(0, 0, 0, 0.06)",
 };
 
-/** Moldura da página exportada: a coluna de leitura do app, sem a interface em volta. */
+/** Moldura da página exportada: a coluna de leitura do app, sem a interface em volta, no papel do estilo. */
 export const PAGE_CSS = `:root{${Object.entries(EXPORT_TOKENS)
   .map(([k, v]) => `${k}:${v}`)
   .join(";")}}
-html{background:#fff;color-scheme:light}
+html{background:var(--md-bg);color-scheme:light}
 body{margin:0}
 .markdown-body{box-sizing:border-box;min-width:200px;max-width:920px;margin:0 auto;padding:40px 48px 96px}
 @media (max-width:719px){.markdown-body{padding:24px 20px 72px}}

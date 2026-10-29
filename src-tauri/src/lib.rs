@@ -149,7 +149,7 @@ struct AppState {
     watcher: Mutex<Option<Debouncer<RecommendedWatcher>>>,
     /// Arquivo e espera do vigia atual: `watch_file` só o recria quando um dos dois muda.
     watched: Mutex<Option<(PathBuf, Duration)>>,
-    /// Itens de rádio do menu Exibir (largura e fonte); o frontend sincroniza o estado salvo.
+    /// Itens de rádio do menu Exibir (estilo, largura e fonte); o frontend sincroniza o estado salvo.
     view_checks: Mutex<Vec<CheckMenuItem<Wry>>>,
     /// Exibir › Carregar imagens remotas (liga/desliga); a preferência vive no frontend.
     remote_check: Mutex<Option<CheckMenuItem<Wry>>>,
@@ -311,7 +311,7 @@ fn asset_candidate(dir: &Path, rel: &str) -> Option<PathBuf> {
     (p.is_file() && IMAGE_EXT.contains(&ext_lower(&p).as_str())).then_some(p)
 }
 
-/// Marca, no grupo do item (`width-*` ou `font-*`), só o item com esse id.
+/// Marca, no grupo do item (`style-*`, `width-*` ou `font-*`), só o item com esse id.
 fn check_view_item(state: &AppState, id: &str) {
     let Some(prefix) = id.split('-').next() else {
         return;
@@ -324,9 +324,10 @@ fn check_view_item(state: &AppState, id: &str) {
     }
 }
 
-/// Frontend informa a largura e a fonte persistidas para o menu refletir.
+/// Frontend informa o estilo, a largura e a fonte persistidos para o menu refletir.
 #[tauri::command]
-fn sync_view_menu(state: State<AppState>, width: String, font: String) {
+fn sync_view_menu(state: State<AppState>, style: String, width: String, font: String) {
+    check_view_item(&state, &format!("style-{style}"));
     check_view_item(&state, &format!("width-{width}"));
     check_view_item(&state, &format!("font-{font}"));
 }
@@ -1192,10 +1193,16 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         checks.push(item.clone());
         Ok(item)
     };
+    // GitHub é nome próprio do visual (e da base, src/markdown.css): o mesmo nos dois idiomas.
+    let st_github = radio("style-github", "GitHub", true)?;
+    let st_editor = radio("style-editor", s.style_editor, false)?;
+    let st_terminal = radio("style-terminal", s.style_terminal, false)?;
+    let st_livro = radio("style-livro", s.style_livro, false)?;
     let w_narrow = radio("width-narrow", s.width_narrow, false)?;
     let w_normal = radio("width-normal", s.width_normal, true)?;
     let w_wide = radio("width-wide", s.width_wide, false)?;
-    let f_sans = radio("font-sans", "Sans", true)?;
+    let f_auto = radio("font-auto", s.font_auto, true)?;
+    let f_sans = radio("font-sans", "Sans", false)?;
     let f_serif = radio("font-serif", "Serif", false)?;
     let f_mono = radio("font-mono", "Mono", false)?;
     *app.state::<AppState>().view_checks.lock().unwrap() = checks;
@@ -1209,10 +1216,15 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .checked(false)
         .build(app)?;
     *app.state::<AppState>().hidden_check.lock().unwrap() = Some(show_hidden.clone());
+    let style = SubmenuBuilder::new(app, s.style)
+        .items(&[&st_github, &st_editor, &st_terminal, &st_livro])
+        .build()?;
     let width = SubmenuBuilder::new(app, s.width)
         .items(&[&w_narrow, &w_normal, &w_wide])
         .build()?;
     let font = SubmenuBuilder::new(app, s.font)
+        .item(&f_auto)
+        .separator()
         .items(&[&f_sans, &f_serif, &f_mono])
         .build()?;
 
@@ -1220,6 +1232,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .item(&toc)
         .item(&theme)
         .separator()
+        .item(&style)
         .item(&width)
         .item(&font)
         .separator()
@@ -1289,7 +1302,7 @@ fn on_menu(app: &AppHandle, id: String) {
         }
         return;
     }
-    if id.starts_with("width-") || id.starts_with("font-") {
+    if id.starts_with("style-") || id.starts_with("width-") || id.starts_with("font-") {
         check_view_item(&app.state::<AppState>(), &id);
     }
     let _ = app.emit("menu", id);

@@ -66,7 +66,8 @@ describe("acessibilidade", () => {
       for (const g of prefs.querySelectorAll("[role=radiogroup]")) {
         const names = new Set(Array.from(g.querySelectorAll("input")).map((i) => i.name));
         expect(names.size, g.outerHTML.slice(0, 80)).toBe(1);
-        expect(g.querySelectorAll("input[type=radio]").length).toBe(3);
+        // Estilo e fonte têm 4 opções (GitHub/Editor/Terminal/Livro; Do estilo/Sans/Serif/Mono); o resto, 3.
+        expect(g.querySelectorAll("input[type=radio]").length).toBe(["style", "font"].includes([...names][0]) ? 4 : 3);
       }
       expect(prefs.querySelectorAll("input[type=checkbox]").length).toBe(7);
       const submits = Array.from(prefs.querySelectorAll("button")).filter((b) => b.type !== "button");

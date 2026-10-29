@@ -70,7 +70,7 @@ Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações t
 - Sumário, busca no documento, abas, voltar/avançar
 - A cada recarga, uma marca na margem mostra o que mudou desde a versão anterior; *Exibir › Próxima mudança* (⌘⇧↓ / Ctrl+Shift+↓) percorre as mudanças. A comparação fica só na memória, por aba
 - Nada fica escondido do leitor: a barra avisa de comentários HTML, caracteres invisíveis ou de direção de texto e elementos ocultos pela marcação, e *Mostrar* revela no lugar (*Exibir › Mostrar conteúdo oculto* para todos os documentos)
-- Tema claro e escuro, três larguras de leitura, três fontes, zoom
+- Tema claro e escuro, quatro estilos de documento (GitHub, Editor, Terminal, Livro), três larguras de leitura, três fontes, zoom
 - Imprimir ou exportar PDF; exportar um HTML autocontido (offline, sem scripts) ou copiar como HTML
 - Copiar como texto formatado (menu Editar, Cmd/Ctrl+Shift+C): o documento, ou só a seleção, cola no Google Docs, Gmail, Apple Mail, Word, Notion e Slack com títulos, listas, links, tabelas e código; diagramas vão como imagem e fórmulas como a fonte LaTeX
 - Português e inglês, pelo idioma do sistema ou pela escolha nas *Preferências*

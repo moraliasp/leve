@@ -70,7 +70,7 @@ Updates are signed separately and verified by the app before installing: *Leve �
 - Table of contents, find in document, tabs, back/forward
 - After each reload, a mark in the margin shows what changed since the previous version; *View › Next Change* (⌘⇧↓ / Ctrl+Shift+↓) walks through the changes. The comparison stays in memory, per tab
 - Nothing stays hidden from the reader: the toolbar warns about HTML comments, invisible or text-direction characters and elements hidden by markup, and *Show* reveals them in place (*View › Show Hidden Content* for every document)
-- Light and dark themes, three reading widths, three fonts, zoom
+- Light and dark themes, four document styles (GitHub, Editor, Terminal, Book), three reading widths, three fonts, zoom
 - Print or export to PDF; export a self-contained HTML file (offline, no scripts) or copy it as HTML
 - Copy as formatted text (Edit menu, Cmd/Ctrl+Shift+C): the document, or just the selection, pastes into Google Docs, Gmail, Apple Mail, Word, Notion and Slack with headings, lists, links, tables and code intact; diagrams go as images and formulas as their LaTeX source
 - English and Portuguese, following your system or your choice in *Settings*

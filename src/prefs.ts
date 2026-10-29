@@ -36,6 +36,8 @@ export const PREF_KEYS = {
 
 /** Chaves de dados que ficam fora de "Restaurar padrões". */
 export const TABS_KEY = "leve.tabs";
+/** Pasta aberta no painel: `{"root":"...","expanded":[...]}` (`src/folder.ts`). */
+export const FOLDER_KEY = "leve.folder";
 const SCROLL_KEY = "leve.scroll";
 /** Dica da primeira abertura já mostrada. */
 export const TIP_KEY = "leve.tip";
@@ -104,4 +106,11 @@ export function savedAnchor(path: string): ScrollAnchor {
 export function savedTabs(): SavedTabs {
   if (!boolPref(PREF_KEYS.restoreTabs, true)) return { paths: [], active: 0 };
   return parseSavedTabs(readJson<unknown>(TABS_KEY, {}));
+}
+
+/** Raiz da pasta a reabrir (`leve.folder`), como as abas: só com "Reabrir abas ao iniciar". */
+export function savedFolderRoot(): string | null {
+  if (!boolPref(PREF_KEYS.restoreTabs, true)) return null;
+  const v = readJson<{ root?: unknown } | null>(FOLDER_KEY, null);
+  return typeof v?.root === "string" && v.root ? v.root : null;
 }

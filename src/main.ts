@@ -22,8 +22,9 @@ import { blockKeys, markChanges, stepChange, track, type Hunk, type Snapshot } f
 import type { ExportResult, ImageEmbed } from "./export";
 import { MD_EXT, collectWikilinkTargets, markWikilinks } from "./wikilinks";
 import { applyTooltips, detectPlatform, shortcutRows, tooltip } from "./shortcuts";
-import { SCROLL_KEY, addRecent, clearRecent, readRecent, removeRecent, splitPath } from "./recent";
-import { PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, readJson, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "./prefs";
+import { SCROLL_KEY, addRecent, clearRecent, folderEntry, isFolderEntry, readRecent, removeRecent, splitPath } from "./recent";
+import { FOLDER_KEY, PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, readJson, resetPrefs, savedAnchor, savedFolderRoot, savedTabs, setBoolPref } from "./prefs";
+import type { FolderPanel } from "./folder-ui";
 import { applyI18n, detectLang, lang, langPref, setLangPref, t, type Key, type LangPref } from "./i18n";
 import { checkForUpdates, maybeDailyCheck, updateSource, type UpdateUi } from "./updater";
 import { type Tab, canGoBack, canGoForward, commitDoc, cycleTarget, findTab, insertTab, removeTab, restoreSaved, serializeTabs, stepHistory, tabFactory } from "./tabs";
@@ -416,16 +417,18 @@ function renderRecent(): void {
   for (const p of recent) {
     const li = document.createElement("li");
     const { name, dir } = splitPath(p);
+    const isFolder = isFolderEntry(p);
     const open = document.createElement("button");
     open.type = "button";
     open.className = "recent-item";
     open.title = p;
-    open.innerHTML = `<strong></strong><span></span>`;
-    (open.firstElementChild as HTMLElement).textContent = name;
+    open.innerHTML = `<strong>${isFolder ? icon("folder", 14) : ""}</strong><span></span>`;
+    (open.firstElementChild as HTMLElement).append(name);
     (open.lastElementChild as HTMLElement).textContent = dir;
     open.addEventListener("click", () => {
       // Arquivo que sumiu: o clique tira da lista em vez de abrir e falhar.
       if (li.classList.contains("missing")) forgetRecent(p);
+      else if (isFolder) void openFolder(p.slice(0, -1));
       else void loadDoc(p, { target: "new" });
     });
     const rm = document.createElement("button");
@@ -699,6 +702,7 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
 
   commitDoc(tab, doc.path, doc.name, opts.push !== false);
   renderTabs();
+  folder?.setCurrent(doc.path);
   updateNavButtons();
   // O exemplo não é arquivo: fora dos Recentes e sem vigia.
   if (!sample) {
@@ -734,6 +738,49 @@ async function pickAndOpen(): Promise<void> {
   try {
     const picked = await invoke<string | null>("pick_markdown");
     if (picked) await loadDoc(picked, { target: "new" });
+  } catch (e) {
+    flash(String(e), true);
+  }
+}
+
+// ---------- pasta aberta (src/folder-ui.ts, carregado só quando uma pasta abre) ----------
+
+let folder: FolderPanel | null = null;
+
+/**
+ * Painel da pasta `root` (concedida pelo Rust em `pick_folder`) e a pasta nos Recentes. Na abertura
+ * (`atLaunch`), pasta que sumiu ou foi esquecida sai de `leve.folder` sem aviso.
+ */
+async function openFolder(root: string, atLaunch = false): Promise<void> {
+  try {
+    const { mountFolder } = await import("./folder-ui");
+    folder?.close();
+    folder = await mountFolder(root, {
+      isTauri: IS_TAURI,
+      open: (path, newTab) => loadDoc(path, { target: newTab ? "new" : undefined }),
+      flash,
+      currentPath: () => current?.path ?? null,
+      onClose: () => (folder = null),
+    });
+    addRecent(folderEntry(folder.root));
+    if (!current) renderRecent();
+  } catch (e) {
+    if (!atLaunch) flash(String(e), true);
+    else {
+      console.warn("pasta salva:", e);
+      localStorage.removeItem(FOLDER_KEY);
+    }
+  }
+}
+
+async function pickFolder(): Promise<void> {
+  if (!IS_TAURI) {
+    flash(t("doc.browserOpen"), true);
+    return;
+  }
+  try {
+    const picked = await invoke<string | null>("pick_folder");
+    if (picked) await openFolder(picked);
   } catch (e) {
     flash(String(e), true);
   }
@@ -998,6 +1045,10 @@ const actions: Record<string, () => void> = {
     if (active) closeTab(active);
   },
   "clear-recent": () => void askClearRecent(),
+  "open-folder": () => void pickFolder(),
+  "close-folder": () => folder?.close(),
+  // Sem pasta aberta, Exibir › Pasta pede uma.
+  "toggle-tree": () => (folder ? folder.toggle() : void pickFolder()),
   "next-tab": () => cycleTab(1),
   "prev-tab": () => cycleTab(-1),
   about: openAbout,
@@ -1201,7 +1252,10 @@ async function askForgetGrants(): Promise<void> {
   if (!ok) return;
   if (IS_TAURI) {
     try {
-      await invoke("forget_grants", { keep: tabs.map((t) => t.path).filter((p) => !isSample(p)) });
+      const keep = tabs.map((t) => t.path).filter((p) => !isSample(p));
+      // A pasta aberta no painel continua concedida, como as abas.
+      if (folder) keep.push(folder.root);
+      await invoke("forget_grants", { keep });
     } catch (e) {
       flash(String(e), true);
       return;
@@ -1487,6 +1541,8 @@ function wire(): void {
     if (active === sampleAuto) sampleAuto = null;
   });
   narrowMq.addEventListener("change", closeTocPeek);
+  // A árvore não tem vigia (docs/decisoes.md): relê a pasta quando a janela volta ao foco.
+  window.addEventListener("focus", () => void folder?.refresh());
 
   let raf = 0;
   els.main.addEventListener("scroll", () => {
@@ -1650,6 +1706,9 @@ async function main(): Promise<void> {
   }
   await openAtLaunch();
   if (!active) showEmpty();
+  // Pasta da sessão anterior volta como as abas; no navegador, `?folder=/docs`.
+  const folderRoot = IS_TAURI ? savedFolderRoot() : new URLSearchParams(location.search).get("folder");
+  if (folderRoot) await openFolder(folderRoot, true);
   await loadAppInfo();
   // No Flatpak a checagem diária não existe: some a linha dela nas Preferências.
   const source = updateSource(IS_TAURI, appInfo.flatpak);

@@ -40,9 +40,48 @@ function mermaidSemElk(): Plugin {
   };
 }
 
+/**
+ * Modo navegador (`?folder=/docs`): o servidor de dev lista os Markdown de uma pasta do projeto
+ * no formato de `list_folder` (Rust), para provar a árvore sem o app. Só em `serve`; no app quem
+ * lista é o Rust, com concessão e limites (docs/decisoes.md, "Abrir pasta").
+ */
+function leveFolder(): Plugin {
+  return {
+    name: "leve-folder",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use("/@leve/folder", async (req, res) => {
+        const { readdir } = await import("node:fs/promises");
+        const { join, relative, resolve, basename, sep } = await import("node:path");
+        const base = process.cwd();
+        const root = resolve(base, `.${new URL(req.url ?? "", "http://x").searchParams.get("root") ?? ""}`);
+        if (root !== base && !root.startsWith(base + sep)) {
+          res.statusCode = 403;
+          res.end();
+          return;
+        }
+        const files: string[] = [];
+        const queue = [root];
+        for (let dir = queue.shift(); dir; dir = queue.shift()) {
+          const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+          entries.sort((a, b) => (a.name < b.name ? -1 : 1));
+          for (const e of entries) {
+            if (e.name.startsWith(".") || e.name === "node_modules") continue;
+            if (e.isDirectory()) queue.push(join(dir, e.name));
+            else if (e.isFile() && /\.(md|markdown|mdown|mkd)$/i.test(e.name)) files.push(relative(root, join(dir, e.name)).split(sep).join("/"));
+          }
+        }
+        const url = `/${relative(base, root).split(sep).join("/")}`;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ root: url, name: basename(root), files, truncated: false }));
+      });
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig(() => ({
-  plugins: [katexWoff2Only(), mermaidSemElk()],
+  plugins: [katexWoff2Only(), mermaidSemElk(), leveFolder()],
 
   // O dev server pré-empacota o Mermaid (`optimizeDeps`) sem passar pelos plugins acima; o corte
   // do ELK precisa valer lá também, senão o modo navegador ainda carrega o elkjs.

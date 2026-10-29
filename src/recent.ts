@@ -41,8 +41,16 @@ export function clearRecent(): void {
   localStorage.removeItem(SCROLL_KEY);
 }
 
-/** Nome e pasta para exibir: `/a/b/c.md` → `c.md` e `/a/b/`. */
+/** Nome e pasta para exibir: `/a/b/c.md` → `c.md` e `/a/b/`; pasta (`/a/b/`) → `b` e `/a/`. */
 export function splitPath(p: string): { name: string; dir: string } {
-  const name = p.split(/[\\/]/).pop() ?? p;
-  return { name, dir: p.slice(0, p.length - name.length) };
+  const bare = p.replace(/[\\/]+$/, "");
+  const name = bare.split(/[\\/]/).pop() ?? bare;
+  return { name, dir: bare.slice(0, bare.length - name.length) };
 }
+
+/**
+ * Pasta aberta entra nos Recentes com o separador no fim (`/a/docs/`), na mesma lista e ordem dos
+ * arquivos; versão antiga do app tenta abrir como arquivo e o Rust recusa, sem estrago.
+ */
+export const folderEntry = (root: string): string => (/[\\/]$/.test(root) ? root : `${root}${root.includes("\\") ? "\\" : "/"}`);
+export const isFolderEntry = (p: string): boolean => /[\\/]$/.test(p);

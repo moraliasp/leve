@@ -258,6 +258,14 @@ jobs:
           TAG="$GITHUB_REF_NAME"
           PRE=""
           case "$TAG" in *-*) PRE="--prerelease" ;; esac
+          # Notas = seção da versão no CHANGELOG.md. Sem ela, a lista de PRs do GitHub, com aviso
+          # (a tag é imutável: falhar aqui obrigaria a refazer a release inteira).
+          if node scripts/release-notes.mjs "$TAG" "$RUNNER_TEMP/notes.md"; then
+            NOTES=(--notes-file "$RUNNER_TEMP/notes.md")
+          else
+            echo "::warning::CHANGELOG.md sem seção para $TAG; notas geradas pelo GitHub. Revise o rascunho."
+            NOTES=(--generate-notes)
+          fi
           gh release view "$TAG" >/dev/null 2>&1 \
-            || gh release create "$TAG" --draft $PRE --verify-tag --title "Leve $TAG" --generate-notes
+            || gh release create "$TAG" --draft $PRE --verify-tag --title "Leve $TAG" "${NOTES[@]}"
           gh release upload "$TAG" release/* --clobber

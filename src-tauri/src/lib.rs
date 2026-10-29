@@ -1231,11 +1231,13 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
     let open = item("open", s.open, Some("CmdOrCtrl+O"))?;
     let open_folder = item("open-folder", s.open_folder, Some("CmdOrCtrl+Shift+O"))?;
     let close_folder = item("close-folder", s.close_folder, None)?;
+    // Mod+P é o abrir rápido, como nos editores; Imprimir foi para Mod+Shift+P (docs/decisoes.md).
+    let quick_open = item("quick-open", s.quick_open, Some("CmdOrCtrl+P"))?;
     let reload = item("reload", s.reload, Some("CmdOrCtrl+R"))?;
     let reveal = item("reveal", s.reveal, Some("CmdOrCtrl+Shift+R"))?;
     let open_in_editor = item("open-in-editor", s.open_in_editor, Some("CmdOrCtrl+E"))?;
     let clear_recent = item("clear-recent", s.clear_recent, None)?;
-    let print = item("print", s.print, Some("CmdOrCtrl+P"))?;
+    let print = item("print", s.print, Some("CmdOrCtrl+Shift+P"))?;
     let export_html = item("export-html", s.export_html, None)?;
     let copy_html = item("copy-html", s.copy_html, None)?;
     let copy_rich = item("copy-rich", s.copy_rich, Some("CmdOrCtrl+Shift+C"))?;
@@ -1268,6 +1270,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
     let file = SubmenuBuilder::new(app, s.file)
         .item(&open)
         .item(&open_folder)
+        .item(&quick_open)
         .item(&close_folder)
         .separator()
         .item(&reload)

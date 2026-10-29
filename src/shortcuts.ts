@@ -53,11 +53,12 @@ export interface Shortcut {
 export const SHORTCUTS: Shortcut[] = [
   { id: "open", label: "shortcuts.open", keys: "Mod+O" },
   { id: "open-folder", label: "shortcuts.openFolder", keys: "Mod+Shift+O" },
+  { id: "quick-open", label: "shortcuts.quickOpen", keys: "Mod+P" },
   { id: "reload", label: "shortcuts.reload", keys: "Mod+R" },
   // Mesmo texto do item de menu nativo ("Mostrar no Finder / Explorer"), por plataforma.
   { id: "reveal", label: (p) => (p === "mac" ? "shortcuts.revealMac" : p === "windows" ? "shortcuts.revealPc" : "shortcuts.revealLinux"), keys: "Mod+Shift+R" },
   { id: "open-in-editor", label: "shortcuts.openInEditor", keys: "Mod+E" },
-  { id: "print", label: "shortcuts.print", keys: "Mod+P" },
+  { id: "print", label: "shortcuts.print", keys: "Mod+Shift+P" },
   { id: "copy-rich", label: "shortcuts.copyRich", keys: "Mod+Shift+C" },
   { id: "find", label: "shortcuts.find", keys: "Mod+F" },
   { id: "toggle-toc", label: "shortcuts.toc", keys: "Mod+B" },

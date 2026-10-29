@@ -509,10 +509,12 @@ async function readDoc(path: string): Promise<Doc> {
 
 /**
  * Resolve wikilinks na pasta do documento. No Tauri o backend tenta `nota.md` na pasta e,
- * quando houver pasta raiz aberta (fase 2), busca recursiva nela; no navegador só a pasta.
+ * com uma pasta aberta (Arquivo › Abrir pasta…), busca pelo nome nos Markdown dela; no navegador
+ * só a pasta do documento.
  */
 async function resolveWikilinks(dir: string, targets: string[]): Promise<Record<string, string | null>> {
-  if (IS_TAURI) return invoke<Record<string, string | null>>("resolve_wikilinks", { dir, root: null, targets });
+  // Com pasta aberta, o Rust busca também a partir da raiz dela (só se for pasta concedida).
+  if (IS_TAURI) return invoke<Record<string, string | null>>("resolve_wikilinks", { dir, root: folder?.root ?? null, targets });
   const out: Record<string, string | null> = {};
   await Promise.all(
     targets.map(async (t) => {
@@ -786,6 +788,22 @@ async function pickFolder(): Promise<void> {
   }
 }
 
+/**
+ * Abrir rápido (`Mod+P`, src/quick-open.ts sob demanda): Markdown da pasta aberta ou, sem pasta,
+ * os arquivos dos Recentes.
+ */
+async function quickOpen(): Promise<void> {
+  const { openQuick } = await import("./quick-open");
+  const f = folder;
+  if (f) openQuick({ items: f.list.files, placeholder: "quick.placeholder", open: (rel, newTab) => void f.openRel(rel, newTab) });
+  else
+    openQuick({
+      items: readRecent().filter((p) => !isFolderEntry(p)),
+      placeholder: "quick.placeholderRecent",
+      open: (p, newTab) => void loadDoc(p, { target: newTab ? "new" : undefined }),
+    });
+}
+
 function go(delta: number): void {
   if (!active) return;
   const path = stepHistory(active, delta);
@@ -1046,6 +1064,7 @@ const actions: Record<string, () => void> = {
   },
   "clear-recent": () => void askClearRecent(),
   "open-folder": () => void pickFolder(),
+  "quick-open": () => void quickOpen(),
   "close-folder": () => folder?.close(),
   // Sem pasta aberta, Exibir › Pasta pede uma.
   "toggle-tree": () => (folder ? folder.toggle() : void pickFolder()),
@@ -1668,6 +1687,7 @@ async function openAtLaunch(): Promise<void> {
 function wireBrowserShortcuts(): void {
   const keys: Record<string, string> = {
     f: "find",
+    p: "quick-open",
     b: "toggle-toc",
     r: "reload",
     "[": "back",

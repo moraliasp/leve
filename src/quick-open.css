@@ -1,0 +1,73 @@
+/* Abrir rápido (src/quick-open.ts): carregado com a caixa, fora do chunk de abertura. */
+
+.quick {
+  width: min(560px, calc(100vw - 32px));
+  margin-top: 12vh;
+  padding: 8px;
+}
+
+.quick input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bar-bg);
+  color: var(--bar-fg);
+  font: inherit;
+  font-size: 14px;
+}
+
+.quick input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.quick ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 50vh;
+  overflow: auto;
+}
+
+.quick li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.quick li[aria-selected="true"] {
+  background: var(--hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.quick-name {
+  color: var(--bar-fg);
+}
+
+.quick-dir {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--bar-muted);
+  font-size: 12px;
+}
+
+.quick mark {
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.quick-empty {
+  margin: 8px 10px 4px;
+  color: var(--bar-muted);
+}
+
+.quick-empty[hidden] {
+  display: none;
+}

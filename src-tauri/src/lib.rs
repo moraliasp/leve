@@ -13,7 +13,9 @@ use notify_debouncer_mini::{
 use serde::{Deserialize, Serialize};
 use tauri::{
     AppHandle, Emitter, Manager, State, Url, Wry,
-    menu::{CheckMenuItem, CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder},
+    menu::{
+        CheckMenuItem, CheckMenuItemBuilder, MenuBuilder, MenuItem, MenuItemBuilder, SubmenuBuilder,
+    },
 };
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
@@ -155,6 +157,8 @@ struct AppState {
     remote_check: Mutex<Option<CheckMenuItem<Wry>>>,
     /// Exibir › Mostrar conteúdo oculto (liga/desliga); a preferência vive no frontend.
     hidden_check: Mutex<Option<CheckMenuItem<Wry>>>,
+    /// Arquivo › Salvar…: habilitado só com o documento colado ativo (`sync_save_menu`).
+    save_item: Mutex<Option<MenuItem<Wry>>>,
     /// Arquivos que o app pode ler: só os que chegaram por diálogo, SO, drop ou link de um
     /// documento já aberto. O frontend não concede nada; só pede. Persistido em `grants_file`
     /// para os "Recentes" continuarem abrindo.
@@ -347,6 +351,14 @@ fn sync_hidden_menu(state: State<AppState>, on: bool) {
     }
 }
 
+/// Frontend informa se o documento ativo é o colado (só ele tem o que salvar).
+#[tauri::command]
+fn sync_save_menu(state: State<AppState>, on: bool) {
+    if let Some(item) = state.save_item.lock().unwrap().as_ref() {
+        let _ = item.set_enabled(on);
+    }
+}
+
 #[derive(Serialize)]
 struct Doc {
     path: String,
@@ -398,18 +410,20 @@ fn decode_utf8(bytes: &[u8]) -> Result<(String, Option<String>), String> {
     }
 }
 
+/// "Grande demais" para `n` bytes, com o limite (`MAX_DOC_BYTES`) em MB.
+fn too_big(n: u64) -> String {
+    fill(
+        i18n::s().too_big,
+        &[
+            ("size", &format!("{:.0}", n as f64 / 1_048_576.0)),
+            ("max", &(MAX_DOC_BYTES / 1_048_576).to_string()),
+        ],
+    )
+}
+
 /// Lê no máximo `MAX_DOC_BYTES` + 1 (o arquivo pode crescer entre o `metadata` e a leitura).
 fn read_text_file(p: &Path) -> Result<(String, Option<String>), String> {
     use std::io::Read;
-    let too_big = |n: u64| {
-        fill(
-            i18n::s().too_big,
-            &[
-                ("size", &format!("{:.0}", n as f64 / 1_048_576.0)),
-                ("max", &(MAX_DOC_BYTES / 1_048_576).to_string()),
-            ],
-        )
-    };
     let f = std::fs::File::open(p).map_err(|e| format!("{}: {e}", p.display()))?;
     let len = f.metadata().map(|m| m.len()).unwrap_or(0);
     if len > MAX_DOC_BYTES {
@@ -643,6 +657,63 @@ async fn pick_markdown(app: AppHandle) -> Result<Option<String>, String> {
     Ok(Some(c.to_string_lossy().into_owned()))
 }
 
+/// Texto do clipboard → documento colado. Vazio, só espaço e não-texto (o `arboard` devolve erro)
+/// viram `None`, o aviso curto do frontend; acima de `MAX_DOC_BYTES` é recusado como arquivo
+/// grande demais, o mesmo limite de `read_text_file`.
+fn clipboard_text(read: Result<String, String>) -> Result<Option<String>, String> {
+    let Ok(text) = read else {
+        return Ok(None);
+    };
+    if text.trim().is_empty() {
+        return Ok(None);
+    }
+    if text.len() as u64 > MAX_DOC_BYTES {
+        return Err(too_big(text.len() as u64));
+    }
+    Ok(Some(text))
+}
+
+/// Arquivo › Abrir da área de transferência: o texto é lido aqui (`arboard`, só texto), só quando
+/// o leitor pede. Não há plugin de clipboard: o frontend não tem comando nem permissão para ler.
+#[tauri::command]
+fn read_clipboard() -> Result<Option<String>, String> {
+    clipboard_text(
+        arboard::Clipboard::new()
+            .and_then(|mut c| c.get_text())
+            .map_err(|e| e.to_string()),
+    )
+}
+
+/// Salvar o documento colado: diálogo nativo de salvar aberto AQUI, sugerindo `Sem título.md` em
+/// Documentos, escrita só no caminho escolhido nele (`write_picked`, que não sobrescreve o que o
+/// diálogo não confirmou) e esse caminho concedido, como o de `pick_markdown`. O frontend manda
+/// só o texto, nunca o destino. `None` = cancelado.
+#[tauri::command]
+async fn save_markdown(app: AppHandle, text: String) -> Result<Option<String>, String> {
+    let mut dialog = app
+        .dialog()
+        .file()
+        .add_filter("Markdown", &["md"])
+        .set_file_name(i18n::s().untitled_file);
+    if let Ok(docs) = app.path().document_dir() {
+        dialog = dialog.set_directory(docs);
+    }
+    let saved = tauri::async_runtime::spawn_blocking(move || {
+        let Some(picked) = dialog.blocking_save_file() else {
+            return Ok(None);
+        };
+        let picked = picked.into_path().map_err(|e| e.to_string())?;
+        write_picked(picked, &text, MD_EXTS, i18n::s().save_exists).map(Some)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    let Some(path) = saved else {
+        return Ok(None);
+    };
+    let c = grant(&app.state::<AppState>(), &path)?;
+    Ok(Some(c.to_string_lossy().into_owned()))
+}
+
 /// Quais caminhos ainda existem como arquivo (Recentes: o que sumiu aparece apagado). Só
 /// responde sobre caminhos já concedidos (`granted`): fora da lista é `false`, sem tocar o
 /// disco, para o comando não virar sonda de existência. Assíncrono porque um recente em volume
@@ -794,12 +865,23 @@ fn export_source(grants: &[PathBuf], doc: &str) -> Result<(Option<PathBuf>, Stri
     Ok((src.parent().map(Path::to_path_buf), format!("{stem}.html")))
 }
 
-/// Grava o HTML no caminho escolhido no diálogo. Com `.html`/`.htm`, é o caminho que o diálogo
-/// confirmou (inclusive a sobrescrita): escrita normal. Com outra extensão (ou nenhuma), grava em
-/// `<caminho>.html`, que o diálogo NÃO confirmou: só se ainda não existir (`create_new`, que também
-/// recusa symlink nesse lugar); senão, recusa com mensagem e não toca no que está lá. Assim o
-/// `.md` de origem nunca é sobrescrito e nada é sobrescrito sem confirmação.
+/// Grava o HTML no caminho escolhido no diálogo (`write_picked` com `.html`/`.htm`): o `.md` de
+/// origem nunca é sobrescrito e nada é sobrescrito sem confirmação.
 fn write_export(picked: PathBuf, html: &str) -> Result<PathBuf, String> {
+    write_picked(picked, html, &["html", "htm"], i18n::s().export_exists)
+}
+
+/// Grava `text` no caminho escolhido num diálogo de salvar. Com uma das `exts`, é o caminho que o
+/// diálogo confirmou (inclusive a sobrescrita): escrita normal. Com outra extensão (ou nenhuma),
+/// grava em `<caminho>.<exts[0]>`, que o diálogo NÃO confirmou: só se ainda não existir
+/// (`create_new`, que também recusa symlink nesse lugar); senão, recusa com `exists` (`{path}`) e
+/// não toca no que está lá.
+fn write_picked(
+    picked: PathBuf,
+    text: &str,
+    exts: &[&str],
+    exists: &str,
+) -> Result<PathBuf, String> {
     use std::io::Write;
     let failed = |p: &Path, e: std::io::Error| {
         fill(
@@ -810,12 +892,13 @@ fn write_export(picked: PathBuf, html: &str) -> Result<PathBuf, String> {
             ],
         )
     };
-    if matches!(ext_lower(&picked).as_str(), "html" | "htm") {
-        std::fs::write(&picked, html).map_err(|e| failed(&picked, e))?;
+    if exts.contains(&ext_lower(&picked).as_str()) {
+        std::fs::write(&picked, text).map_err(|e| failed(&picked, e))?;
         return Ok(picked);
     }
     let mut s = picked.into_os_string();
-    s.push(".html");
+    s.push(".");
+    s.push(exts[0]);
     let target = PathBuf::from(s);
     let mut f = std::fs::OpenOptions::new()
         .write(true)
@@ -823,15 +906,12 @@ fn write_export(picked: PathBuf, html: &str) -> Result<PathBuf, String> {
         .open(&target)
         .map_err(|e| {
             if e.kind() == std::io::ErrorKind::AlreadyExists {
-                fill(
-                    i18n::s().export_exists,
-                    &[("path", &target.display().to_string())],
-                )
+                fill(exists, &[("path", &target.display().to_string())])
             } else {
                 failed(&target, e)
             }
         })?;
-    f.write_all(html.as_bytes())
+    f.write_all(text.as_bytes())
         .map_err(|e| failed(&target, e))?;
     Ok(target)
 }
@@ -978,14 +1058,11 @@ fn reveal_in_folder(app: AppHandle, state: State<AppState>, path: String) -> Res
         .map_err(|e| e.to_string())
 }
 
+/// Extensões Markdown aceitas; a primeira é a que Salvar acrescenta.
+const MD_EXTS: &[&str] = &["md", "markdown", "mdown", "mkd"];
+
 fn is_markdown(p: &Path) -> bool {
-    matches!(
-        p.extension()
-            .and_then(|e| e.to_str())
-            .map(|e| e.to_ascii_lowercase())
-            .as_deref(),
-        Some("md" | "markdown" | "mdown" | "mkd")
-    )
+    MD_EXTS.contains(&ext_lower(p).as_str())
 }
 
 /// Abertura vinda do SO (duplo-clique, argv, segunda instância): concede e avisa o frontend.
@@ -1125,6 +1202,17 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .build(app)
     };
     let open = item("open", s.open, Some("CmdOrCtrl+O"))?;
+    let open_clipboard = item(
+        "open-clipboard",
+        s.open_clipboard,
+        Some("CmdOrCtrl+Shift+V"),
+    )?;
+    // Desligado até o frontend dizer que o ativo é o documento colado (`sync_save_menu`).
+    let save = MenuItemBuilder::with_id("save", s.save)
+        .accelerator("CmdOrCtrl+S")
+        .enabled(false)
+        .build(app)?;
+    *app.state::<AppState>().save_item.lock().unwrap() = Some(save.clone());
     let reload = item("reload", s.reload, Some("CmdOrCtrl+R"))?;
     let reveal = item("reveal", s.reveal, Some("CmdOrCtrl+Shift+R"))?;
     let open_in_editor = item("open-in-editor", s.open_in_editor, Some("CmdOrCtrl+E"))?;
@@ -1160,6 +1248,8 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
 
     let file = SubmenuBuilder::new(app, s.file)
         .item(&open)
+        .item(&open_clipboard)
+        .item(&save)
         .separator()
         .item(&reload)
         .item(&reveal)
@@ -1335,12 +1425,15 @@ pub fn run() {
             launch_open,
             resolve_path,
             pick_markdown,
+            read_clipboard,
+            save_markdown,
             allow_assets,
             export_images,
             save_html,
             sync_view_menu,
             sync_remote_menu,
             sync_hidden_menu,
+            sync_save_menu,
             resolve_wikilinks,
             open_external,
             reveal_in_folder,
@@ -1672,6 +1765,53 @@ mod scope_tests {
             std::fs::read_to_string(t.join("b.md.html")).unwrap(),
             "existente"
         );
+        let _ = std::fs::remove_dir_all(&t);
+    }
+
+    #[test]
+    fn clipboard_vazio_ou_nao_texto_vira_none() {
+        assert_eq!(clipboard_text(Err("sem texto".into())), Ok(None));
+        assert_eq!(clipboard_text(Ok(String::new())), Ok(None));
+        assert_eq!(clipboard_text(Ok(" \n\t ".into())), Ok(None));
+        assert_eq!(
+            clipboard_text(Ok("# Oi\n".into())),
+            Ok(Some("# Oi\n".into()))
+        );
+        let big = "a".repeat(MAX_DOC_BYTES as usize + 1);
+        assert!(clipboard_text(Ok(big)).unwrap_err().contains("20"));
+    }
+
+    #[test]
+    fn salvar_md_grava_so_o_que_o_dialogo_confirmou() {
+        let t = temp("salvar-md");
+        let save = |p: PathBuf, text: &str| write_picked(p, text, MD_EXTS, "existe {path}");
+        // Nome com extensão Markdown veio do diálogo, que confirmou sobrescrever.
+        std::fs::write(t.join("a.md"), "velho").unwrap();
+        assert_eq!(save(t.join("a.md"), "novo").unwrap(), t.join("a.md"));
+        assert_eq!(std::fs::read_to_string(t.join("a.md")).unwrap(), "novo");
+        assert_eq!(
+            save(t.join("b.MARKDOWN"), "x").unwrap(),
+            t.join("b.MARKDOWN")
+        );
+        // Sem extensão (ou outra): ganha `.md` e é criado.
+        assert_eq!(save(t.join("nota"), "oi").unwrap(), t.join("nota.md"));
+        assert_eq!(std::fs::read_to_string(t.join("nota.md")).unwrap(), "oi");
+        assert_eq!(save(t.join("n.txt"), "oi").unwrap(), t.join("n.txt.md"));
+        // O `.md` acrescentado já existe: recusa e não toca.
+        std::fs::write(t.join("outra.md"), "intacto").unwrap();
+        let err = save(t.join("outra"), "x").unwrap_err();
+        assert_eq!(err, format!("existe {}", t.join("outra.md").display()));
+        assert_eq!(
+            std::fs::read_to_string(t.join("outra.md")).unwrap(),
+            "intacto"
+        );
+        #[cfg(unix)]
+        {
+            std::fs::write(t.join("alvo.txt"), "alvo").unwrap();
+            std::os::unix::fs::symlink(t.join("alvo.txt"), t.join("link.md")).unwrap();
+            assert!(save(t.join("link"), "x").is_err());
+            assert_eq!(std::fs::read_to_string(t.join("alvo.txt")).unwrap(), "alvo");
+        }
         let _ = std::fs::remove_dir_all(&t);
     }
 

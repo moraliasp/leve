@@ -17,7 +17,7 @@ export type LangPref = Lang | "auto";
 const pt = {
   "app.tagline": "Visualizador leve de Markdown.",
   "app.privacy":
-    "Lê Markdown local. Sem telemetria. A rede só é usada nos links que você abre, nas imagens remotas que você pedir e para procurar atualizações, quando você pede ou liga a checagem diária.",
+    "Lê Markdown local e a área de transferência só quando você pede. Sem telemetria. A rede só é usada nos links que você abre, nas imagens remotas que você pedir e para procurar atualizações, quando você pede ou liga a checagem diária.",
   "app.license": "Código sob a licença MIT. Nome, logo e marca Moralia não fazem parte da licença.",
   "app.credits": "Ícones de interface: Lucide (lucide.dev), licença ISC.",
 
@@ -53,6 +53,15 @@ const pt = {
   "empty.tipClose": "Entendi",
   "empty.tipCloseLabel": "Fechar dica",
   "empty.drop": "Solte para abrir",
+  "empty.clipLead": "Copiou Markdown de outro lugar?",
+  "empty.clip": "Abra da área de transferência",
+
+  "clip.untitled": "Sem título",
+  "clip.notSaved": "Não salvo",
+  "clip.empty": "A área de transferência não tem texto",
+  "clip.saved": "Salvo: {name}",
+  "clip.saveFirst": "Documento não salvo: salve-o antes (Arquivo › Salvar…)",
+  "clip.saveBrowser": "Salvar só no app",
 
   "tab.close": "Fechar aba",
   "tab.closeNamed": "Fechar {name}",
@@ -230,6 +239,8 @@ const pt = {
 
   "shortcuts.title": "Atalhos",
   "shortcuts.open": "Abrir…",
+  "shortcuts.openClipboard": "Abrir da área de transferência",
+  "shortcuts.save": "Salvar documento colado",
   "shortcuts.reload": "Recarregar",
   "shortcuts.revealMac": "Mostrar no Finder",
   "shortcuts.revealPc": "Mostrar no Explorer",
@@ -257,7 +268,7 @@ type Dict = Record<Key, string>;
 const en: Dict = {
   "app.tagline": "A lightweight Markdown viewer.",
   "app.privacy":
-    "Reads local Markdown. No telemetry. The network is used only for links you open, remote images you ask for, and update checks, when you ask or turn on the daily check.",
+    "Reads local Markdown, and the clipboard only when you ask. No telemetry. The network is used only for links you open, remote images you ask for, and update checks, when you ask or turn on the daily check.",
   "app.license": "Code under the MIT license. The Leve name, logo and the Moralia brand are not part of the license.",
   "app.credits": "Interface icons: Lucide (lucide.dev), ISC license.",
 
@@ -293,6 +304,15 @@ const en: Dict = {
   "empty.tipClose": "Got it",
   "empty.tipCloseLabel": "Dismiss tip",
   "empty.drop": "Drop to open",
+  "empty.clipLead": "Copied Markdown from somewhere else?",
+  "empty.clip": "Open it from the clipboard",
+
+  "clip.untitled": "Untitled",
+  "clip.notSaved": "Not saved",
+  "clip.empty": "The clipboard has no text",
+  "clip.saved": "Saved: {name}",
+  "clip.saveFirst": "Unsaved document: save it first (File › Save…)",
+  "clip.saveBrowser": "Saving works only in the app",
 
   "tab.close": "Close Tab",
   "tab.closeNamed": "Close {name}",
@@ -470,6 +490,8 @@ const en: Dict = {
 
   "shortcuts.title": "Keyboard Shortcuts",
   "shortcuts.open": "Open…",
+  "shortcuts.openClipboard": "Open from Clipboard",
+  "shortcuts.save": "Save Pasted Document",
   "shortcuts.reload": "Reload",
   "shortcuts.revealMac": "Show in Finder",
   "shortcuts.revealPc": "Show in Explorer",

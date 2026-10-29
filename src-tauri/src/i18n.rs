@@ -46,6 +46,11 @@ pub struct Strings {
     pub go: &'static str,
     pub help: &'static str,
     pub open: &'static str,
+    /// Arquivo › Abrir da área de transferência e Salvar… (só para o documento colado).
+    pub open_clipboard: &'static str,
+    pub save: &'static str,
+    /// Nome sugerido no diálogo de salvar o documento colado.
+    pub untitled_file: &'static str,
     pub reload: &'static str,
     pub reveal: &'static str,
     pub open_in_editor: &'static str,
@@ -112,6 +117,8 @@ pub struct Strings {
     pub write_failed: &'static str,
     /// `{path}`: Exportar HTML recusou criar `<nome>.html` por cima de um arquivo existente.
     pub export_exists: &'static str,
+    /// `{path}`: Salvar recusou criar `<nome>.md` por cima de um arquivo existente.
+    pub save_exists: &'static str,
     /// Abrir no editor: nome da opção "aplicativo padrão" e do editor de texto do sistema.
     pub editor_system: &'static str,
     pub editor_text: &'static str,
@@ -161,6 +168,9 @@ const PT: Strings = Strings {
     go: "Ir",
     help: "Ajuda",
     open: "Abrir…",
+    open_clipboard: "Abrir da área de transferência",
+    save: "Salvar…",
+    untitled_file: "Sem título.md",
     reload: "Recarregar",
     reveal: REVEAL_PT,
     open_in_editor: "Abrir no editor",
@@ -213,6 +223,7 @@ const PT: Strings = Strings {
     no_parent: "O arquivo não tem pasta.",
     write_failed: "Não foi possível gravar {path}: {error}",
     export_exists: "Já existe {path}. Para substituir, escolha um nome terminado em .html; ou escolha outro nome.",
+    save_exists: "Já existe {path}. Para substituir, escolha um nome terminado em .md; ou escolha outro nome.",
     editor_system: "Aplicativo padrão para .md",
     editor_text: if cfg!(target_os = "macos") {
         "TextEdit"
@@ -239,6 +250,9 @@ const EN: Strings = Strings {
     go: "Go",
     help: "Help",
     open: "Open…",
+    open_clipboard: "Open from Clipboard",
+    save: "Save…",
+    untitled_file: "Untitled.md",
     reload: "Reload",
     reveal: REVEAL_EN,
     open_in_editor: "Open in Editor",
@@ -291,6 +305,7 @@ const EN: Strings = Strings {
     no_parent: "The file has no parent folder.",
     write_failed: "Couldn't save {path}: {error}",
     export_exists: "{path} already exists. To replace it, choose a name ending in .html, or choose a different name.",
+    save_exists: "{path} already exists. To replace it, choose a name ending in .md, or choose a different name.",
     editor_system: "Default app for .md",
     editor_text: if cfg!(target_os = "macos") {
         "TextEdit"
@@ -344,6 +359,7 @@ mod tests {
                 s.absolute,
                 s.not_found,
                 s.export_exists,
+                s.save_exists,
                 s.cli_exists,
                 s.editor_not_markdown,
                 s.cli_verify_failed,
@@ -351,6 +367,7 @@ mod tests {
                 assert!(msg.contains("{path}"), "{msg}");
             }
             assert!(s.too_big.contains("{size}") && s.too_big.contains("{max}"));
+            assert!(s.untitled_file.ends_with(".md"));
             assert!(s.write_failed.contains("{path}") && s.write_failed.contains("{error}"));
             assert!(s.editor_not_found.contains("{name}") && s.editor_unknown.contains("{id}"));
             assert!(s.editor_failed.contains("{name}") && s.editor_failed.contains("{error}"));

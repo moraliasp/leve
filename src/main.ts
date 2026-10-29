@@ -21,13 +21,15 @@ import { renderMath } from "./math";
 import { blockKeys, markChanges, stepChange, track, type Hunk, type Snapshot } from "./changes";
 import type { ExportResult, ImageEmbed } from "./export";
 import { MD_EXT, collectWikilinkTargets, markWikilinks } from "./wikilinks";
-import { applyTooltips, detectPlatform, shortcutRows, tooltip } from "./shortcuts";
+import { applyTooltips, detectPlatform, keysFor, shortcutRows, tooltip } from "./shortcuts";
 import { SCROLL_KEY, addRecent, clearRecent, readRecent, removeRecent, splitPath } from "./recent";
 import { PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, readJson, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "./prefs";
 import { applyI18n, detectLang, lang, langPref, setLangPref, t, type Key, type LangPref } from "./i18n";
 import { checkForUpdates, maybeDailyCheck, updateSource, type UpdateUi } from "./updater";
 import { type Tab, canGoBack, canGoForward, commitDoc, cycleTarget, findTab, insertTab, removeTab, restoreSaved, serializeTabs, stepHistory, tabFactory } from "./tabs";
 import { SAMPLE_SESSION_KEY, SESSION_KEY, isSample, sampleOnLaunch, samplePath, sampleText, sampleToReplace } from "./sample";
+import { clipName, clipText, dropClip, inMemory, isClip } from "./clip";
+import type { ClipHost } from "./clip-ui";
 import { installErrorReporting } from "./errors";
 import { reportPainted } from "./bench";
 import { type EditorInfo, editablePath, editorOptions, editorPref, isEditorId, setEditorPref } from "./editor";
@@ -84,7 +86,8 @@ let tabs: Tab[] = [];
 let active: Tab | null = null;
 const makeTab = tabFactory();
 
-const baseName = (p: string): string => (isSample(p) ? t("sample.title") : (p.split(/[\\/]/).pop() ?? p));
+const baseName = (p: string): string =>
+  isSample(p) ? t("sample.title") : isClip(p) ? clipName(p, t("clip.untitled")) : (p.split(/[\\/]/).pop() ?? p);
 
 /**
  * Aba do exemplo (`sample:*`) aberta sozinha na abertura direta, enquanto o leitor não mexeu nela:
@@ -99,7 +102,7 @@ function newTab(path: string, afterActive = true): Tab {
   return t;
 }
 
-/** O exemplo não é arquivo: fica fora de `leve.tabs` (na recarga da página volta por `SAMPLE_SESSION_KEY`). */
+/** Exemplo e colado não são arquivo: ficam fora de `leve.tabs` (na recarga da página volta por `SAMPLE_SESSION_KEY`). */
 function saveTabs(): void {
   localStorage.setItem(TABS_KEY, serializeTabs(tabs, active));
 }
@@ -117,7 +120,7 @@ function renderTabs(): void {
     el.tabIndex = t === active ? 0 : -1;
     el.id = `tab-${t.id}`;
     el.setAttribute("aria-controls", "main");
-    el.title = isSample(t.path) ? t.name : t.path;
+    el.title = inMemory(t.path) ? t.name : t.path;
     const name = document.createElement("span");
     name.className = "tab-name";
     name.textContent = t.name;
@@ -155,7 +158,7 @@ function renderTabs(): void {
 function rememberActive(): void {
   if (!active || !current) return;
   active.anchor = captureAnchor(els.main, els.content);
-  if (!isSample(current.path)) saveScroll(current.path, active.anchor);
+  if (!inMemory(current.path)) saveScroll(current.path, active.anchor);
 }
 
 /** Troca para a aba e relê o arquivo (pode ter mudado enquanto ela estava em segundo plano). */
@@ -173,6 +176,8 @@ function closeTab(t: Tab): Promise<void> {
   const removed = removeTab(tabs, t, active);
   if (!removed) return Promise.resolve();
   if (t === sampleAuto) sampleAuto = null;
+  // O texto colado só existe nesta aba: fechar descarta.
+  for (const p of t.hist) if (isClip(p)) dropClip(p);
   if (t === active) rememberActive();
   if (t !== active) {
     renderTabs();
@@ -347,6 +352,7 @@ function updateNavButtons(): void {
 function showEmpty(): void {
   current = null;
   setDocNotice("", false);
+  syncSaveMenu(false);
   showChanges([]);
   els.remoteBanner.hidden = true;
   els.hiddenBanner.hidden = true;
@@ -497,6 +503,12 @@ interface LoadOpts {
 async function readDoc(path: string): Promise<Doc> {
   // Exemplo: texto do bundle, sem passar pelo Rust (nada a conceder nem a ler do disco).
   if (isSample(path)) return { path, dir: "", name: t("sample.title"), content: await sampleText(path) };
+  // Colado: texto em memória (src/clip.ts), também sem o Rust.
+  if (isClip(path)) {
+    const content = clipText(path);
+    if (content === undefined) throw new Error(t("doc.notFound", { path: baseName(path) }));
+    return { path, dir: "", name: baseName(path), content };
+  }
   if (IS_TAURI) return invoke<Doc>("read_markdown", { path });
   const res = await fetch(path);
   if (!res.ok) throw new Error(`${path}: ${res.status}`);
@@ -641,8 +653,9 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   }
   const tab = active;
   const prevAnchor = current ? captureAnchor(els.main, els.content) : null;
-  if (current && prevAnchor && current.path !== doc.path && !isSample(current.path)) saveScroll(current.path, prevAnchor);
-  const sample = isSample(doc.path);
+  if (current && prevAnchor && current.path !== doc.path && !inMemory(current.path)) saveScroll(current.path, prevAnchor);
+  // Exemplo e colado: sem pasta, Recentes, vigia nem ponto de leitura guardado.
+  const mem = inMemory(doc.path);
   current = doc;
 
   // Marcas de desempenho (DevTools › Performance, ou performance.getEntriesByType("measure")).
@@ -664,7 +677,8 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   }
   performance.measure("leve:dom", "leve:start");
   // Aviso de leitura e de modo grande ficam até o próximo documento; documento sem aviso limpa o anterior.
-  setDocNotice([doc.warning, large ? t("doc.large") : ""].filter(Boolean).join(" · "), Boolean(doc.warning));
+  setDocNotice([isClip(doc.path) ? t("clip.notSaved") : "", doc.warning, large ? t("doc.large") : ""].filter(Boolean).join(" · "), Boolean(doc.warning));
+  syncSaveMenu(isClip(doc.path));
   applyHidden(doc, comments);
   applyRemote(doc);
   await hydrateImages(els.content, doc.dir, IS_TAURI);
@@ -674,8 +688,8 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   showChanges(snap.hunks);
   performance.measure("leve:changes", "leve:start");
   const wikiTargets = collectWikilinkTargets(els.content);
-  // O exemplo não tem pasta: seus wikilinks para outras notas aparecem como não encontrados.
-  if (sample) markWikilinks(els.content, {});
+  // Exemplo e colado não têm pasta: seus wikilinks para outras notas aparecem como não encontrados.
+  if (mem) markWikilinks(els.content, {});
   else if (wikiTargets.length > 0) {
     const content = els.content;
     void resolveWikilinks(doc.dir, wikiTargets)
@@ -694,14 +708,14 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   els.empty.hidden = true;
   els.content.hidden = false;
   els.title.textContent = doc.name;
-  els.title.title = sample ? doc.name : doc.path;
+  els.title.title = mem ? doc.name : doc.path;
   setWindowTitle(`${doc.name} — Leve`);
 
   commitDoc(tab, doc.path, doc.name, opts.push !== false);
   renderTabs();
   updateNavButtons();
-  // O exemplo não é arquivo: fora dos Recentes e sem vigia.
-  if (!sample) {
+  // Exemplo e colado não são arquivo: fora dos Recentes e sem vigia.
+  if (!mem) {
     addRecent(doc.path);
     if (IS_TAURI) invoke("watch_file", { path: doc.path }).catch((e) => flash(String(e), true));
   }
@@ -709,7 +723,7 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   if (opts.hash) pending = { hash: opts.hash };
   else if (opts.anchor) pending = { anchor: opts.anchor };
   else if (opts.keepScroll && prevAnchor) pending = { anchor: prevAnchor };
-  else pending = { anchor: sample ? TOP : restoreScroll(doc.path) };
+  else pending = { anchor: mem ? TOP : restoreScroll(doc.path) };
   applyPending();
   performance.measure("leve:layout", "leve:start");
   reportPainted(doc.path);
@@ -738,6 +752,25 @@ async function pickAndOpen(): Promise<void> {
     flash(String(e), true);
   }
 }
+
+/** Arquivo › Salvar… só vale com o documento colado ativo; o item do menu acompanha. */
+function syncSaveMenu(on: boolean): void {
+  if (IS_TAURI) void invoke("sync_save_menu", { on });
+}
+
+/** Abrir da área de transferência e salvar o colado (src/clip-ui.ts, sob demanda). */
+const clipHost: ClipHost = {
+  tauri: IS_TAURI,
+  flash,
+  tabs: () => tabs,
+  active: () => active,
+  open: (p) => loadDoc(p, { target: "new" }),
+  reopen: (p) => loadDoc(p, { push: false, keepScroll: true }),
+  activate: activateTab,
+  close: closeTab,
+  renderTabs,
+};
+const clipUi = (f: "openClipboard" | "saveClip"): void => void import("./clip-ui").then((m) => m[f](clipHost));
 
 function go(delta: number): void {
   if (!active) return;
@@ -964,9 +997,11 @@ function reloadCurrent(): void {
 
 const actions: Record<string, () => void> = {
   open: () => void pickAndOpen(),
+  "open-clipboard": () => clipUi("openClipboard"),
+  save: () => clipUi("saveClip"),
   reload: reloadCurrent,
   reveal: () => {
-    if (current && !isSample(current.path)) void invoke("reveal_in_folder", { path: current.path });
+    if (current && !inMemory(current.path)) void invoke("reveal_in_folder", { path: current.path });
   },
   "open-in-editor": () => void openInEditor(),
   "install-cli": () => void installCli(),
@@ -1050,7 +1085,7 @@ async function openInEditor(): Promise<void> {
   }
   const path = editablePath(current.path);
   if (!path) {
-    flash(t("editor.sample"));
+    flash(isClip(current.path) ? t("clip.saveFirst") : t("editor.sample"));
     return;
   }
   if (!IS_TAURI) {
@@ -1201,7 +1236,7 @@ async function askForgetGrants(): Promise<void> {
   if (!ok) return;
   if (IS_TAURI) {
     try {
-      await invoke("forget_grants", { keep: tabs.map((t) => t.path).filter((p) => !isSample(p)) });
+      await invoke("forget_grants", { keep: tabs.map((t) => t.path).filter((p) => !inMemory(p)) });
     } catch (e) {
       flash(String(e), true);
       return;
@@ -1392,6 +1427,8 @@ function wire(): void {
   $("btn-theme").addEventListener("click", actions["cycle-theme"]);
   $("btn-open").addEventListener("click", actions.open);
   $("empty-open").addEventListener("click", actions.open);
+  $("empty-clip").addEventListener("click", actions["open-clipboard"]);
+  $("empty-clip-keys").textContent = keysFor("open-clipboard", PLATFORM);
   els.changes.addEventListener("click", () => goToChange(0));
   $("find-prev").addEventListener("click", () => finder.prev());
   $("find-next").addEventListener("click", () => finder.next());
@@ -1456,6 +1493,11 @@ function wire(): void {
       return;
     }
     if (!current) return;
+    // Colado não tem pasta: link relativo só depois de salvar.
+    if (isClip(current.path)) {
+      flash(t("clip.saveFirst"));
+      return;
+    }
     const [rel, hash] = href.split("#");
     let relDecoded = rel;
     try {
@@ -1618,6 +1660,8 @@ function wireBrowserShortcuts(): void {
     "]": "forward",
     "/": "shortcuts",
     ",": "preferences",
+    // Com Shift a tecla chega maiúscula; Mod+V sozinho continua sendo colar.
+    V: "open-clipboard",
   };
   window.addEventListener("keydown", (ev) => {
     if (!(ev.metaKey || ev.ctrlKey)) return;

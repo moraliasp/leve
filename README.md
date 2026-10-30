@@ -68,6 +68,7 @@ Updates are signed separately and verified by the app before installing: *Leve �
 - Syntax highlighting, Mermaid diagrams and KaTeX math, loaded only when a document needs them
 - Front matter as a table, `[[wikilinks]]`, relative links and images
 - Table of contents, find in document, tabs, back/forward
+- Markdown copied from an AI chat or a web page opens without saving a file first: *File › Open from Clipboard* (⌘⇧V / Ctrl+Shift+V) shows it as an unsaved "Untitled" document; *File › Save…* (⌘S / Ctrl+S) turns it into a `.md` file
 - After each reload, a mark in the margin shows what changed since the previous version; *View › Next Change* (⌘⇧↓ / Ctrl+Shift+↓) walks through the changes. The comparison stays in memory, per tab
   <br><img src="docs/img/screenshot-en-changes.png" width="640" alt="Leve after a reload: amber bars in the margin mark a rewritten paragraph and a new one, a small triangle marks where a block was deleted, and the toolbar reads “3 sections changed”">
 - Nothing stays hidden from the reader: the toolbar warns about HTML comments, invisible or text-direction characters and elements hidden by markup, and *Show* reveals them in place (*View › Show Hidden Content* for every document)
@@ -83,7 +84,7 @@ Updates are signed separately and verified by the app before installing: *Leve �
 
 ## Privacy
 
-No telemetry. Leve reads only files you open (dialog, double-click, drag and drop), files an open document links to with a relative path, and the Markdown files inside a folder you open (*File › Open Folder…*), never other file types from it. Remote images are blocked until you load them. The network is used only for links you open, remote images you ask for, and update checks.
+No telemetry. Leve reads only files you open (dialog, double-click, drag and drop), files an open document links to with a relative path, and the Markdown files inside a folder you open (*File › Open Folder…*), never other file types from it. It reads the clipboard only when you choose *Open from Clipboard*, and writes only files you pick in a save dialog. Remote images are blocked until you load them. The network is used only for links you open, remote images you ask for, and update checks.
 
 ## Size
 

@@ -7,7 +7,7 @@
  * As funções mexem na lista e na aba recebidas (como o código fazia em `main.ts`); devolvem só a
  * decisão que `main.ts` precisa para agir.
  */
-import { isSample } from "./sample";
+import { inMemory } from "./clip";
 import type { ScrollAnchor } from "./scroll";
 
 export interface Tab {
@@ -85,6 +85,22 @@ export function commitDoc(t: Tab, path: string, name: string, push: boolean): vo
   t.anchor = null;
 }
 
+/**
+ * O documento colado `from` foi salvo em `to`. Se outra aba já mostra `to` (salvou por cima de um
+ * arquivo aberto), devolve essa aba: ela é focada e a colada sai, para o arquivo não ficar em duas
+ * abas. Senão a própria aba passa a ser do arquivo, no caminho, no nome e no histórico.
+ */
+export function adoptSaved(tabs: readonly Tab[], tab: Tab, from: string, to: string, name: string): Tab | null {
+  const other = tabs.find((t) => t !== tab && t.path === to);
+  if (other) return other;
+  tab.hist = tab.hist.map((p) => (p === from ? to : p));
+  if (tab.path === from) {
+    tab.path = to;
+    tab.name = name;
+  }
+  return null;
+}
+
 // ---------- `leve.tabs` ----------
 
 export interface SavedTabs {
@@ -94,11 +110,11 @@ export interface SavedTabs {
 
 /**
  * O que vai para `leve.tabs`: `{"paths":[...],"active":n}`, só com abas de arquivo. O exemplo
- * (`sample:*`) não é arquivo e fica de fora; `active` é o índice da ativa entre as que ficaram
- * (-1 sem ativa ou com o exemplo ativo).
+ * (`sample:*`) e o documento colado (`clip:*`) não são arquivo e ficam de fora; `active` é o
+ * índice da ativa entre as que ficaram (-1 sem ativa ou com um deles ativo).
  */
 export function serializeTabs(tabs: readonly Tab[], active: Tab | null): string {
-  const files = tabs.filter((t) => !isSample(t.path));
+  const files = tabs.filter((t) => !inMemory(t.path));
   return JSON.stringify({ paths: files.map((t) => t.path), active: active ? files.indexOf(active) : -1 });
 }
 

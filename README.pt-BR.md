@@ -68,6 +68,7 @@ Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações t
 - Realce de código, diagramas Mermaid e fórmulas KaTeX, carregados só quando o documento usa
 - Frontmatter como tabela, `[[wikilinks]]`, links e imagens relativos
 - Sumário, busca no documento, abas, voltar/avançar
+- Markdown copiado de um chat de IA ou de uma página abre sem salvar arquivo antes: *Arquivo › Abrir da área de transferência* (⌘⇧V / Ctrl+Shift+V) mostra como documento "Sem título", não salvo; *Arquivo › Salvar…* (⌘S / Ctrl+S) transforma em arquivo `.md`
 - A cada recarga, uma marca na margem mostra o que mudou desde a versão anterior; *Exibir › Próxima mudança* (⌘⇧↓ / Ctrl+Shift+↓) percorre as mudanças. A comparação fica só na memória, por aba
   <br><img src="docs/img/screenshot-pt-BR-changes.png" width="640" alt="O Leve depois de uma recarga: barras âmbar na margem marcam um parágrafo reescrito e um novo, um pequeno triângulo marca onde um bloco foi removido, e a barra diz “3 trechos mudaram”">
 - Nada fica escondido do leitor: a barra avisa de comentários HTML, caracteres invisíveis ou de direção de texto e elementos ocultos pela marcação, e *Mostrar* revela no lugar (*Exibir › Mostrar conteúdo oculto* para todos os documentos)
@@ -83,7 +84,7 @@ Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações t
 
 ## Privacidade
 
-Sem telemetria. O Leve só lê arquivos que você abriu (diálogo, duplo-clique, arrastar), os que um documento aberto aponta por caminho relativo e os Markdown de uma pasta que você abrir (*Arquivo › Abrir pasta…*), nunca outros tipos de arquivo dela. Imagens remotas ficam bloqueadas até você pedir. A rede só é usada nos links que você abre, nas imagens remotas que você pedir e para procurar atualizações.
+Sem telemetria. O Leve só lê arquivos que você abriu (diálogo, duplo-clique, arrastar), os que um documento aberto aponta por caminho relativo e os Markdown de uma pasta que você abrir (*Arquivo › Abrir pasta…*), nunca outros tipos de arquivo dela. Lê a área de transferência só quando você escolhe *Abrir da área de transferência*, e só grava arquivos que você escolhe num diálogo de salvar. Imagens remotas ficam bloqueadas até você pedir. A rede só é usada nos links que você abre, nas imagens remotas que você pedir e para procurar atualizações.
 
 ## Tamanho
 

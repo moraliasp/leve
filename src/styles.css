@@ -689,7 +689,8 @@ body[data-font="mono"] #content {
   margin: 0 0 8px;
 }
 
-.empty code {
+.empty code,
+.empty kbd {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   padding: 1px 5px;
   border-radius: 4px;

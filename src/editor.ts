@@ -5,7 +5,7 @@
  * e o caminho que vai junto tem de estar concedido. Por quê: docs/decisoes.md, "Abrir no editor".
  */
 import { PREF_KEYS } from "./prefs";
-import { isSample } from "./sample";
+import { inMemory } from "./clip";
 
 export const EDITOR_IDS = ["system", "vscode", "cursor", "zed", "sublime", "text"] as const;
 export type EditorId = (typeof EDITOR_IDS)[number];
@@ -43,7 +43,7 @@ export function editorOptions(list: EditorInfo[], chosen: EditorId): { id: Edito
     .map((e) => ({ id: e.id, name: e.name, missing: !e.available }));
 }
 
-/** Documento ativo que pode ir para um editor: arquivo em disco, nunca o exemplo em memória. */
+/** Documento ativo que pode ir para um editor: arquivo em disco, nunca o exemplo nem o colado em memória. */
 export function editablePath(path: string | null | undefined): string | null {
-  return path && !isSample(path) ? path : null;
+  return path && !inMemory(path) ? path : null;
 }

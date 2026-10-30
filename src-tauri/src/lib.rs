@@ -1307,6 +1307,8 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .build(app)
     };
     let open = item("open", s.open, Some("CmdOrCtrl+O"))?;
+    let open_folder = item("open-folder", s.open_folder, Some("CmdOrCtrl+Shift+O"))?;
+    let close_folder = item("close-folder", s.close_folder, None)?;
     let open_clipboard = item(
         "open-clipboard",
         s.open_clipboard,
@@ -1328,6 +1330,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
     let copy_rich = item("copy-rich", s.copy_rich, Some("CmdOrCtrl+Shift+C"))?;
     let find = item("find", s.find, Some("CmdOrCtrl+F"))?;
     let toc = item("toggle-toc", s.toc, Some("CmdOrCtrl+B"))?;
+    let tree = item("toggle-tree", s.tree, Some("CmdOrCtrl+Shift+E"))?;
     let next_change = item("next-change", s.next_change, Some("CmdOrCtrl+Shift+Down"))?;
     let prev_change = item("prev-change", s.prev_change, Some("CmdOrCtrl+Shift+Up"))?;
     let clear_changes = item("clear-changes", s.clear_changes, None)?;
@@ -1353,6 +1356,8 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
 
     let file = SubmenuBuilder::new(app, s.file)
         .item(&open)
+        .item(&open_folder)
+        .item(&close_folder)
         .item(&open_clipboard)
         .item(&save)
         .separator()
@@ -1423,6 +1428,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .build()?;
 
     let view = SubmenuBuilder::new(app, s.view)
+        .item(&tree)
         .item(&toc)
         .item(&theme)
         .separator()

@@ -52,6 +52,7 @@ export interface Shortcut {
 
 export const SHORTCUTS: Shortcut[] = [
   { id: "open", label: "shortcuts.open", keys: "Mod+O" },
+  { id: "open-folder", label: "shortcuts.openFolder", keys: "Mod+Shift+O" },
   { id: "open-clipboard", label: "shortcuts.openClipboard", keys: "Mod+Shift+V" },
   { id: "save", label: "shortcuts.save", keys: "Mod+S" },
   { id: "reload", label: "shortcuts.reload", keys: "Mod+R" },
@@ -62,6 +63,7 @@ export const SHORTCUTS: Shortcut[] = [
   { id: "copy-rich", label: "shortcuts.copyRich", keys: "Mod+Shift+C" },
   { id: "find", label: "shortcuts.find", keys: "Mod+F" },
   { id: "toggle-toc", label: "shortcuts.toc", keys: "Mod+B" },
+  { id: "toggle-tree", label: "shortcuts.tree", keys: "Mod+Shift+E" },
   { id: "changes", label: "shortcuts.changes", keys: "Mod+Shift+Down  Mod+Shift+Up" },
   { id: "cycle-theme", label: "shortcuts.theme", keys: "Mod+Shift+L" },
   { id: "zoom", label: "shortcuts.zoom", keys: "Mod+=  Mod+-  Mod+0" },

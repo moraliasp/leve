@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { RECENT_KEY, RECENT_MAX, SCROLL_KEY, addRecent, clearRecent, readRecent, removeRecent, splitPath } from "../src/recent";
+import { RECENT_KEY, RECENT_MAX, SCROLL_KEY, addRecent, clearRecent, folderEntry, isFolderEntry, readRecent, removeRecent, splitPath } from "../src/recent";
 import { TABS_KEY } from "../src/prefs";
 
 describe("recentes", () => {
@@ -46,5 +46,17 @@ describe("recentes", () => {
     expect(splitPath("/a/b/c.md")).toEqual({ name: "c.md", dir: "/a/b/" });
     expect(splitPath("C:\\x\\y.md")).toEqual({ name: "y.md", dir: "C:\\x\\" });
     expect(splitPath("solto.md")).toEqual({ name: "solto.md", dir: "" });
+  });
+
+  it("pasta aberta: separador no fim marca a entrada, nome é o da pasta", () => {
+    expect(folderEntry("/a/docs")).toBe("/a/docs/");
+    expect(folderEntry("/a/docs/")).toBe("/a/docs/");
+    expect(folderEntry("C:\\x\\docs")).toBe("C:\\x\\docs\\");
+    expect(isFolderEntry("/a/docs/")).toBe(true);
+    expect(isFolderEntry("/a/docs/x.md")).toBe(false);
+    expect(splitPath("/a/docs/")).toEqual({ name: "docs", dir: "/a/" });
+    addRecent("/a/x.md");
+    addRecent(folderEntry("/a/docs"));
+    expect(readRecent()).toEqual(["/a/docs/", "/a/x.md"]);
   });
 });

@@ -26,6 +26,7 @@ import moon from "lucide-static/icons/moon.svg?raw";
 import minus from "lucide-static/icons/minus.svg?raw";
 import plus from "lucide-static/icons/plus.svg?raw";
 import keyboard from "lucide-static/icons/keyboard.svg?raw";
+import folder from "lucide-static/icons/folder.svg?raw";
 
 const RAW = {
   "panel-left": panelLeft,
@@ -51,6 +52,7 @@ const RAW = {
   minus,
   plus,
   keyboard,
+  folder,
 } as const;
 
 export type IconName = keyof typeof RAW;

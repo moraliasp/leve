@@ -1224,3 +1224,9 @@ button.text.danger {
     display: none;
   }
 }
+
+/* Pasta nos Recentes (src/recent.ts, `folderEntry`). */
+.recent-item strong svg {
+  margin-right: 4px;
+  vertical-align: -2px;
+}

@@ -23,6 +23,7 @@ use tauri_plugin_opener::OpenerExt;
 #[cfg(target_os = "macos")]
 mod cli;
 mod editor;
+mod folder;
 mod i18n;
 
 const REPO_URL: &str = "https://github.com/moraliasp/leve";
@@ -163,6 +164,9 @@ struct AppState {
     /// documento já aberto. O frontend não concede nada; só pede. Persistido em `grants_file`
     /// para os "Recentes" continuarem abrindo.
     granted: Mutex<Vec<PathBuf>>,
+    /// Pastas abertas por Arquivo › Abrir pasta… (`pick_folder`): dão direito a listar os Markdown
+    /// de dentro e a conceder um deles por vez (`open_in_folder`). Vão no mesmo `grants_file`.
+    folders: Mutex<Vec<PathBuf>>,
     grants_file: Mutex<Option<PathBuf>>,
     /// `install_cli`: liberação de uso único para o modo administrador, dada só quando uma chamada
     /// sem senha nesta execução devolveu `needs-admin` (o frontend então confirmou com o leitor).
@@ -171,17 +175,21 @@ struct AppState {
 }
 
 const GRANTS_MAX: usize = 200;
+const FOLDERS_MAX: usize = 20;
 
 fn deny(path: &Path) -> String {
     fill(i18n::s().denied, &[("path", &path.display().to_string())])
 }
 
-fn persist_grants(file: &Path, granted: &[PathBuf]) {
+/// `grants.json` é uma lista só de caminhos: arquivos e, depois, pastas. Quem lê separa pelo disco
+/// (`load_grant_lists`); versão antiga, que só aceita arquivo, descarta as pastas e segue lendo.
+fn persist_grants(file: &Path, granted: &[PathBuf], folders: &[PathBuf]) {
     if let Some(dir) = file.parent() {
         let _ = std::fs::create_dir_all(dir);
     }
     let list: Vec<String> = granted
         .iter()
+        .chain(folders)
         .map(|p| p.to_string_lossy().into_owned())
         .collect();
     if let Ok(json) = serde_json::to_string(&list) {
@@ -189,31 +197,54 @@ fn persist_grants(file: &Path, granted: &[PathBuf]) {
     }
 }
 
-fn load_grants(file: &Path) -> Vec<PathBuf> {
+/// (arquivos, pastas) de `grants.json`, só o que ainda existe como tal.
+fn load_grant_lists(file: &Path) -> (Vec<PathBuf>, Vec<PathBuf>) {
     let Ok(json) = std::fs::read_to_string(file) else {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     };
-    serde_json::from_str::<Vec<String>>(&json)
+    let all: Vec<PathBuf> = serde_json::from_str::<Vec<String>>(&json)
         .unwrap_or_default()
         .into_iter()
         .map(PathBuf::from)
-        .filter(|p| p.is_file())
-        .collect()
+        .collect();
+    let files = all.iter().filter(|p| p.is_file()).cloned().collect();
+    let folders = all.into_iter().filter(|p| p.is_dir()).collect();
+    (files, folders)
+}
+
+#[cfg(test)]
+fn load_grants(file: &Path) -> Vec<PathBuf> {
+    load_grant_lists(file).0
+}
+
+/// Gravação depois de mexer numa das listas; o chamador já segura `granted` ou `folders`.
+fn save_grants(state: &AppState, granted: &[PathBuf], folders: &[PathBuf]) {
+    if let Some(f) = state.grants_file.lock().unwrap().as_deref() {
+        persist_grants(f, granted, folders);
+    }
+}
+
+/// Junta `fresh` (desta execução, mais recente) ao que veio do disco e corta pelo teto.
+fn merge_capped(saved: Vec<PathBuf>, fresh: &mut Vec<PathBuf>, max: usize) -> Vec<PathBuf> {
+    let mut merged = saved;
+    merged.retain(|p| !fresh.contains(p));
+    merged.append(fresh);
+    if merged.len() > max {
+        let excess = merged.len() - max;
+        merged.drain(..excess);
+    }
+    merged
 }
 
 /// Liga a lista em memória ao arquivo em disco: carrega o que estava salvo, mantém o que já
 /// foi concedido nesta execução (por último, como mais recente) e grava o resultado.
 fn attach_grants_file(state: &AppState, file: PathBuf) {
     let mut g = state.granted.lock().unwrap();
-    let mut merged = load_grants(&file);
-    merged.retain(|p| !g.contains(p));
-    merged.extend(g.drain(..));
-    if merged.len() > GRANTS_MAX {
-        let excess = merged.len() - GRANTS_MAX;
-        merged.drain(..excess);
-    }
-    *g = merged;
-    persist_grants(&file, &g);
+    let mut d = state.folders.lock().unwrap();
+    let (files, folders) = load_grant_lists(&file);
+    *g = merge_capped(files, &mut g, GRANTS_MAX);
+    *d = merge_capped(folders, &mut d, FOLDERS_MAX);
+    persist_grants(&file, &g, &d);
     *state.grants_file.lock().unwrap() = Some(file);
 }
 
@@ -227,10 +258,37 @@ fn grant(state: &AppState, path: &Path) -> Result<PathBuf, String> {
         let excess = g.len() - GRANTS_MAX;
         g.drain(..excess);
     }
-    if let Some(f) = state.grants_file.lock().unwrap().as_deref() {
-        persist_grants(f, &g);
-    }
+    save_grants(state, &g, &state.folders.lock().unwrap());
     Ok(c)
+}
+
+/// Concede uma pasta inteira para listar (forma canônica, tem de ser pasta) e persiste. Só
+/// `pick_folder` chama: o diálogo no Rust é a única origem de concessão de pasta.
+fn grant_folder(state: &AppState, path: &Path) -> Result<PathBuf, String> {
+    let c = canonical(&path.to_string_lossy())?;
+    if !c.is_dir() {
+        return Err(deny(&c));
+    }
+    let g = state.granted.lock().unwrap();
+    let mut d = state.folders.lock().unwrap();
+    d.retain(|p| p != &c);
+    d.push(c.clone());
+    if d.len() > FOLDERS_MAX {
+        let excess = d.len() - FOLDERS_MAX;
+        d.drain(..excess);
+    }
+    save_grants(state, &g, &d);
+    Ok(c)
+}
+
+/// Raiz canônica se `root` for uma pasta concedida; erro legível se não.
+fn granted_folder(state: &AppState, root: &str) -> Result<PathBuf, String> {
+    let c = canonical(root)?;
+    if state.folders.lock().unwrap().contains(&c) {
+        Ok(c)
+    } else {
+        Err(deny(&c))
+    }
 }
 
 /// Caminho canônico se já concedido; erro legível se não.
@@ -264,17 +322,18 @@ fn dir_in_grants(grants: &[PathBuf], dir: &str) -> Result<PathBuf, String> {
 /// quantos caminhos saíram.
 fn forget_grants_except(state: &AppState, keep: &[PathBuf]) -> usize {
     let mut g = state.granted.lock().unwrap();
-    let before = g.len();
+    let mut d = state.folders.lock().unwrap();
+    let before = g.len() + d.len();
     g.retain(|p| keep.contains(p));
-    if let Some(f) = state.grants_file.lock().unwrap().as_deref() {
-        persist_grants(f, &g);
-    }
-    before - g.len()
+    d.retain(|p| keep.contains(p));
+    save_grants(state, &g, &d);
+    before - g.len() - d.len()
 }
 
-/// Preferências › "Esquecer arquivos autorizados": o frontend manda as abas abertas, que
-/// continuam concedidas (senão a aba ativa falharia na próxima leitura); todo o resto sai da
-/// lista em memória e de `grants.json`. Os Recentes do frontend são apagados por ele.
+/// Preferências › "Esquecer arquivos autorizados": o frontend manda as abas abertas e a pasta
+/// aberta no painel, que continuam concedidas (senão a aba ativa falharia na próxima leitura);
+/// todo o resto, arquivo ou pasta, sai da lista em memória e de `grants.json`. Os Recentes do
+/// frontend são apagados por ele.
 #[tauri::command]
 fn forget_grants(state: State<AppState>, keep: Vec<String>) -> usize {
     let keep: Vec<PathBuf> = keep.iter().filter_map(|p| canonical(p).ok()).collect();
@@ -714,19 +773,82 @@ async fn save_markdown(app: AppHandle, text: String) -> Result<Option<String>, S
     Ok(Some(c.to_string_lossy().into_owned()))
 }
 
-/// Quais caminhos ainda existem como arquivo (Recentes: o que sumiu aparece apagado). Só
-/// responde sobre caminhos já concedidos (`granted`): fora da lista é `false`, sem tocar o
-/// disco, para o comando não virar sonda de existência. Assíncrono porque um recente em volume
+/// Diálogo nativo de pasta (Arquivo › Abrir pasta…): a escolha vira concessão de pasta aqui.
+#[tauri::command]
+async fn pick_folder(app: AppHandle) -> Result<Option<String>, String> {
+    let dialog = app.dialog().file();
+    let picked = tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_folder())
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(p) = picked else {
+        return Ok(None);
+    };
+    let path = p.into_path().map_err(|e| e.to_string())?;
+    let c = grant_folder(&app.state::<AppState>(), &path)?;
+    Ok(Some(c.to_string_lossy().into_owned()))
+}
+
+#[derive(Serialize)]
+struct FolderList {
+    root: String,
+    name: String,
+    #[serde(flatten)]
+    listing: folder::Listing,
+}
+
+/// Markdown de uma pasta concedida, relativos à raiz (limites em `folder.rs`). Assíncrono: a
+/// listagem lê o disco e uma pasta grande ou em rede não pode travar a janela.
+#[tauri::command]
+async fn list_folder(state: State<'_, AppState>, root: String) -> Result<FolderList, String> {
+    let r = granted_folder(&state, &root)?;
+    let listing = tauri::async_runtime::spawn_blocking(move || folder::list_markdown(&r))
+        .await
+        .map_err(|e| e.to_string())??;
+    Ok(FolderList {
+        root: listing.root.to_string_lossy().into_owned(),
+        name: listing
+            .root
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| listing.root.to_string_lossy().into_owned()),
+        listing,
+    })
+}
+
+/// Concede e devolve (forma canônica) um Markdown de dentro de uma pasta concedida, pedido pela
+/// árvore ou pelo abrir rápido com caminho relativo à raiz.
+#[tauri::command]
+fn open_in_folder(state: State<AppState>, root: String, rel: String) -> Result<String, String> {
+    folder_rel(&state, &root, &rel).map(|c| c.to_string_lossy().into_owned())
+}
+
+/// Miolo de `open_in_folder`, testável sem `State`: relativo (`relative_only`), e o alvo canônico
+/// tem de ser Markdown dentro da raiz, mesmo por `..` ou link simbólico.
+fn folder_rel(state: &AppState, root: &str, rel: &str) -> Result<PathBuf, String> {
+    let r = granted_folder(state, root)?;
+    let p = r.join(relative_only(rel)?);
+    let c = folder::inside(&r, &p).ok_or_else(|| match canonical(&p.to_string_lossy()) {
+        Ok(c) => deny(&c),
+        Err(_) => fill(i18n::s().not_found, &[("path", rel)]),
+    })?;
+    grant(state, &c)
+}
+
+/// Quais caminhos ainda existem como arquivo (ou pasta, para pasta concedida) (Recentes: o que
+/// sumiu aparece apagado). Só responde sobre caminhos já concedidos (`granted`, `folders`): fora
+/// das listas é `false`, sem tocar o disco, para o comando não virar sonda de existência. Assíncrono porque um recente em volume
 /// de rede fora do ar demora no `stat`, e o estado vazio não pode travar a janela por isso.
 #[tauri::command]
 async fn paths_exist(state: State<'_, AppState>, paths: Vec<String>) -> Result<Vec<bool>, String> {
     let granted: Vec<PathBuf> = state.granted.lock().unwrap().clone();
+    let folders: Vec<PathBuf> = state.folders.lock().unwrap().clone();
     let out = tauri::async_runtime::spawn_blocking(move || {
         paths
             .iter()
             .map(|p| {
                 let path = Path::new(p);
-                granted.iter().any(|g| g == path) && path.is_file()
+                (granted.iter().any(|g| g == path) && path.is_file())
+                    || (folders.iter().any(|g| g == path) && path.is_dir())
             })
             .collect()
     })
@@ -942,7 +1064,8 @@ async fn save_html(app: AppHandle, doc: String, html: String) -> Result<Option<S
 }
 
 /// Resolve wikilinks `[[nota]]`: tenta `nota.md` na pasta do documento; se não achar e houver
-/// pasta raiz aberta, busca recursiva pelo nome do arquivo (como o Obsidian). `None` = não existe.
+/// pasta raiz aberta, busca pelo nome do arquivo nos Markdown dela (como o Obsidian). `None` = não
+/// existe.
 #[tauri::command]
 fn resolve_wikilinks(
     state: State<AppState>,
@@ -951,15 +1074,17 @@ fn resolve_wikilinks(
     targets: Vec<String>,
 ) -> Result<HashMap<String, Option<String>>, String> {
     let dir = granted_dir(&state, &dir)?;
-    // A raiz (fase 2) só vale se contiver a pasta do documento concedido.
+    // A raiz só vale se for pasta concedida (Abrir pasta) e contiver a pasta do documento; senão
+    // os wikilinks resolvem só na pasta do documento.
     let root = root
-        .map(|r| canonical(&r))
-        .transpose()?
+        .and_then(|r| granted_folder(&state, &r).ok())
         .filter(|r| dir.starts_with(r));
+    // Listada uma vez por chamada, e só se algum alvo não estiver na pasta do documento.
+    let mut listing = None;
     Ok(targets
         .into_iter()
         .map(|t| {
-            let found = resolve_wikilink(&dir, root.as_deref(), &t)
+            let found = resolve_wikilink(&dir, root.as_deref(), &mut listing, &t)
                 .and_then(|f| grant(&state, Path::new(&f)).ok())
                 .map(|c| c.to_string_lossy().into_owned());
             (t, found)
@@ -973,7 +1098,12 @@ fn canonical_string(p: &Path) -> Option<String> {
         .map(|c| c.to_string_lossy().into_owned())
 }
 
-fn resolve_wikilink(dir: &Path, root: Option<&Path>, target: &str) -> Option<String> {
+fn resolve_wikilink(
+    dir: &Path,
+    root: Option<&Path>,
+    listing: &mut Option<folder::Listing>,
+    target: &str,
+) -> Option<String> {
     relative_only(target).ok()?;
     let rel = if is_markdown(Path::new(target)) {
         target.to_string()
@@ -988,37 +1118,11 @@ fn resolve_wikilink(dir: &Path, root: Option<&Path>, target: &str) -> Option<Str
         .file_name()?
         .to_string_lossy()
         .to_lowercase();
-    find_file_by_name(root?, &name)
-}
-
-/// Procura um arquivo pelo nome (sem distinguir maiúsculas) em largura: toda pasta rasa
-/// antes de qualquer pasta funda, como o "caminho mais curto" do Obsidian. Ignora pastas
-/// ocultas e `node_modules`; para em 16 níveis.
-fn find_file_by_name(root: &Path, name: &str) -> Option<String> {
-    let mut queue = std::collections::VecDeque::from([(root.to_path_buf(), 0usize)]);
-    while let Some((dir, depth)) = queue.pop_front() {
-        let Ok(entries) = std::fs::read_dir(&dir) else {
-            continue;
-        };
-        let mut subdirs = Vec::new();
-        for entry in entries.flatten() {
-            let fname = entry.file_name().to_string_lossy().into_owned();
-            if fname.starts_with('.') || fname == "node_modules" {
-                continue;
-            }
-            let path = entry.path();
-            if path.is_dir() {
-                subdirs.push(path);
-            } else if fname.to_lowercase() == name {
-                return canonical_string(&path);
-            }
-        }
-        if depth < 16 {
-            subdirs.sort();
-            queue.extend(subdirs.into_iter().map(|d| (d, depth + 1)));
-        }
+    let root = root?;
+    if listing.is_none() {
+        *listing = folder::list_markdown(root).ok();
     }
-    None
+    folder::find_by_name(listing.as_ref()?, &name).map(|c| c.to_string_lossy().into_owned())
 }
 
 /// Extensões que podem ser abertas no app padrão a partir de um link do documento.
@@ -1427,6 +1531,9 @@ pub fn run() {
             pick_markdown,
             read_clipboard,
             save_markdown,
+            pick_folder,
+            list_folder,
+            open_in_folder,
             allow_assets,
             export_images,
             save_html,
@@ -1616,7 +1723,7 @@ mod scope_tests {
         std::fs::write(&antigo, "").unwrap();
         std::fs::write(&novo, "").unwrap();
         let file = t.join("grants.json");
-        persist_grants(&file, &[fs_canon(&antigo)]);
+        persist_grants(&file, &[fs_canon(&antigo)], &[]);
         let state = AppState::default();
         let c = grant(&state, &novo).unwrap();
         attach_grants_file(&state, file.clone());
@@ -1685,6 +1792,148 @@ mod scope_tests {
         grant(&state, &doc).unwrap();
         assert!(granted_dir(&state, &t.to_string_lossy()).is_ok());
         assert!(granted_dir(&state, &t.join("outra").to_string_lossy()).is_err());
+        let _ = std::fs::remove_dir_all(&t);
+    }
+
+    #[test]
+    fn pasta_concedida_lista_e_concede_so_markdown_de_dentro() {
+        let t = temp("abrir-pasta");
+        let raiz = t.join("docs");
+        std::fs::create_dir_all(raiz.join("sub")).unwrap();
+        for f in ["a.md", "sub/b.md", "img.png"] {
+            std::fs::write(raiz.join(f), "# x").unwrap();
+        }
+        std::fs::write(t.join("vizinho.md"), "# fora").unwrap();
+        let state = AppState::default();
+        let raiz_s = raiz.to_string_lossy().into_owned();
+        assert!(
+            folder_rel(&state, &raiz_s, "a.md").is_err(),
+            "pasta não concedida"
+        );
+        assert!(granted_folder(&state, &raiz_s).is_err());
+        let r = grant_folder(&state, &raiz).unwrap();
+        assert_eq!(r, fs_canon(&raiz));
+        assert!(
+            grant_folder(&state, &raiz.join("a.md")).is_err(),
+            "arquivo não vira pasta concedida"
+        );
+        let b = folder_rel(&state, &raiz_s, "sub/b.md").unwrap();
+        assert!(
+            granted(&state, &b.to_string_lossy()).is_ok(),
+            "concedido ao abrir"
+        );
+        assert!(
+            folder_rel(&state, &raiz_s, "sub/../a.md").is_ok(),
+            "`..` que fica dentro da raiz vale"
+        );
+        assert!(
+            folder_rel(&state, &raiz_s, "../vizinho.md")
+                .unwrap_err()
+                .starts_with("Caminho não autorizado"),
+            "`..` para fora da raiz"
+        );
+        assert!(granted(&state, &t.join("vizinho.md").to_string_lossy()).is_err());
+        assert!(
+            folder_rel(&state, &raiz_s, "img.png").is_err(),
+            "só Markdown"
+        );
+        assert!(
+            folder_rel(&state, &raiz_s, "/etc/hosts").is_err(),
+            "absoluto recusado (relative_only)"
+        );
+        assert!(folder_rel(&state, &raiz_s, "nada.md").is_err());
+        // Subpasta da raiz não é pasta concedida: listar e abrir pedem a raiz exata.
+        assert!(granted_folder(&state, &raiz.join("sub").to_string_lossy()).is_err());
+        let _ = std::fs::remove_dir_all(&t);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn pasta_concedida_recusa_link_simbolico_para_fora() {
+        let t = temp("pasta-symlink");
+        let raiz = t.join("raiz");
+        std::fs::create_dir_all(&raiz).unwrap();
+        std::fs::create_dir_all(t.join("fora")).unwrap();
+        std::fs::write(t.join("fora/segredo.md"), "# s").unwrap();
+        std::os::unix::fs::symlink(t.join("fora/segredo.md"), raiz.join("atalho.md")).unwrap();
+        std::os::unix::fs::symlink(t.join("fora"), raiz.join("pasta")).unwrap();
+        let state = AppState::default();
+        grant_folder(&state, &raiz).unwrap();
+        let raiz_s = raiz.to_string_lossy().into_owned();
+        for rel in ["atalho.md", "pasta/segredo.md"] {
+            assert!(
+                folder_rel(&state, &raiz_s, rel)
+                    .unwrap_err()
+                    .starts_with("Caminho não autorizado"),
+                "{rel} sai da raiz pelo link"
+            );
+        }
+        assert!(granted(&state, &t.join("fora/segredo.md").to_string_lossy()).is_err());
+        let _ = std::fs::remove_dir_all(&t);
+    }
+
+    #[test]
+    fn concessao_de_pasta_persiste_le_o_formato_antigo_e_esquecer_apaga() {
+        let t = temp("pasta-persiste");
+        let doc = t.join("doc.md");
+        std::fs::write(&doc, "# a").unwrap();
+        let (p1, p2) = (t.join("p1"), t.join("p2"));
+        std::fs::create_dir_all(&p1).unwrap();
+        std::fs::create_dir_all(&p2).unwrap();
+        let file = t.join("grants.json");
+        // Formato antigo (só arquivos) continua lido.
+        persist_grants(&file, &[fs_canon(&doc)], &[]);
+        let state = AppState::default();
+        attach_grants_file(&state, file.clone());
+        assert!(granted(&state, &doc.to_string_lossy()).is_ok());
+        grant_folder(&state, &p1).unwrap();
+        grant_folder(&state, &p2).unwrap();
+        let json: Vec<String> =
+            serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
+        assert_eq!(json.len(), 3, "uma lista só: arquivos e depois pastas");
+        assert_eq!(
+            load_grant_lists(&file),
+            (vec![fs_canon(&doc)], vec![fs_canon(&p1), fs_canon(&p2)]),
+            "quem lê separa arquivo de pasta pelo disco"
+        );
+        // Nova execução: a pasta volta concedida.
+        let state2 = AppState::default();
+        attach_grants_file(&state2, file.clone());
+        assert!(granted_folder(&state2, &p1.to_string_lossy()).is_ok());
+        assert!(
+            granted(&state2, &p1.to_string_lossy()).is_err(),
+            "pasta não vira arquivo concedido"
+        );
+        // Esquecer: fica só o que o frontend mandou manter (aba aberta, pasta aberta).
+        let saiu = forget_grants_except(&state2, &[fs_canon(&doc), fs_canon(&p2)]);
+        assert_eq!(saiu, 1);
+        assert!(granted_folder(&state2, &p1.to_string_lossy()).is_err());
+        assert!(granted_folder(&state2, &p2.to_string_lossy()).is_ok());
+        assert_eq!(
+            load_grant_lists(&file),
+            (vec![fs_canon(&doc)], vec![fs_canon(&p2)])
+        );
+        assert_eq!(forget_grants_except(&state2, &[]), 2);
+        assert_eq!(load_grant_lists(&file), (vec![], vec![]));
+        let _ = std::fs::remove_dir_all(&t);
+    }
+
+    #[test]
+    fn pastas_concedidas_tem_teto() {
+        let t = temp("pasta-teto");
+        let state = AppState::default();
+        for i in 0..(FOLDERS_MAX + 3) {
+            let p = t.join(format!("p{i}"));
+            std::fs::create_dir_all(&p).unwrap();
+            grant_folder(&state, &p).unwrap();
+        }
+        let d = state.folders.lock().unwrap();
+        assert_eq!(d.len(), FOLDERS_MAX);
+        assert_eq!(
+            d.last(),
+            Some(&fs_canon(&t.join(format!("p{}", FOLDERS_MAX + 2))))
+        );
+        drop(d);
         let _ = std::fs::remove_dir_all(&t);
     }
 
@@ -1911,7 +2160,7 @@ mod scope_tests {
         let md_sem_ext = md_abs.trim_end_matches(".md").to_string();
         assert!(asset_candidate(&sub, &png_abs).is_none(), "imagem absoluta");
         assert_eq!(
-            resolve_wikilink(&sub, None, &md_sem_ext),
+            resolve_wikilink(&sub, None, &mut None, &md_sem_ext),
             None,
             "wikilink absoluto"
         );
@@ -1921,7 +2170,7 @@ mod scope_tests {
 
         // E aceitam o relativo, inclusive subindo um nível.
         assert!(asset_candidate(&sub, "../a.png").is_some());
-        assert!(resolve_wikilink(&sub, None, "../irma").is_some());
+        assert!(resolve_wikilink(&sub, None, &mut None, "../irma").is_some());
         assert_eq!(
             resolve_rel(&state, &sub_s, "../irma.md").unwrap(),
             fs_canon(&t.join("irma.md"))
@@ -2196,15 +2445,21 @@ mod tests {
         t.file("sub/outra.markdown", "");
         let dir = &t.0;
         let canon = |p: &Path| fs::canonicalize(p).unwrap().to_string_lossy().into_owned();
-        assert_eq!(resolve_wikilink(dir, None, "nota"), Some(canon(&nota)));
-        assert_eq!(resolve_wikilink(dir, None, "nota.md"), Some(canon(&nota)));
         assert_eq!(
-            resolve_wikilink(dir, None, "sub/outra.markdown"),
+            resolve_wikilink(dir, None, &mut None, "nota"),
+            Some(canon(&nota))
+        );
+        assert_eq!(
+            resolve_wikilink(dir, None, &mut None, "nota.md"),
+            Some(canon(&nota))
+        );
+        assert_eq!(
+            resolve_wikilink(dir, None, &mut None, "sub/outra.markdown"),
             Some(canon(&dir.join("sub/outra.markdown")))
         );
-        assert_eq!(resolve_wikilink(dir, None, "inexistente"), None);
+        assert_eq!(resolve_wikilink(dir, None, &mut None, "inexistente"), None);
         assert_eq!(
-            resolve_wikilink(dir, None, "outra"),
+            resolve_wikilink(dir, None, &mut None, "outra"),
             None,
             "sem root não desce em subpastas"
         );
@@ -2220,26 +2475,14 @@ mod tests {
         t.file("vault/node_modules/Nota Alvo.md", "");
         let canon = |p: &Path| fs::canonicalize(p).unwrap().to_string_lossy().into_owned();
         assert_eq!(
-            resolve_wikilink(&dir, Some(&t.0.join("vault")), "nota alvo"),
+            resolve_wikilink(&dir, Some(&t.0.join("vault")), &mut None, "nota alvo"),
             Some(canon(&alvo)),
             "nome sem distinguir caixa, ignorando .obsidian e node_modules"
         );
         assert_eq!(
-            resolve_wikilink(&dir, Some(&t.0.join("vault")), "nada"),
+            resolve_wikilink(&dir, Some(&t.0.join("vault")), &mut None, "nada"),
             None
         );
-    }
-
-    #[test]
-    fn find_file_by_name_prefere_pasta_rasa() {
-        let t = TempDir::new("rasa");
-        let raso = t.file("b/x.md", "");
-        t.file("a/fundo/x.md", "");
-        let canon = fs::canonicalize(&raso)
-            .unwrap()
-            .to_string_lossy()
-            .into_owned();
-        assert_eq!(find_file_by_name(&t.0, "x.md"), Some(canon));
     }
 }
 

@@ -16,6 +16,6 @@
   </g>
   <text x="520" y="300" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" font-size="128" letter-spacing="-3" fill="#F3ECFA">Leve</text>
   <text x="524" y="370" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="400" font-size="38" fill="#F3ECFA" fill-opacity="0.92">A lightweight Markdown viewer</text>
-  <text x="524" y="418" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="400" font-size="38" fill="#F3ECFA" fill-opacity="0.92">for macOS and Windows.</text>
+  <text x="524" y="418" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="400" font-size="38" fill="#F3ECFA" fill-opacity="0.92">for macOS, Windows and Linux.</text>
   <text x="524" y="496" font-family="Menlo, monospace" font-weight="400" font-size="24" fill="#C9A6F2">github.com/moraliasp/leve</text>
 </svg>

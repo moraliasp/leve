@@ -14,7 +14,7 @@
 /** U+200B–U+200F, U+202A–U+202E, U+2060–U+2064, U+2066–U+2069, U+FEFF e o bloco de tags U+E0000–U+E007F. */
 const INVISIBLE_RE = /[​-‏‪-‮⁠-⁤⁦-⁩﻿\u{E0000}-\u{E007F}]/u;
 
-export function isInvisible(cp: number): boolean {
+function isInvisible(cp: number): boolean {
   return (
     (cp >= 0x200b && cp <= 0x200f) ||
     (cp >= 0x202a && cp <= 0x202e) ||
@@ -282,7 +282,7 @@ export function scanHidden(root: HTMLElement, sink: CommentSink | null, source?:
 // ---------- mostrar e desfazer ----------
 
 /** Classe de tudo que o app acrescenta ao revelar; o export tira. */
-export const MARK = "leve-mark";
+const MARK = "leve-mark";
 const REVEALED_ATTR = "data-leve-hidden";
 const ORIG_ATTR = "data-leve-orig";
 const TOUCHED = ["hidden", "style", "data-remote-style", "class", "type", "readonly"] as const;

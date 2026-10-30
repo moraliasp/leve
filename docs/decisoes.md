@@ -32,7 +32,7 @@ Decisão estrutural nova entra aqui, no fim, no mesmo formato.
 
 - **Contexto:** os dois somam vários MB e a maioria dos documentos não usa nenhum. Carregar na abertura atrasaria todo documento.
 - **Decisão:** o render só marca os blocos. `renderMermaid` e `renderMath` fazem `import()` dinâmico quando há o que desenhar, inclusive o CSS do KaTeX.
-- **Consequência:** biblioteca pesada nova segue o mesmo padrão. O aviso de tamanho de chunk no `pnpm build` é esperado. A rolagem é reaplicada depois que eles terminam (`applyPending`).
+- **Consequência:** biblioteca pesada nova segue o mesmo padrão. O aviso de tamanho de chunk no `pnpm build` é esperado. A rolagem é reaplicada depois que eles terminam (`applyPending`). O mesmo vale para o `yaml` (~100 kB, só front matter e dados de nó do Mermaid), com uma diferença: o render é síncrono, então quem renderiza espera `loadYaml()` antes (`src/yaml.ts`; `loadDoc` quando o documento começa com `---`, `renderMermaid` sempre) e o render lê o parser já carregado. Sem ele, front matter aparece como fonte e dado de nó sai inteiro, nunca passa sem leitura. Atualizador e `plugin-process` são importados só ao procurar atualização, e título da janela e arrastar arquivo falam direto com `invoke`/`listen`, sem os módulos `window`/`webview` da API.
 
 ## Mermaid sem o layout ELK
 
@@ -103,7 +103,7 @@ Decisão estrutural nova entra aqui, no fim, no mesmo formato.
 ## Orçamento de tamanho no CI
 
 - **Contexto:** o chunk de abertura já caiu de 500 para 346 KB tirando Mermaid, KaTeX e highlight.js do caminho crítico, mas nada impedia um import estático novo de trazer tudo de volta, nem uma dependência de inchar o `dist/` (o aviso de chunk do Vite é esperado e ninguém lê).
-- **Decisão:** `scripts/tamanho.mjs` (`pnpm size`, passo do CI logo depois do `pnpm build`) mede o `dist/`: total bruto e gzip, chunk de abertura (o `<script type="module">`, o CSS e os `modulepreload` linkados em `dist/index.html`) bruto e gzip, e o maior arquivo. Os limites ficam num objeto só, `ORCAMENTO`, com ~10% de folga sobre o medido em 2026-10-25, já sem o layout ELK do Mermaid (`dist` 4,44 MB / 1,44 MB gzip; abertura 391,3 kB / 124,2 kB gzip; maior arquivo um chunk do Mermaid, 629 kB). Estourar sai com erro dizendo o que e por quanto.
+- **Decisão:** `scripts/tamanho.mjs` (`pnpm size`, passo do CI logo depois do `pnpm build`) mede o `dist/`: total bruto e gzip, chunk de abertura (o `<script type="module">`, o CSS e os `modulepreload` linkados em `dist/index.html`) bruto e gzip, e o maior arquivo. Os limites ficam num objeto só, `ORCAMENTO`, com ~10% de folga sobre o medido em 2026-10-25, já sem o layout ELK do Mermaid (`dist` 4,44 MB / 1,44 MB gzip; abertura 391,3 kB / 124,2 kB gzip; maior arquivo um chunk do Mermaid, 629 kB). Estourar sai com erro dizendo o que e por quanto. Em 2026-10-29 o chunk de abertura estava em 429,9 de 431 kB; com `yaml`, atualizador e os módulos `window`/`webview` fora dele caiu para 310,0 kB (101,7 kB gzip, era 135,7), e `abertura`/`aberturaGzip` desceram para ~3% acima disso (319 kB / 104,5 kB). `total` e `maior` quase não mudaram e ficaram.
 - **Consequência:** subir um limite é decisão no mesmo PR, com o motivo. Quando o tamanho cai de verdade, o limite desce junto, senão a folga vira espaço para regressão: foi o que aconteceu quando o ELK saiu (−1,46 MB) e o orçamento, montado antes sobre 5,90 MB, foi refeito sobre o `dist` novo. O gzip é por arquivo, nível 9, só como referência de transferência: o app lê do disco.
 
 ## TLS do sistema no atualizador (macOS e Windows)

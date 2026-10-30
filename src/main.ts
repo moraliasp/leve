@@ -1,7 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
 import "./styles.css";
 import "./document.css";
 import { icon, installIcons } from "./icons";
@@ -10,7 +8,8 @@ import { DOC_STYLES, applyDocStyle, type DocStyle } from "./doc-style";
 import { hydrateImages, joinPath, markBrokenImage, render, renderErrorBlock, renderMermaid, slugify } from "./render";
 import { cancelHighlight, highlightAll, highlightLazily } from "./highlight";
 import { LARGE_TOC_MAX_LEVEL, isLargeDoc } from "./limits";
-import { applyRemotePolicy, remotePrefEnabled, setRemotePref } from "./remote-ui";
+import { hasFrontMatter, loadYaml } from "./yaml";
+import { applyRemotePolicy } from "./remote-ui";
 import { applyHiddenPolicy } from "./hidden-ui";
 import { type CommentSink, newCommentSink, stableCommentMarks } from "./hidden";
 import { buildToc, updateActive, type TocItem } from "./toc";
@@ -53,6 +52,15 @@ interface Doc {
 
 /** Fora do Tauri (vite no navegador) o app roda em modo leitura via `?file=/docs/x.md`. */
 const IS_TAURI = "__TAURI_INTERNALS__" in window;
+
+/**
+ * Rótulos desta janela e deste webview, de onde `getCurrentWindow`/`getCurrentWebview` os leem.
+ * Os módulos `window` e `webview` da API (~16 kB no chunk de abertura) só serviam ao título e ao
+ * arrastar arquivo, que falam direto com `invoke`/`listen`.
+ */
+type TauriMeta = { currentWindow: { label: string }; currentWebview: { label: string } };
+const tauriMeta = (): TauriMeta => (window as unknown as { __TAURI_INTERNALS__: { metadata: TauriMeta } }).__TAURI_INTERNALS__.metadata;
+
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
 
 const els = {
@@ -539,7 +547,7 @@ async function resolveWikilinks(dir: string, targets: string[]): Promise<Record<
 
 /** Documentos em que o leitor pediu para carregar tudo (só nesta execução). */
 const remoteAllowed = new Set<string>();
-let remoteAuto = remotePrefEnabled();
+let remoteAuto = boolPref(PREF_KEYS.remote, false);
 
 /** Imagem liberada depois do render: `hydrateImages` já passou, então o erro é vigiado aqui. */
 const watchRemote = (img: HTMLImageElement, url: string): void => {
@@ -586,7 +594,8 @@ function syncHiddenMenu(): void {
 
 function setWindowTitle(t: string): void {
   document.title = t;
-  if (IS_TAURI) void getCurrentWindow().setTitle(t);
+  // O que `Window.setTitle` manda (permissão `core:window:allow-set-title`).
+  if (IS_TAURI) void invoke("plugin:window|set_title", { label: tauriMeta().currentWindow.label, value: t });
 }
 
 // ---------- o que mudou desde a recarga anterior (src/changes.ts): só em memória, por aba ----------
@@ -637,6 +646,8 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
     flash(String(e), true);
     return false;
   }
+  // Front matter precisa do `yaml`, que vem sob demanda (src/yaml.ts); o render é síncrono.
+  if (hasFrontMatter(doc.content)) await loadYaml();
   if (opts.target === "new" || !active) {
     const open = findTab(tabs, doc.path);
     if (open) {
@@ -1018,7 +1029,7 @@ const actions: Record<string, () => void> = {
   // Preferência global (Exibir): liga/desliga e reaplica ao documento aberto, com o ponto de leitura.
   "remote-auto": () => {
     remoteAuto = !remoteAuto;
-    setRemotePref(remoteAuto);
+    setBoolPref(PREF_KEYS.remote, remoteAuto);
     // Desligar volta a bloquear tudo, inclusive o que foi liberado "neste documento".
     if (!remoteAuto) remoteAllowed.clear();
     syncRemoteMenu();
@@ -1548,20 +1559,27 @@ async function wireTauri(): Promise<void> {
       flash(t("doc.reloaded"));
     }
   });
-  await getCurrentWebview().onDragDropEvent((ev) => {
-    const t = ev.payload.type;
-    if (t === "enter" || t === "over") els.drop.classList.remove("hidden");
-    else if (t === "leave") els.drop.classList.add("hidden");
-    else if (t === "drop") {
-      els.drop.classList.add("hidden");
-      const p = ev.payload.paths.find((x) => MD_EXT.test(x));
-      const mds = ev.payload.paths.filter((x) => MD_EXT.test(x));
-      if (p) void (async () => {
-        for (const m of mds) await loadDoc(m, { target: "new" });
-      })();
-      else flash(tr("doc.onlyMarkdown"), true);
-    }
-  });
+  // Arrastar arquivo: os quatro eventos que `onDragDropEvent` escuta, no mesmo alvo (este webview).
+  // Quem concede o caminho é o Rust (`WindowEvent::DragDrop`); aqui só a tela e a abertura.
+  const target = { kind: "Webview", label: tauriMeta().currentWebview.label } as const;
+  const showDrop = (): void => els.drop.classList.remove("hidden");
+  await Promise.all([
+    listen("tauri://drag-enter", showDrop, { target }),
+    listen("tauri://drag-over", showDrop, { target }),
+    listen("tauri://drag-leave", () => els.drop.classList.add("hidden"), { target }),
+    listen<{ paths: string[] }>(
+      "tauri://drag-drop",
+      ({ payload }) => {
+        els.drop.classList.add("hidden");
+        const mds = payload.paths.filter((x) => MD_EXT.test(x));
+        if (mds.length) void (async () => {
+          for (const m of mds) await loadDoc(m, { target: "new" });
+        })();
+        else flash(tr("doc.onlyMarkdown"), true);
+      },
+      { target },
+    ),
+  ]);
 }
 
 /**

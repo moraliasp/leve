@@ -2,6 +2,7 @@ import { MD_EXT } from "./wikilinks";
 import { remoteHost } from "./remote";
 import { t } from "./i18n";
 import { stripHiddenMarks } from "./hidden";
+import { escapeHtml } from "./html";
 
 /**
  * Exportar HTML: o documento renderizado vira UM arquivo `.html` que abre em qualquer navegador,
@@ -56,7 +57,7 @@ export const EXPORT_TOKENS: Record<string, string> = {
 };
 
 /** Moldura da página exportada: a coluna de leitura do app, sem a interface em volta. */
-export const PAGE_CSS = `:root{${Object.entries(EXPORT_TOKENS)
+const PAGE_CSS = `:root{${Object.entries(EXPORT_TOKENS)
   .map(([k, v]) => `${k}:${v}`)
   .join(";")}}
 html{background:#fff;color-scheme:light}
@@ -77,14 +78,11 @@ const CSP = "default-src 'none'; img-src * data:; style-src 'unsafe-inline'; fon
 /** Atributos que só servem ao app (foco, filas de realce, fontes guardadas, caminhos locais). */
 const UI_ATTRS = ["tabindex", "data-change", "data-hl", "data-rendered", "data-src", "data-local-src", "data-path", "data-target", "data-hash", "data-tooltip", "data-shortcut"];
 
-const escapeHtml = (s: string): string =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
 /** Esquema explícito (`https:`, `mailto:`, `data:`…): não é caminho relativo. */
 const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
 /** Caminho relativo como o app o resolve (`hydrateImages`): decodificado se der. */
-export function relOf(src: string): string {
+function relOf(src: string): string {
   try {
     return decodeURIComponent(src);
   } catch {

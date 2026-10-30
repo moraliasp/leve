@@ -1,8 +1,12 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DICTS, detectLang, setLang, t } from "../src/i18n";
 import { render } from "../src/render";
 import { shortcutRows } from "../src/shortcuts";
 import { dailyCheckDue, DAY_MS } from "../src/updater";
+import { loadYaml } from "../src/yaml";
+
+// Front matter e dados de nó do Mermaid leem o `yaml`, que o app carrega sob demanda (src/yaml.ts).
+beforeAll(() => loadYaml());
 
 describe("i18n", () => {
   afterAll(() => setLang("pt-BR"));

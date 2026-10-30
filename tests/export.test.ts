@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { render } from "../src/render";
 import { decorateCodeBlocks } from "../src/code";
 import { makeTabbable } from "../src/a11y";
@@ -13,6 +13,10 @@ import {
   pageTitle,
   type ExportInput,
 } from "../src/export";
+import { loadYaml } from "../src/yaml";
+
+// Front matter e dados de nó do Mermaid leem o `yaml`, que o app carrega sob demanda (src/yaml.ts).
+beforeAll(() => loadYaml());
 
 /** `#content` como o app deixa: render, botões de copiar, tabindex, imagens locais marcadas. */
 function content(md: string): HTMLElement {

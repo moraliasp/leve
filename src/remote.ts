@@ -1,4 +1,4 @@
-import YAML from "yaml";
+import { loadedYaml } from "./yaml";
 
 /**
  * Conteúdo remoto bloqueado por padrão (privacidade): nada é buscado na rede só por abrir um
@@ -169,6 +169,9 @@ function shapeDataEnd(src: string, from: number): number {
   return -1;
 }
 function parseShapeData(inner: string): Record<string, unknown> | null {
+  // Sem o parser carregado (`renderMermaid` espera `loadYaml`), o bloco não é lido e sai inteiro.
+  const YAML = loadedYaml();
+  if (!YAML) return null;
   for (const text of [inner, `{${inner}}`]) {
     try {
       const v: unknown = YAML.parse(text);

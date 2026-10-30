@@ -1,4 +1,3 @@
-import { PREF_KEYS } from "./prefs";
 import { remoteHost, restoreRemote } from "./remote";
 import { t } from "./i18n";
 
@@ -6,18 +5,8 @@ import { t } from "./i18n";
  * Interface da política de conteúdo remoto (a política em si está em `remote.ts`, dentro do
  * sanitize). Cada imagem bloqueada vira um botão "Imagem remota bloqueada · carregar" que libera
  * só ela; o aviso no topo conta o que falta e oferece carregar tudo neste documento. Com a
- * preferência global ligada (Exibir › Carregar imagens remotas), nada é bloqueado.
+ * preferência global ligada (Exibir › Carregar imagens remotas, `PREF_KEYS.remote`), nada é bloqueado.
  */
-
-export const REMOTE_PREF_KEY = PREF_KEYS.remote;
-
-export function remotePrefEnabled(): boolean {
-  return localStorage.getItem(REMOTE_PREF_KEY) === "1";
-}
-
-export function setRemotePref(on: boolean): void {
-  localStorage.setItem(REMOTE_PREF_KEY, on ? "1" : "0");
-}
 
 export interface RemoteHooks {
   /** Chamado quando uma imagem volta a ter `src`: quem chama vigia o erro de carga. */
@@ -35,7 +24,7 @@ export function loadRemote(el: HTMLElement, hooks: RemoteHooks = {}): void {
 }
 
 /** Libera tudo que está bloqueado no contêiner. */
-export function allowRemote(container: HTMLElement, hooks: RemoteHooks = {}): void {
+function allowRemote(container: HTMLElement, hooks: RemoteHooks = {}): void {
   for (const el of container.querySelectorAll<HTMLElement>("[data-remote]")) loadRemote(el, hooks);
   container.querySelectorAll(".img-remote").forEach((p) => p.remove());
 }

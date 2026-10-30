@@ -4,7 +4,6 @@ import taskLists from "markdown-it-task-lists";
 import footnote from "markdown-it-footnote";
 import alerts from "./alerts";
 import frontMatter from "markdown-it-front-matter";
-import YAML from "yaml";
 import DOMPurify from "dompurify";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { scrubMermaidSource, stripRemote, stripRemoteTree } from "./remote";
@@ -12,6 +11,8 @@ import { math } from "./math";
 import { wikilinks } from "./wikilinks";
 import { t } from "./i18n";
 import { COMMENT_ATTR, type CommentSink, stripAppMarks } from "./hidden";
+import { loadYaml, loadedYaml } from "./yaml";
+import { escapeHtml } from "./html";
 
 /** Slug no estilo GitHub: minúsculas, sem pontuação, espaços viram hífen. */
 export function slugify(s: string): string {
@@ -21,9 +22,6 @@ export function slugify(s: string): string {
     .replace(/[^\p{L}\p{N}\s-]/gu, "")
     .replace(/\s+/g, "-");
 }
-
-const escapeHtml = (s: string): string =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 const md = new MarkdownIt({
   html: true,
@@ -62,16 +60,23 @@ function formatScalar(v: string | number | boolean | null | Date): string {
   return String(v);
 }
 
-function formatValue(v: unknown): string {
+function formatValue(v: unknown, stringify: (v: unknown) => string): string {
   if (isScalar(v)) return `<span class="fm-scalar">${escapeHtml(formatScalar(v))}</span>`;
   if (Array.isArray(v) && v.every(isScalar)) {
     return v.map((x) => `<span class="fm-tag">${escapeHtml(formatScalar(x))}</span>`).join(" ");
   }
-  return `<pre class="fm-nested">${escapeHtml(YAML.stringify(v).trimEnd())}</pre>`;
+  return `<pre class="fm-nested">${escapeHtml(stringify(v).trimEnd())}</pre>`;
 }
 
-/** Frontmatter YAML → bloco de metadados colapsável. YAML inválido vira bloco de código. */
+/**
+ * Frontmatter YAML → bloco de metadados colapsável. YAML inválido vira bloco de código, e também
+ * quando o parser não foi carregado antes (`loadYaml`, src/yaml.ts): a fonte aparece, nada some.
+ */
 function renderFrontMatter(fm: string): string {
+  const YAML = loadedYaml();
+  if (!YAML) {
+    return `<details class="frontmatter" open><summary>${escapeHtml(t("doc.metadata"))}</summary><pre>${escapeHtml(fm)}</pre></details>`;
+  }
   let data: unknown;
   try {
     data = YAML.parse(fm);
@@ -82,7 +87,7 @@ function renderFrontMatter(fm: string): string {
     return `<details class="frontmatter" open><summary>${escapeHtml(t("doc.metadata"))}</summary><pre>${escapeHtml(fm)}</pre></details>`;
   }
   const rows = Object.entries(data as Record<string, unknown>)
-    .map(([k, v]) => `<tr><th>${escapeHtml(k)}</th><td>${formatValue(v)}</td></tr>`)
+    .map(([k, v]) => `<tr><th>${escapeHtml(k)}</th><td>${formatValue(v, (x) => YAML.stringify(x))}</td></tr>`)
     .join("");
   return `<details class="frontmatter" open><summary>${escapeHtml(t("doc.metadata"))}</summary><table>${rows}</table></details>`;
 }
@@ -98,7 +103,7 @@ function renderFrontMatter(fm: string): string {
  */
 const CSS_COMMENT = /\/\*[\s\S]*?\*\//g;
 const FIXED = /(^|;)\s*position\s*:\s*fixed\b[^;]*/gi;
-export function stripFixed(el: Element): void {
+function stripFixed(el: Element): void {
   const style = el.getAttribute("style");
   if (!style) return;
   if (style.includes("\\") || /var\s*\(/i.test(style.replace(CSS_COMMENT, ""))) {
@@ -297,7 +302,8 @@ export type MermaidLike = {
 export async function renderMermaid(container: HTMLElement, dark: boolean, lib?: MermaidLike, opts: { htmlLabels?: boolean } = {}): Promise<void> {
   const nodes = Array.from(container.querySelectorAll<HTMLElement>("pre.mermaid"));
   if (nodes.length === 0) return;
-  const mermaid: MermaidLike = lib ?? (await import("mermaid")).default;
+  // `yaml` junto: `scrubMermaidSource` lê os dados de nó com ele (src/yaml.ts).
+  const [mermaid] = await Promise.all([lib ?? import("mermaid").then((m): MermaidLike => m.default), loadYaml()]);
   // `layout: "dagre"`: o Mermaid 12 usa elk como padrão, e dagre era o padrão até o 11. O elk nem
   // entra no bundle (plugin `mermaidSemElk` do `vite.config.ts`): diagrama que pede `layout: elk`
   // ou `flowchart-elk` cai para dagre dentro do próprio Mermaid.

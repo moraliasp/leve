@@ -1,4 +1,5 @@
 import type { MarkdownIt, StateBlock, StateInline } from "markdown-it";
+import { escapeHtml } from "./html";
 
 const DOLLAR = 0x24;
 const BACKSLASH = 0x5c;
@@ -74,9 +75,6 @@ function mathBlock(state: StateBlock, start: number, end: number, silent: boolea
   t.map = [start, next];
   return true;
 }
-
-const escapeHtml = (s: string): string =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /**
  * Plugin markdown-it: emite a fonte TeX em `.math` (inline ou bloco) sem depender do KaTeX;

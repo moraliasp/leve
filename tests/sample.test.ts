@@ -3,6 +3,11 @@ import pt from "../src/sample/pt-BR.md?raw";
 import en from "../src/sample/en.md?raw";
 import { render } from "../src/render";
 import { type LaunchFacts, isSample, sampleOnLaunch, samplePath, sampleText, sampleToReplace } from "../src/sample";
+import { loadYaml } from "../src/yaml";
+
+// O front matter do exemplo lê o `yaml`, que o app carrega sob demanda (src/yaml.ts). Antes do
+// `describe.each`, que renderiza na coleta.
+await loadYaml();
 
 const base: LaunchFacts = { fileArrived: false, restoredTabs: false, prefOn: true, reload: false, sampleWasOpen: false };
 

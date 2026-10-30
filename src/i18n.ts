@@ -493,7 +493,7 @@ const en: Dict = {
 
 export const DICTS: Record<Lang, Dict> = { "pt-BR": pt, en };
 
-export const LANG_KEY = PREF_KEYS.lang;
+const LANG_KEY = PREF_KEYS.lang;
 
 /** Idioma de uma lista de preferências do sistema: português (qualquer região) ou inglês. */
 export function detectLang(languages: readonly string[]): Lang {

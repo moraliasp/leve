@@ -4,6 +4,10 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Security
+
+- Updated the ZIP library behind the Windows updater (`zip` 9.1.3) to clear three published advisories. Leve opens an update package only after verifying its signature, and its Windows updates are not ZIP files.
+
 ## [0.5.0] - 2026-10-30
 
 ### Added

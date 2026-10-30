@@ -68,6 +68,7 @@ Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações t
 - Realce de código, diagramas Mermaid e fórmulas KaTeX, carregados só quando o documento usa
 - Frontmatter como tabela, `[[wikilinks]]`, links e imagens relativos
 - Sumário, busca no documento, abas, voltar/avançar
+- *Arquivo › Abrir pasta…* (⌘⇧O / Ctrl+Shift+O) mostra os Markdown de uma pasta em árvore, e *Arquivo › Abrir rápido…* (⌘P / Ctrl+P) acha um arquivo digitando parte do nome
 - Markdown copiado de um chat de IA ou de uma página abre sem salvar arquivo antes: *Arquivo › Abrir da área de transferência* (⌘⇧V / Ctrl+Shift+V) mostra como documento "Sem título", não salvo; *Arquivo › Salvar…* (⌘S / Ctrl+S) transforma em arquivo `.md`
 - A cada recarga, uma marca na margem mostra o que mudou desde a versão anterior; *Exibir › Próxima mudança* (⌘⇧↓ / Ctrl+Shift+↓) percorre as mudanças. A comparação fica só na memória, por aba
   <br><img src="docs/img/screenshot-pt-BR-changes.png" width="640" alt="O Leve depois de uma recarga: barras âmbar na margem marcam um parágrafo reescrito e um novo, um pequeno triângulo marca onde um bloco foi removido, e a barra diz “3 trechos mudaram”">

@@ -88,6 +88,18 @@
   </screenshots>
 
   <releases>
+    <release version="0.5.0" date="2026-10-30">
+      <url type="details">https://github.com/moraliasp/leve/releases/tag/v0.5.0</url>
+      <description>
+        <ul>
+          <li>Open a folder: tree of Markdown files beside the table of contents</li>
+          <li>Quick Open: find a file by typing part of its name</li>
+          <li>Four document styles: GitHub, Editor, Terminal and Book</li>
+          <li>Open Markdown from the clipboard without saving a file first</li>
+          <li>Print moved to Ctrl+Shift+P</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.0" date="2026-10-28">
       <url type="details">https://github.com/moraliasp/leve/releases/tag/v0.4.0</url>
       <description>

@@ -4,13 +4,25 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-30
+
 ### Added
 
+- *File › Open Folder…* (⌘⇧O / Ctrl+Shift+O) shows a folder's Markdown files in a tree beside the table of contents: folders first, natural order, full keyboard navigation. A click opens the file in the current tab; ⌘-click / Ctrl-click, or ⌘↩ / Ctrl+Enter, opens it in a new one. *View › Folder* (⌘⇧E / Ctrl+Shift+E) shows or hides the tree, *File › Close Folder* closes it, and the folder comes back with your tabs and joins Recent files. Leve reads only the Markdown files inside the folder you chose, never other file types, and doesn't follow links that lead outside it.
+- *File › Quick Open…* (⌘P / Ctrl+P) finds a file by typing part of its name, with approximate matching that ignores case and accents: across the open folder or, with no folder open, across Recent files.
+- `[[wikilinks]]` in a document also resolve across the open folder, not only next to the file.
+- Four document styles in *View › Style* and in Settings: GitHub (the default), Editor, Terminal and Book, each in light and dark. Exported HTML keeps the style, in its light theme.
 - *File › Open from Clipboard* (⌘⇧V / Ctrl+Shift+V) shows the copied text as an unsaved "Untitled" document in a new tab, without touching the disk, so Markdown from an AI chat or a web page no longer has to be saved before Leve can show it. The toolbar says "Not saved"; *File › Save…* (⌘S / Ctrl+S, enabled only for that document) saves it as `.md`, suggesting the Documents folder, and from then on it reloads on change and joins Recent files like any other document. Leve reads the clipboard only on that command. An empty clipboard, or one without text, shows a short notice.
 
 ### Changed
 
-- Less code loads when a window opens (310 kB instead of 430 kB): the YAML parser loads only for documents with front matter or Mermaid node data, and the updater only when checking for updates.
+- **Print moved to ⌘⇧P / Ctrl+Shift+P**, because ⌘P / Ctrl+P is now Quick Open. *File › Print / Export PDF…* stays where it was.
+- The font setting has a new option, *Style default*, which is now the default: each document style brings its own font. Switching style goes back to it, and choosing Sans, Serif or Mono afterwards overrides only the family and size.
+- Less code loads when a window opens (about 294 kB instead of 430 kB), even with the new features, which load only when used: the YAML parser loads only for documents with front matter or Mermaid node data, the updater only when checking for updates, and the GitHub stylesheets gave way to a smaller one built on tokens.
+
+### Fixed
+
+- Five syntax highlighting colors in the GitHub style that fell below 4.5:1 contrast on code blocks (four in light, one in dark) now use the colors from github.com.
 
 ## [0.4.0] - 2026-10-28
 
@@ -72,7 +84,8 @@ First public release.
 
 - Raw HTML is sanitized (DOMPurify); remote images and resources are blocked until requested; the window never navigates away from the app; documents can only reach files by relative path; file access is granted per file.
 
-[Unreleased]: https://github.com/moraliasp/leve/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/moraliasp/leve/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/moraliasp/leve/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/moraliasp/leve/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/moraliasp/leve/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/moraliasp/leve/releases/tag/v0.2.0

@@ -31,11 +31,13 @@ jobs:
             args: --target universal-apple-darwin
             bundle: src-tauri/target/universal-apple-darwin/release/bundle
             sign: false
+            notarize: true
           - platform: windows-latest
             targets: ""
             args: ""
             bundle: src-tauri/target/release/bundle
             sign: true
+            notarize: false
           # Linux no runner mais antigo ainda mantido: o binário exige a glibc de onde compilou
           # (22.04 = glibc 2.35), então compilar no 24.04 (2.39) deixaria de fora Debian 12,
           # Ubuntu 22.04 e derivados. AppImage, .deb e .rpm; ver docs/decisoes.md.
@@ -44,6 +46,7 @@ jobs:
             args: --bundles deb,rpm,appimage
             bundle: src-tauri/target/release/bundle
             sign: false
+            notarize: false
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 60
     env:
@@ -51,6 +54,9 @@ jobs:
       # environment ("esigner" ou "artifact-signing"). Sem ela, o build sai igual ao de hoje.
       SIGN_WINDOWS: ${{ matrix.sign && vars.WINDOWS_SIGN_PROVIDER != '' }}
       WINDOWS_SIGN_PROVIDER: ${{ vars.WINDOWS_SIGN_PROVIDER }}
+      # A assinatura macOS liga sozinha quando a variável APPLE_SIGNING_IDENTITY existe no
+      # environment. Sem ela, o build sai igual ao de hoje (ad-hoc, sem notarização).
+      SIGN_MACOS: ${{ matrix.notarize && vars.APPLE_SIGNING_IDENTITY != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -120,9 +126,18 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # APPLE_API_KEY_PATH é caminho de arquivo: o .p8 vai do secret para o disco do runner.
+      - name: Chave de notarização (macOS)
+        if: env.SIGN_MACOS == 'true'
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          KEY="$RUNNER_TEMP/AuthKey.p8"
+          (umask 077 && printf '%s' "$APPLE_API_KEY_P8" > "$KEY")
+          echo "APPLE_API_KEY_PATH=$KEY" >> "$GITHUB_ENV"
       - name: Build
-        # A CLI do Tauri lê as variáveis APPLE_* sozinha. Descomentar quando a conta
-        # Apple Developer estiver aprovada (ver docs/assinatura.md).
+        # A CLI do Tauri lê as variáveis APPLE_* sozinha e, com elas, assina e notariza o .app
+        # (ver docs/assinatura.md).
         # No Windows, com SIGN_WINDOWS, o --config liga o signCommand (scripts/sign-windows.ps1).
         # Os segredos ESIGNER_* só entram no ambiente do build Windows com o provedor esigner;
         # no macOS, no Linux e sem assinatura ficam vazios. TAURI_SIGNING_* assina os pacotes do
@@ -136,17 +151,31 @@ jobs:
           ESIGNER_PASSWORD: ${{ env.SIGN_WINDOWS == 'true' && env.WINDOWS_SIGN_PROVIDER == 'esigner' && secrets.ESIGNER_PASSWORD || '' }}
           ESIGNER_CREDENTIAL_ID: ${{ env.SIGN_WINDOWS == 'true' && env.WINDOWS_SIGN_PROVIDER == 'esigner' && secrets.ESIGNER_CREDENTIAL_ID || '' }}
           ESIGNER_TOTP_SECRET: ${{ env.SIGN_WINDOWS == 'true' && env.WINDOWS_SIGN_PROVIDER == 'esigner' && secrets.ESIGNER_TOTP_SECRET || '' }}
-          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          # APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          # APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          # APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
+          APPLE_CERTIFICATE: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ env.SIGN_MACOS == 'true' && vars.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_API_ISSUER: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_API_ISSUER || '' }}
+          APPLE_API_KEY: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_API_KEY || '' }}
         shell: bash
         run: |
           if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
             echo "::error::Falta o segredo TAURI_SIGNING_PRIVATE_KEY no environment release (chave do atualizador)."
             exit 1
+          fi
+          if [ "$SIGN_MACOS" = "true" ]; then
+            for NAME in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_API_ISSUER APPLE_API_KEY; do
+              if [ -z "${!NAME}" ]; then
+                echo "::error::Falta o segredo $NAME no environment release (assinatura macOS)."
+                exit 1
+              fi
+            done
+            if [ ! -s "$APPLE_API_KEY_PATH" ]; then
+              echo "::error::Falta o segredo APPLE_API_KEY_P8 no environment release (assinatura macOS)."
+              exit 1
+            fi
+          else
+            # O Tauri trata variável vazia como definida e tentaria importar um certificado vazio.
+            unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_API_ISSUER APPLE_API_KEY
           fi
           # Pacotes do atualizador (.app.tar.gz, .sig) só aqui: o build local não precisa da chave.
           read -ra ARGS <<< "$BUILD_ARGS"
@@ -157,6 +186,20 @@ jobs:
           else
             pnpm tauri build "${ARGS[@]}"
           fi
+      # O Tauri notariza e grampeia só o .app; o .dmg sai assinado e sem ticket.
+      - name: Notarizar o .dmg (macOS)
+        if: env.SIGN_MACOS == 'true'
+        env:
+          BUNDLE: ${{ matrix.bundle }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          for DMG in "$BUNDLE"/dmg/*.dmg; do
+            xcrun notarytool submit "$DMG" --key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER" --wait
+            xcrun stapler staple "$DMG"
+            xcrun stapler validate "$DMG"
+            spctl --assess --type open --context context:primary-signature --verbose "$DMG"
+          done
       # Nomes estáveis por versão e plataforma; o .app.tar.gz do macOS sai como "Leve.app.tar.gz".
       - name: Juntar pacotes
         shell: bash

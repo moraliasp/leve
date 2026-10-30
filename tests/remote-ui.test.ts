@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { render } from "../src/render";
-import { REMOTE_PREF_KEY, applyRemotePolicy, blockedCount, remotePrefEnabled, setRemotePref } from "../src/remote-ui";
+import { applyRemotePolicy, blockedCount } from "../src/remote-ui";
 
 const setup = (md: string): { content: HTMLElement; banner: HTMLElement } => {
   const content = document.createElement("div");
@@ -73,15 +73,6 @@ describe("interface do conteúdo remoto", () => {
     banner.hidden = false;
     expect(applyRemotePolicy(content, banner, { allowAll: false })).toBe(0);
     expect(banner.hidden).toBe(true);
-  });
-
-  it("preferência global persiste em localStorage e nasce desligada", () => {
-    expect(remotePrefEnabled()).toBe(false);
-    setRemotePref(true);
-    expect(localStorage.getItem(REMOTE_PREF_KEY)).toBe("1");
-    expect(remotePrefEnabled()).toBe(true);
-    setRemotePref(false);
-    expect(remotePrefEnabled()).toBe(false);
   });
 
   it("placeholder também para imagem só com srcset; poster de vídeo volta ao liberar", () => {

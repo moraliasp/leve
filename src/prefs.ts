@@ -12,7 +12,10 @@ import { type SavedTabs, parseSavedTabs } from "./tabs";
 export const PREF_KEYS = {
   theme: "leve.theme",
   width: "leve.width",
+  /** Fonte do documento: "auto" (a do estilo), "sans", "serif" ou "mono". */
   font: "leve.font",
+  /** Estilo do documento (`src/doc-style.ts`): "github", "editor", "terminal" ou "livro". */
+  style: "leve.style",
   zoom: "leve.zoom",
   toc: "leve.toc",
   remote: "leve.remote",

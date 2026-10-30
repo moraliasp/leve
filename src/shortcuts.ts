@@ -54,6 +54,8 @@ export const SHORTCUTS: Shortcut[] = [
   { id: "open", label: "shortcuts.open", keys: "Mod+O" },
   { id: "open-folder", label: "shortcuts.openFolder", keys: "Mod+Shift+O" },
   { id: "quick-open", label: "shortcuts.quickOpen", keys: "Mod+P" },
+  { id: "open-clipboard", label: "shortcuts.openClipboard", keys: "Mod+Shift+V" },
+  { id: "save", label: "shortcuts.save", keys: "Mod+S" },
   { id: "reload", label: "shortcuts.reload", keys: "Mod+R" },
   // Mesmo texto do item de menu nativo ("Mostrar no Finder / Explorer"), por plataforma.
   { id: "reveal", label: (p) => (p === "mac" ? "shortcuts.revealMac" : p === "windows" ? "shortcuts.revealPc" : "shortcuts.revealLinux"), keys: "Mod+Shift+R" },

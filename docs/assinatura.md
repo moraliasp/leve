@@ -6,11 +6,13 @@ Até a Moralia ter conta Apple Developer própria, o app sai sem assinatura. Qua
 
 1. Criar certificado **Developer ID Application** no portal e exportar `.p12`.
 2. Criar chave de API do App Store Connect (Issuer ID, Key ID, `.p8`) para o `notarytool`.
-3. Secrets no GitHub (repositório do Leve):
+3. Secrets no environment `release` do GitHub, não no repositório (é o environment que tem revisor e só aceita tag `v*`):
    - `APPLE_CERTIFICATE` (base64 do .p12), `APPLE_CERTIFICATE_PASSWORD`
    - `APPLE_SIGNING_IDENTITY` (ex.: `Developer ID Application: <razão social da Moralia> (TEAMID)`)
-   - `APPLE_API_ISSUER`, `APPLE_API_KEY`, `APPLE_API_KEY_PATH` (ou `APPLE_ID`/`APPLE_PASSWORD`/`APPLE_TEAM_ID`)
+   - `APPLE_API_ISSUER`, `APPLE_API_KEY` (o Key ID) e o conteúdo do `.p8` num secret próprio. `APPLE_API_KEY_PATH` é o caminho de um arquivo, não a chave: um passo antes do **Build** grava o `.p8` no disco do runner e exporta o caminho, e essa linha do bloco comentado deixa de ler de `secrets`.
+   - Ou `APPLE_ID`/`APPLE_PASSWORD`/`APPLE_TEAM_ID`, que não precisam de arquivo (senha de app, não a da conta).
 4. Descomentar o bloco `env` do passo **Build** em `.github/workflows/release.yml`; a CLI do Tauri assina e notariza sozinha a partir dessas variáveis.
+5. O Tauri notariza e grampeia só o `.app`; o `.dmg` sai assinado, sem ticket próprio. O Gatekeeper aceita o app de dentro, mas `xcrun stapler validate` no `.dmg` (critério da issue #37) falha até o `release.yml` ganhar, depois do **Build** e antes de **Juntar pacotes**, `xcrun notarytool submit <dmg> --wait` e `xcrun stapler staple <dmg>`.
 
 Sem assinatura, o Gatekeeper exige liberar o app em Ajustes → Privacidade e Segurança na primeira abertura.
 
@@ -238,11 +240,11 @@ e o `azure/login` mascara o client-id no log.
    Deployment branches and tags = só tags `v*`; secrets `ESIGNER_USERNAME`, `ESIGNER_PASSWORD`,
    `ESIGNER_CREDENTIAL_ID`, `ESIGNER_TOTP_SECRET`; variable `WINDOWS_SIGN_PROVIDER` = `esigner`.
 6. **Primeiro release assinado:** a tag manda na versão e o workflow confere (`docs/decisoes.md`, "Versão e
-   tag"): `pnpm version:set 0.1.2`, commit, merge em `main`, depois `git tag v0.1.2 && git push --tags`;
+   tag"): `pnpm version:set X.Y.Z`, commit, merge em `main`, depois `git tag vX.Y.Z && git push --tags`;
    aprovar o environment quando o run pedir e esperar o rascunho. No log do job Windows: "Ferramentas de assinatura" verde e, no passo "Build",
    `Signing ... with a custom signing command` três vezes com "Assinado:" e "Assinante: CN=<razão social da Moralia>".
 7. **Validar o instalador** numa máquina Windows:
-   - `signtool verify /pa /v Leve_0.1.2_x64-setup.exe` e o mesmo no `.msi`: "Successfully verified",
+   - `signtool verify /pa /v Leve_X.Y.Z_x64-setup.exe` e o mesmo no `.msi`: "Successfully verified",
      cadeia até a raiz do SSL.com, carimbo de tempo presente. Sem SDK: `Get-AuthenticodeSignature` no
      PowerShell, status `Valid`.
    - Propriedades do arquivo › Assinaturas digitais: a razão social da Moralia.

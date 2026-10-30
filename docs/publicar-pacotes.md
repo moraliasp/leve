@@ -132,7 +132,7 @@ Por que assim: "Flatpak a partir do fonte" em [`decisoes.md`](decisoes.md). O bu
 
 ### Antes
 
-- Uma release estável com o metainfo e o atualizador desligado no Flatpak (a primeira depois da 0.3.0). O manifesto do Flathub aponta para a tag dela e o commit (`type: git`, `tag` + `commit`).
+- Uma release estável com o metainfo e o atualizador desligado no Flatpak (desde a 0.4.0). O manifesto do Flathub aponta para a tag dela e o commit (`type: git`, `tag` + `commit`).
 - O job `flatpak` verde na tag: `gh workflow run ci.yml --ref vX.Y.Z -f pacote=flatpak`.
 - Ler [Submission](https://docs.flathub.org/docs/for-app-authors/submission) e o template do PR do Flathub.
 

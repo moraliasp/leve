@@ -1,0 +1,116 @@
+/*
+ * Estilo Livro: serifada, letra maior e entrelinha aberta, papel sépia no claro e marrom quente
+ * no escuro, títulos sem fio embaixo, realce em cores de tinta. Tokens e regras: src/doc-style.ts.
+ */
+:root[data-style="livro"] {
+  --md-font: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+  --md-font-size: 18px;
+  --md-line-height: 1.7;
+  --md-fg: #3b2f25;
+  --md-bg: #f6f0e3;
+  --md-link: #8a3a0e;
+  --md-border-muted: #dfd3bd;
+  --md-border: #d3c4a8;
+  --md-mark-bg: #f0d98a;
+  --md-muted: #6b5b4b;
+  --md-bg-muted: #ede4d2;
+  --md-danger: #a1271d;
+  --md-code-bg: #5a3e1e17;
+  --md-focus: #8a3a0e;
+  --alert-note: #2a5f8f;
+  --alert-tip: #3d6b24;
+  --alert-important: #6b4c9a;
+  --alert-warning: #7d5300;
+  --alert-caution: #a1271d;
+  --hl-fg: #3b2f25;
+  --hl-bg: #ede4d2;
+  --hl-keyword: #96281b;
+  --hl-title: #5f4391;
+  --hl-constant: #7a4f00;
+  --hl-string: #3a6322;
+  --hl-variable: #94420a;
+  --hl-comment: #6e604f;
+  --hl-tag: #2b6356;
+  --hl-subst: #3b2f25;
+  --hl-section: #7a4f00;
+  --hl-bullet: #7a4f00;
+  --hl-emphasis: #3b2f25;
+  --hl-strong: #3b2f25;
+  --hl-addition: #3a6322;
+  --hl-addition-bg: #e2e8cc;
+  --hl-deletion: #96281b;
+  --hl-deletion-bg: #f1d9cf;
+}
+
+:root[data-style="livro"][data-theme="dark"] {
+  --md-fg: #e8dfd0;
+  --md-bg: #1e1a16;
+  --md-link: #e6a66e;
+  --md-border-muted: #352e27;
+  --md-border: #4a4036;
+  --md-mark-bg: #a0782340;
+  --md-muted: #ab9f8d;
+  --md-bg-muted: #28231d;
+  --md-danger: #f08a7a;
+  --md-code-bg: #ffe6c21a;
+  --md-focus: #e6a66e;
+  --alert-note: #8cb8e6;
+  --alert-tip: #a8c98a;
+  --alert-important: #c4a6e6;
+  --alert-warning: #e0b866;
+  --alert-caution: #f08a7a;
+  --hl-fg: #e8dfd0;
+  --hl-bg: #28231d;
+  --hl-keyword: #f0907a;
+  --hl-title: #c9a6e8;
+  --hl-constant: #e6c27a;
+  --hl-string: #b5cf8a;
+  --hl-variable: #f0b37a;
+  --hl-comment: #a39784;
+  --hl-tag: #8fcfbf;
+  --hl-subst: #e8dfd0;
+  --hl-section: #e6c27a;
+  --hl-bullet: #e6c27a;
+  --hl-emphasis: #e8dfd0;
+  --hl-strong: #e8dfd0;
+  --hl-addition: #b5cf8a;
+  --hl-addition-bg: #2c3320;
+  --hl-deletion: #f0907a;
+  --hl-deletion-bg: #3d2420;
+}
+
+/* Front matter, erro de render, imagem que falhou e botão de copiar usam as cores da interface
+   (document.css); dentro do documento elas passam a ser as do estilo. */
+:root[data-style="livro"] .markdown-body {
+  --bar-bg: var(--md-bg-muted);
+  --bar-fg: var(--md-fg);
+  --bar-muted: var(--md-muted);
+  --border: var(--md-border);
+  --error: var(--md-danger);
+}
+
+:root[data-style="livro"] .markdown-body :is(h1, h2) {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+:root[data-style="livro"] .markdown-body :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: 1.6em;
+  margin-bottom: 0.6em;
+  line-height: 1.3;
+}
+
+:root[data-style="livro"] .markdown-body h1 {
+  font-size: 2.1em;
+  letter-spacing: 0.01em;
+}
+
+:root[data-style="livro"] .markdown-body blockquote {
+  font-style: italic;
+}
+
+:root[data-style="livro"] .markdown-body hr {
+  height: 1px;
+  margin: 2.5rem 20%;
+  background-color: var(--md-border);
+}

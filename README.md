@@ -73,7 +73,7 @@ Updates are signed separately and verified by the app before installing: *Leve �
   <br><img src="docs/img/screenshot-en-changes.png" width="640" alt="Leve after a reload: amber bars in the margin mark a rewritten paragraph and a new one, a small triangle marks where a block was deleted, and the toolbar reads “3 sections changed”">
 - Nothing stays hidden from the reader: the toolbar warns about HTML comments, invisible or text-direction characters and elements hidden by markup, and *Show* reveals them in place (*View › Show Hidden Content* for every document)
   <br><img src="docs/img/screenshot-en-hidden.png" width="420" alt="The Leve toolbar warning “This document has 12 hidden passages” with a Show button, above a document whose hidden comments and invisible characters do not appear"> <img src="docs/img/screenshot-en-hidden-shown.png" width="420" alt="The same document after Show: the 12 hidden passages appear in place, outlined and labeled (HTML comments, Unicode code points of invisible characters, hidden elements)">
-- Light and dark themes, three reading widths, three fonts, zoom
+- Light and dark themes, four document styles (GitHub, Editor, Terminal, Book), three reading widths, three fonts, zoom
 - Print or export to PDF; export a self-contained HTML file (offline, no scripts) or copy it as HTML
 - Copy as formatted text (Edit menu, Cmd/Ctrl+Shift+C): the document, or just the selection, pastes into Google Docs, Gmail, Apple Mail, Word, Notion and Slack with headings, lists, links, tables and code intact; diagrams go as images and formulas as their LaTeX source
 - English and Portuguese, following your system or your choice in *Settings*

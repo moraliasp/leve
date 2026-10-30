@@ -73,7 +73,7 @@ Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações t
   <br><img src="docs/img/screenshot-pt-BR-changes.png" width="640" alt="O Leve depois de uma recarga: barras âmbar na margem marcam um parágrafo reescrito e um novo, um pequeno triângulo marca onde um bloco foi removido, e a barra diz “3 trechos mudaram”">
 - Nada fica escondido do leitor: a barra avisa de comentários HTML, caracteres invisíveis ou de direção de texto e elementos ocultos pela marcação, e *Mostrar* revela no lugar (*Exibir › Mostrar conteúdo oculto* para todos os documentos)
   <br><img src="docs/img/screenshot-pt-BR-hidden.png" width="420" alt="O aviso do Leve “Este documento tem 12 trechos ocultos” com o botão Mostrar, sobre um documento em que os comentários e caracteres invisíveis não aparecem"> <img src="docs/img/screenshot-pt-BR-hidden-shown.png" width="420" alt="O mesmo documento depois de Mostrar: os 12 trechos ocultos aparecem no lugar, contornados e rotulados (comentários HTML, pontos de código dos caracteres invisíveis, elementos escondidos)">
-- Tema claro e escuro, três larguras de leitura, três fontes, zoom
+- Tema claro e escuro, quatro estilos de documento (GitHub, Editor, Terminal, Livro), três larguras de leitura, três fontes, zoom
 - Imprimir ou exportar PDF; exportar um HTML autocontido (offline, sem scripts) ou copiar como HTML
 - Copiar como texto formatado (menu Editar, Cmd/Ctrl+Shift+C): o documento, ou só a seleção, cola no Google Docs, Gmail, Apple Mail, Word, Notion e Slack com títulos, listas, links, tabelas e código; diagramas vão como imagem e fórmulas como a fonte LaTeX
 - Português e inglês, pelo idioma do sistema ou pela escolha nas *Preferências*

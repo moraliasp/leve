@@ -1,12 +1,13 @@
-import mdLight from "github-markdown-css/github-markdown-light.css?inline";
-import mdDark from "github-markdown-css/github-markdown-dark.css?inline";
-import hlLight from "highlight.js/styles/github.css?inline";
-import hlDark from "highlight.js/styles/github-dark.css?inline";
+import markdownCss from "./markdown.css?inline";
 
 import { PREF_KEYS } from "./prefs";
 
-/** Tema claro do documento (GitHub + realce), também embutido pelo Exportar HTML (src/export-css.ts). */
-export const LIGHT_DOC_CSS = { markdown: mdLight, highlight: hlLight } as const;
+/**
+ * Base do documento (visual GitHub + realce) com os dois conjuntos de tokens: o tema só troca
+ * `data-theme` no `<html>`. Também embutida pelo Exportar HTML (src/export-css.ts), que fica no claro
+ * porque o arquivo não tem `data-theme`. Os estilos (src/doc-style.ts) entram depois, por cima.
+ */
+export const DOC_CSS = markdownCss;
 
 export type ThemeMode = "auto" | "light" | "dark";
 
@@ -14,6 +15,7 @@ const KEY = PREF_KEYS.theme;
 const mq = matchMedia("(prefers-color-scheme: dark)");
 const styleEl = document.createElement("style");
 styleEl.id = "theme-css";
+styleEl.textContent = DOC_CSS;
 document.head.appendChild(styleEl);
 
 let mode: ThemeMode = (localStorage.getItem(KEY) as ThemeMode | null) ?? "auto";
@@ -29,7 +31,6 @@ export function isDark(): boolean {
 
 function apply(): void {
   const dark = isDark();
-  styleEl.textContent = dark ? mdDark + hlDark : mdLight + hlLight;
   document.documentElement.dataset.theme = dark ? "dark" : "light";
   document.documentElement.style.colorScheme = dark ? "dark" : "light";
   for (const l of listeners) l(dark);

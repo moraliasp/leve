@@ -123,7 +123,6 @@ Fora do bundle (dependência instalada, não distribuída no app):
 | [elkjs](https://github.com/kieler/elkjs#readme) | 0.9.3 | EPL-2.0 |
 | [entities](https://github.com/fb55/entities#readme) | 8.1.0 | BSD-2-Clause |
 | [es-toolkit](https://es-toolkit.dev) | 1.52.0 | MIT |
-| [github-markdown-css](https://github.com/sindresorhus/github-markdown-css#readme) | 5.9.0 | MIT |
 | [hachure-fill](https://github.com/pshihn/hachure-fill#readme) | 0.5.2 | MIT |
 | [highlight.js](https://highlightjs.org/) | 11.12.0 | BSD-3-Clause |
 | [iconv-lite](https://github.com/ashtuchkin/iconv-lite) | 0.6.3 | MIT |

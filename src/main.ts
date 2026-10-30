@@ -4,6 +4,7 @@ import "./styles.css";
 import "./document.css";
 import { icon, installIcons } from "./icons";
 import * as theme from "./theme";
+import { DOC_STYLES, applyDocStyle, type DocStyle } from "./doc-style";
 import { hydrateImages, joinPath, markBrokenImage, render, renderErrorBlock, renderMermaid, slugify } from "./render";
 import { cancelHighlight, highlightAll, highlightLazily } from "./highlight";
 import { LARGE_TOC_MAX_LEVEL, isLargeDoc } from "./limits";
@@ -212,12 +213,17 @@ function restoreTabs(): Tab | null {
 }
 let zoom = Number(localStorage.getItem(PREF_KEYS.zoom) ?? "1") || 1;
 
-// ---------- leitura: largura e fonte (menu Exibir, persistidas) ----------
+// ---------- leitura: estilo, largura e fonte (menu Exibir, persistidas) ----------
 
 const WIDTHS: Record<"narrow" | "normal" | "wide", Key> = { narrow: "width.narrow", normal: "width.normal", wide: "width.wide" };
-const FONTS = { sans: "sans", serif: "serif", mono: "mono" } as const;
+/** "auto" = a fonte do estilo (`src/doc-style.ts`); as outras sobrepõem só a fonte. */
+const FONTS = { auto: "font.auto", sans: "Sans", serif: "Serif", mono: "Mono" } as const;
+/** GitHub é nome próprio do visual, igual nos dois idiomas; os outros são chave de `t`. */
+const STYLES: Record<DocStyle, Key | "GitHub"> = { github: "GitHub", editor: "style.editor", terminal: "style.terminal", livro: "style.livro" };
 type Width = keyof typeof WIDTHS;
 type Font = keyof typeof FONTS;
+const fontLabel = (f: Font): string => (f === "auto" ? t(FONTS.auto) : FONTS[f]);
+const styleLabel = (s: DocStyle): string => (s === "github" ? "GitHub" : t(STYLES[s] as Key));
 
 function readChoice<T extends string>(key: string, allowed: Record<T, string>, fallback: T): T {
   const v = localStorage.getItem(key);
@@ -225,14 +231,17 @@ function readChoice<T extends string>(key: string, allowed: Record<T, string>, f
 }
 
 let readWidth: Width = readChoice(PREF_KEYS.width, WIDTHS, "normal");
-let readFont: Font = readChoice(PREF_KEYS.font, FONTS, "sans");
+let readFont: Font = readChoice(PREF_KEYS.font, FONTS, "auto");
+let docStyle: DocStyle = readChoice(PREF_KEYS.style, STYLES, "github");
 
 function applyReading(): void {
   document.body.dataset.width = readWidth;
   document.body.dataset.font = readFont;
   localStorage.setItem(PREF_KEYS.width, readWidth);
   localStorage.setItem(PREF_KEYS.font, readFont);
-  if (IS_TAURI) void invoke("sync_view_menu", { width: readWidth, font: readFont });
+  localStorage.setItem(PREF_KEYS.style, docStyle);
+  void applyDocStyle(docStyle);
+  if (IS_TAURI) void invoke("sync_view_menu", { style: docStyle, width: readWidth, font: readFont });
 }
 const finder = new Finder(els.content, els.main, els.findCount, $("find-live"));
 
@@ -847,7 +856,7 @@ async function buildExport(doc: Doc): Promise<ExportResult> {
   if (theme.isDark() || unrendered) await renderMermaid(root, false);
   await renderMath(root);
   const [css, images] = await Promise.all([
-    exportCss(root),
+    exportCss(root, docStyle),
     readExportImages(doc.dir, ex.localImageRels(root), ex.EXPORT_IMAGE_MAX_BYTES),
   ]);
   const mdLinks = boolPref(PREF_KEYS.exportMdLinks, false) ? "html" : "text";
@@ -1176,6 +1185,7 @@ function syncPrefsUI(): void {
     for (const r of dlg.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`)) r.checked = r.value === value;
   };
   choose("theme", theme.getMode());
+  choose("style", docStyle);
   choose("font", readFont);
   choose("width", readWidth);
   $("prefs-zoom-value").textContent = `${Math.round(zoom * 100)} %`;
@@ -1225,7 +1235,8 @@ function resetPreferences(): void {
   resetPrefs();
   theme.setMode("auto");
   readWidth = "normal";
-  readFont = "sans";
+  readFont = "auto";
+  docStyle = "github";
   applyReading();
   zoom = 1;
   applyZoom();
@@ -1268,6 +1279,7 @@ function wirePreferences(): void {
       case "theme":
         setTheme(t.value as theme.ThemeMode);
         break;
+      case "style":
       case "font":
       case "width":
         actions[`${t.name}-${t.value}`]?.();
@@ -1401,7 +1413,17 @@ for (const f of Object.keys(FONTS) as Font[]) {
   actions[`font-${f}`] = () => {
     readFont = f;
     applyReading();
-    flash(t("font.flash", { value: FONTS[f] }));
+    flash(t("font.flash", { value: fontLabel(f) }));
+  };
+}
+// Trocar de estilo volta a fonte para a do estilo: o estilo é o visual inteiro, e uma fonte
+// escolhida para outro visual o desmancharia (docs/decisoes.md, "Estilos do documento").
+for (const s of DOC_STYLES) {
+  actions[`style-${s}`] = () => {
+    docStyle = s;
+    readFont = "auto";
+    applyReading();
+    flash(t("style.flash", { value: styleLabel(s) }));
   };
 }
 

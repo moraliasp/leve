@@ -1,0 +1,99 @@
+/*
+ * Estilo Editor: a prévia de Markdown de um editor de código. Letra menor, espaços mais curtos,
+ * realce no gosto dos editores (palavra-chave azul, string cor de tijolo, comentário verde).
+ * Tokens e regras: src/doc-style.ts.
+ */
+:root[data-style="editor"] {
+  --md-font: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", Ubuntu, "Droid Sans", sans-serif;
+  --md-font-size: 14px;
+  --md-line-height: 1.6;
+  --md-fg: #1f1f1f;
+  --md-bg: #ffffff;
+  --md-link: #005fb8;
+  --md-border-muted: #e5e5e5;
+  --md-border: #d4d4d4;
+  --md-mark-bg: #fff1a8;
+  --md-muted: #5e5e5e;
+  --md-bg-muted: #f5f5f5;
+  --md-danger: #c62828;
+  --md-code-bg: #0000000f;
+  --md-focus: #005fb8;
+  --hl-fg: #1f1f1f;
+  --hl-bg: #f5f5f5;
+  --hl-keyword: #0000ff;
+  --hl-title: #795e26;
+  --hl-constant: #0b6a8a;
+  --hl-string: #a31515;
+  --hl-variable: #1f6f5c;
+  --hl-comment: #2b7518;
+  --hl-tag: #800000;
+  --hl-subst: #1f1f1f;
+  --hl-section: #0000ff;
+  --hl-bullet: #0451a5;
+  --hl-emphasis: #1f1f1f;
+  --hl-strong: #1f1f1f;
+  --hl-addition: #116329;
+  --hl-addition-bg: #e6f4ea;
+  --hl-deletion: #a31515;
+  --hl-deletion-bg: #fbe9e9;
+}
+
+:root[data-style="editor"][data-theme="dark"] {
+  --md-fg: #cccccc;
+  --md-bg: #1f1f1f;
+  --md-link: #4daafc;
+  --md-border-muted: #2b2b2b;
+  --md-border: #3c3c3c;
+  --md-mark-bg: #8a6d0040;
+  --md-muted: #9d9d9d;
+  --md-bg-muted: #2a2a2a;
+  --md-danger: #f48771;
+  --md-code-bg: #ffffff1a;
+  --md-focus: #4daafc;
+  --hl-fg: #cccccc;
+  --hl-bg: #2a2a2a;
+  --hl-keyword: #569cd6;
+  --hl-title: #dcdcaa;
+  --hl-constant: #b5cea8;
+  --hl-string: #ce9178;
+  --hl-variable: #4ec9b0;
+  --hl-comment: #7fa86b;
+  --hl-tag: #569cd6;
+  --hl-subst: #cccccc;
+  --hl-section: #569cd6;
+  --hl-bullet: #6fa6e8;
+  --hl-emphasis: #cccccc;
+  --hl-strong: #cccccc;
+  --hl-addition: #b5cea8;
+  --hl-addition-bg: #2f3a24;
+  --hl-deletion: #f0a58a;
+  --hl-deletion-bg: #4b1f1f;
+}
+
+/* Front matter, erro de render, imagem que falhou e botão de copiar usam as cores da interface
+   (document.css); dentro do documento elas passam a ser as do estilo. */
+:root[data-style="editor"] .markdown-body {
+  --bar-bg: var(--md-bg-muted);
+  --bar-fg: var(--md-fg);
+  --bar-muted: var(--md-muted);
+  --border: var(--md-border);
+  --error: var(--md-danger);
+}
+
+:root[data-style="editor"] .markdown-body :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: 1.2em;
+  margin-bottom: 0.6em;
+}
+
+:root[data-style="editor"] .markdown-body :is(p, blockquote, ul, ol, dl, table, pre, details) {
+  margin-bottom: 0.75em;
+}
+
+:root[data-style="editor"] .markdown-body pre.hljs {
+  padding: 12px 14px;
+  border-radius: 4px;
+}
+
+:root[data-style="editor"] .markdown-body table :is(th, td) {
+  padding: 4px 10px;
+}

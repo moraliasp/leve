@@ -56,7 +56,7 @@ sudo apt install ./Leve_x.y.z_amd64.deb
 
 O `apt` puxa o WebKitGTK e o GTK se faltarem. O pacote instala o Leve no menu de aplicativos e o registra para `text/markdown`; para torná-lo o padrão, use **Abrir com › Leve** e marque "sempre", ou `xdg-mime default Leve.desktop text/markdown`.
 
-**.rpm** (Fedora, openSUSE e derivados; a partir da primeira versão depois da 0.3.0):
+**.rpm** (Fedora, openSUSE e derivados; desde a 0.4.0):
 
 ```bash
 sudo dnf install ./Leve-x.y.z-1.x86_64.rpm
@@ -64,7 +64,7 @@ sudo dnf install ./Leve-x.y.z-1.x86_64.rpm
 
 O mesmo binário do `.deb`. O `dnf` (no openSUSE, `sudo zypper install`) puxa `webkit2gtk4.1` e `gtk3` se faltarem; no Fedora com GNOME eles costumam já estar instalados, e o Leve ocupa uns 4 MB. Registra o Leve para `text/markdown`, como o `.deb`, e se atualiza pelo próprio Leve.
 
-**Flatpak** (Fedora, openSUSE e qualquer distribuição com Flatpak; a partir da primeira versão depois da 0.3.0). Baixe `Leve_x.y.z_x86_64.flatpak` da release e instale para o seu usuário:
+**Flatpak** (Fedora, openSUSE e qualquer distribuição com Flatpak; desde a 0.4.0). Baixe `Leve_x.y.z_x86_64.flatpak` da release e instale para o seu usuário:
 
 ```bash
 flatpak install --user --bundle Leve_x.y.z_x86_64.flatpak

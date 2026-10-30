@@ -76,7 +76,10 @@ export function collectWikilinkTargets(container: HTMLElement): string[] {
   return [...out];
 }
 
-/** Aplica o resultado da resolução: caminho absoluto em `data-path`, ou classe `missing`. */
+/**
+ * Aplica o resultado da resolução: caminho absoluto em `data-path`, ou classe `missing`. Pode rodar
+ * de novo sobre o mesmo documento (a pasta aberta depois resolve o que antes faltava).
+ */
 export function markWikilinks(container: HTMLElement, resolved: Record<string, string | null>): void {
   for (const a of container.querySelectorAll<HTMLAnchorElement>("a.wikilink[data-target]")) {
     const t = a.dataset.target;
@@ -85,7 +88,9 @@ export function markWikilinks(container: HTMLElement, resolved: Record<string, s
     if (abs) {
       a.dataset.path = abs;
       a.title = abs;
+      a.classList.remove("missing");
     } else {
+      delete a.dataset.path;
       a.classList.add("missing");
       a.title = tr("doc.noteNotFound", { name: t });
     }

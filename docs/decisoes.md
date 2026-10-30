@@ -382,3 +382,12 @@ Decisão estrutural nova entra aqui, no fim, no mesmo formato.
 - **Releitura:** sem vigia (decisão da concessão): `list_folder` de novo ao focar a janela (`focus`).
 - **Modo navegador:** `?folder=/docs` lista pelo plugin `leve-folder` do Vite (só em `serve`), no formato de `list_folder`, para provar a árvore sem o app.
 - **Consequência:** comportamento novo da árvore entra em `folder.ts` com teste. Texto da árvore vem de `src/i18n.ts` (`folder.*`), nos dois idiomas. Mais de uma pasta por janela, arrastar pasta para a janela e mostrar outros tipos de arquivo são outra decisão.
+
+## Abrir rápido
+
+- **Contexto:** com uma pasta aberta, a árvore anda bem em pasta pequena; numa wiki ou num vault com centenas de notas, achar pelo nome é mais rápido. E os wikilinks reservavam `root` para "a pasta aberta" (#41).
+- **Decisão:** Arquivo › Abrir rápido… (`quick-open`, `Mod+P`, como nos editores) abre uma caixa (`<dialog id="quick">`, criada por `src/quick-open.ts` + `quick-open.css`, importados só no primeiro uso) com busca aproximada sobre os Markdown da pasta aberta (a mesma lista da árvore, `folder.list.files`); sem pasta, sobre os arquivos dos Recentes. Combobox + listbox do padrão ARIA: o foco fica no campo, setas mudam a opção (`aria-activedescendant`), Enter abre na aba ativa, `Mod+Enter` em aba nova, Esc fecha. Abre pelo mesmo caminho da árvore (`openRel` → `open_in_folder`).
+- **Busca** (`src/fuzzy.ts`, testada em `tests/fuzzy.test.ts`): as letras da consulta em ordem, sem caixa nem acento; pontua começo de palavra (depois de `/`, `-`, `_`, `.`, espaço), letras seguidas e casar no nome do arquivo (procura a ocorrência mais à direita e aperta), e o caminho curto desempata; até 50 resultados, letras casadas em `<mark>` criado como texto.
+- **Imprimir vai para `Mod+Shift+P`.** `Mod+P` era Imprimir; o abrir rápido é a ação frequente com pasta aberta e o atalho que quem vem de editor procura. Imprimir continua em Arquivo › Imprimir / Exportar PDF…
+- **Wikilinks:** `main.ts` manda `root` = pasta aberta para `resolve_wikilinks`; o Rust só aceita se for pasta concedida e contiver a pasta do documento (registro "Abrir pasta: concessão da raiz, só Markdown").
+- **Consequência:** abrir rápido sobre a pasta inteira sem árvore, busca no conteúdo e comandos (paleta) são outra decisão.

@@ -48,6 +48,7 @@ pub struct Strings {
     pub open: &'static str,
     pub open_folder: &'static str,
     pub close_folder: &'static str,
+    pub quick_open: &'static str,
     /// Arquivo › Abrir da área de transferência e Salvar… (só para o documento colado).
     pub open_clipboard: &'static str,
     pub save: &'static str,
@@ -179,6 +180,7 @@ const PT: Strings = Strings {
     open: "Abrir…",
     open_folder: "Abrir pasta…",
     close_folder: "Fechar pasta",
+    quick_open: "Abrir rápido…",
     open_clipboard: "Abrir da área de transferência",
     save: "Salvar…",
     untitled_file: "Sem título.md",
@@ -269,6 +271,7 @@ const EN: Strings = Strings {
     open: "Open…",
     open_folder: "Open Folder…",
     close_folder: "Close Folder",
+    quick_open: "Quick Open…",
     open_clipboard: "Open from Clipboard",
     save: "Save…",
     untitled_file: "Untitled.md",

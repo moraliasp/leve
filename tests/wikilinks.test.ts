@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseWikilink } from "../src/wikilinks";
+import { markWikilinks, parseWikilink } from "../src/wikilinks";
 
 describe("parseWikilink", () => {
   it("alvo simples", () => {
@@ -22,5 +22,21 @@ describe("parseWikilink", () => {
     expect(parseWikilink("  nota  |  R ")).toEqual({ target: "nota", hash: "", label: "R", file: "nota.md" });
     expect(parseWikilink("")).toBeNull();
     expect(parseWikilink("   ")).toBeNull();
+  });
+});
+
+describe("markWikilinks", () => {
+  it("marca o que faltou e desmarca quando outra resolução acha (pasta aberta depois)", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<a class="wikilink" data-target="Nota">Nota</a>';
+    const a = div.querySelector("a")!;
+    markWikilinks(div, { Nota: null });
+    expect(a.classList.contains("missing")).toBe(true);
+    expect(a.dataset.path).toBeUndefined();
+    markWikilinks(div, { Nota: "/v/arquivo/Nota.md" });
+    expect(a.classList.contains("missing")).toBe(false);
+    expect(a.dataset.path).toBe("/v/arquivo/Nota.md");
+    markWikilinks(div, { Nota: null });
+    expect(a.dataset.path).toBeUndefined();
   });
 });

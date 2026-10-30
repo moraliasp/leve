@@ -538,10 +538,12 @@ async function readDoc(path: string): Promise<Doc> {
 
 /**
  * Resolve wikilinks na pasta do documento. No Tauri o backend tenta `nota.md` na pasta e,
- * quando houver pasta raiz aberta (fase 2), busca recursiva nela; no navegador só a pasta.
+ * com uma pasta aberta (Arquivo › Abrir pasta…), busca pelo nome nos Markdown dela; no navegador
+ * só a pasta do documento.
  */
 async function resolveWikilinks(dir: string, targets: string[]): Promise<Record<string, string | null>> {
-  if (IS_TAURI) return invoke<Record<string, string | null>>("resolve_wikilinks", { dir, root: null, targets });
+  // Com pasta aberta, o Rust busca também a partir da raiz dela (só se for pasta concedida).
+  if (IS_TAURI) return invoke<Record<string, string | null>>("resolve_wikilinks", { dir, root: folder?.root ?? null, targets });
   const out: Record<string, string | null> = {};
   await Promise.all(
     targets.map(async (t) => {
@@ -710,21 +712,7 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   snapshots.set(tab, snap);
   showChanges(snap.hunks);
   performance.measure("leve:changes", "leve:start");
-  const wikiTargets = collectWikilinkTargets(els.content);
-  // Exemplo e colado não têm pasta: seus wikilinks para outras notas aparecem como não encontrados.
-  if (mem) markWikilinks(els.content, {});
-  else if (wikiTargets.length > 0) {
-    const content = els.content;
-    void resolveWikilinks(doc.dir, wikiTargets)
-      .then((r) => {
-        if (current?.path === doc.path) markWikilinks(content, r);
-      })
-      .catch((e) => {
-        // O erro do Rust pode trazer caminho do sistema: ao leitor, só a mensagem genérica.
-        console.warn("wikilinks:", e);
-        if (current?.path === doc.path) flash(t("doc.wikilinksFailed"), true);
-      });
-  }
+  linkWikilinks(doc);
   tocItems = buildToc(els.content, els.toc, large ? LARGE_TOC_MAX_LEVEL : undefined);
   // Sem foco em lugar nenhum (abriu pelo menu ou pelo sistema): foco no documento, setas já rolam.
   if (document.activeElement === document.body) els.main.focus({ preventScroll: true });
@@ -763,6 +751,25 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   return true;
 }
 
+/** Resolve os wikilinks do documento na tela (no `loadDoc` e quando uma pasta abre). */
+function linkWikilinks(doc: Doc): void {
+  const wikiTargets = collectWikilinkTargets(els.content);
+  // Exemplo e colado não têm pasta: seus wikilinks para outras notas aparecem como não encontrados.
+  if (inMemory(doc.path)) markWikilinks(els.content, {});
+  else if (wikiTargets.length > 0) {
+    const content = els.content;
+    void resolveWikilinks(doc.dir, wikiTargets)
+      .then((r) => {
+        if (current?.path === doc.path) markWikilinks(content, r);
+      })
+      .catch((e) => {
+        // O erro do Rust pode trazer caminho do sistema: ao leitor, só a mensagem genérica.
+        console.warn("wikilinks:", e);
+        if (current?.path === doc.path) flash(t("doc.wikilinksFailed"), true);
+      });
+  }
+}
+
 /** O diálogo roda no Rust: só o que o usuário escolher ali fica liberado para leitura. */
 async function pickAndOpen(): Promise<void> {
   if (!IS_TAURI) {
@@ -798,6 +805,8 @@ async function openFolder(root: string, atLaunch = false): Promise<void> {
     });
     addRecent(folderEntry(folder.root));
     if (!current) renderRecent();
+    // Wikilinks do documento aberto passam a resolver também pela raiz da pasta.
+    else linkWikilinks(current);
   } catch (e) {
     if (!atLaunch) flash(String(e), true);
     else {
@@ -818,6 +827,22 @@ async function pickFolder(): Promise<void> {
   } catch (e) {
     flash(String(e), true);
   }
+}
+
+/**
+ * Abrir rápido (`Mod+P`, src/quick-open.ts sob demanda): Markdown da pasta aberta ou, sem pasta,
+ * os arquivos dos Recentes.
+ */
+async function quickOpen(): Promise<void> {
+  const { openQuick } = await import("./quick-open");
+  const f = folder;
+  if (f) openQuick({ items: f.list.files, placeholder: "quick.placeholder", open: (rel, newTab) => void f.openRel(rel, newTab) });
+  else
+    openQuick({
+      items: readRecent().filter((p) => !isFolderEntry(p)),
+      placeholder: "quick.placeholderRecent",
+      open: (p, newTab) => void loadDoc(p, { target: newTab ? "new" : undefined }),
+    });
 }
 
 /** Arquivo › Salvar… só vale com o documento colado ativo; o item do menu acompanha. */
@@ -1101,6 +1126,7 @@ const actions: Record<string, () => void> = {
   },
   "clear-recent": () => void askClearRecent(),
   "open-folder": () => void pickFolder(),
+  "quick-open": () => void quickOpen(),
   "close-folder": () => folder?.close(),
   // Sem pasta aberta, Exibir › Pasta pede uma.
   "toggle-tree": () => (folder ? folder.toggle() : void pickFolder()),
@@ -1750,6 +1776,7 @@ async function openAtLaunch(): Promise<void> {
 function wireBrowserShortcuts(): void {
   const keys: Record<string, string> = {
     f: "find",
+    p: "quick-open",
     b: "toggle-toc",
     r: "reload",
     "[": "back",

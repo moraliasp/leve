@@ -8,6 +8,10 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 - *File › Open from Clipboard* (⌘⇧V / Ctrl+Shift+V) shows the copied text as an unsaved "Untitled" document in a new tab, without touching the disk, so Markdown from an AI chat or a web page no longer has to be saved before Leve can show it. The toolbar says "Not saved"; *File › Save…* (⌘S / Ctrl+S, enabled only for that document) saves it as `.md`, suggesting the Documents folder, and from then on it reloads on change and joins Recent files like any other document. Leve reads the clipboard only on that command. An empty clipboard, or one without text, shows a short notice.
 
+### Changed
+
+- Less code loads when a window opens (310 kB instead of 430 kB): the YAML parser loads only for documents with front matter or Mermaid node data, and the updater only when checking for updates.
+
 ## [0.4.0] - 2026-10-28
 
 ### Added

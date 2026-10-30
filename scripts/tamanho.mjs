@@ -8,15 +8,17 @@ import { gzipSync } from "node:zlib";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 /**
- * Limites em bytes, ~10% acima do medido em 2026-10-25, já sem o layout ELK do Mermaid. Aqui é o
- * único lugar a ajustar: CSS embutido no chunk de exportação mexe em `total`, e em `abertura` só se
- * o chunk de abertura crescer. Tamanho que cai de verdade leva o limite junto.
+ * Limites em bytes. `total`, `totalGzip` e `maior`: ~10% acima do medido em 2026-10-25, já sem o
+ * layout ELK do Mermaid. `abertura` e `aberturaGzip`: ~3% acima do medido em 2026-10-29, com `yaml`,
+ * atualizador e os módulos `window`/`webview` da API fora do chunk de abertura (era 429.943 / 135.700).
+ * Aqui é o único lugar a ajustar: CSS embutido no chunk de exportação mexe em `total`, e em
+ * `abertura` só se o chunk de abertura crescer. Tamanho que cai de verdade leva o limite junto.
  */
 export const ORCAMENTO = {
-  total: 4_880_000, // medido 4.438.557
-  totalGzip: 1_590_000, // medido 1.442.173 (gzip nível 9, arquivo a arquivo)
-  abertura: 431_000, // JS + CSS de dist/index.html; medido 391.347 (375.413 JS + 15.934 CSS)
-  aberturaGzip: 137_000, // medido 124.186
+  total: 4_880_000, // medido 4.438.557; em 2026-10-29, 4.539.492
+  totalGzip: 1_590_000, // medido 1.442.173 (gzip nível 9, arquivo a arquivo); em 2026-10-29, 1.478.520
+  abertura: 319_000, // JS + CSS de dist/index.html; medido 309.975
+  aberturaGzip: 104_500, // medido 101.673
   maior: 692_000, // maior arquivo (chunk-*.js do Mermaid); medido 629.043
 };
 

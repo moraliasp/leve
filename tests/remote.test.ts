@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { render } from "../src/render";
 import { isRemote, remoteHost, restoreRemote, scrubCss, scrubMermaidSource, stripRemoteTree } from "../src/remote";
+import { loadYaml } from "../src/yaml";
+
+// Front matter e dados de nó do Mermaid leem o `yaml`, que o app carrega sob demanda (src/yaml.ts).
+beforeAll(() => loadYaml());
 
 const frag = (html: string): HTMLElement => {
   const d = document.createElement("div");

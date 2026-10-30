@@ -15,10 +15,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
  * `abertura` só se o chunk de abertura crescer. Tamanho que cai de verdade leva o limite junto.
  */
 export const ORCAMENTO = {
-  total: 4_880_000, // medido 4.438.557; em 2026-10-29, 4.539.492
+  total: 4_866_000, // medido 4.438.557; em 2026-10-29, 4.539.492 e, com a base do documento em tokens (#50), 4.525.782
   totalGzip: 1_590_000, // medido 1.442.173 (gzip nível 9, arquivo a arquivo); em 2026-10-29, 1.478.520
-  abertura: 319_000, // JS + CSS de dist/index.html; medido 309.975
-  aberturaGzip: 104_500, // medido 101.673
+  // JS + CSS de dist/index.html; medido 309.975 / 101.673. A base do documento em tokens (#50) tirou
+  // 21.789 bytes (691 em gzip) e o limite caiu o mesmo tanto: medido 288.186 / 100.982.
+  abertura: 297_200,
+  aberturaGzip: 103_800,
   maior: 692_000, // maior arquivo (chunk-*.js do Mermaid); medido 629.043
 };
 

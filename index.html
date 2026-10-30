@@ -53,6 +53,7 @@
           <section id="empty" class="empty">
             <h1>Leve</h1>
             <p><span data-i18n-html="empty.lead"></span> <button id="empty-open" class="link" data-i18n="empty.open"></button>.</p>
+            <p><span data-i18n="empty.clipLead"></span> <button id="empty-clip" class="link" data-i18n="empty.clip"></button> <kbd id="empty-clip-keys"></kbd></p>
             <p id="tip" class="tip" hidden>
               <span data-i18n-html="empty.tip"></span>
               <button id="tip-close" class="icon" data-i18n-title="empty.tipClose" data-i18n-aria-label="empty.tipCloseLabel"><span data-icon="x"></span></button>
@@ -135,9 +136,19 @@
                   <input type="radio" id="prefs-theme-dark" name="theme" value="dark" /><label for="prefs-theme-dark"><span data-icon="moon" data-size="14"></span><span data-i18n="theme.dark"></span></label>
                 </span>
               </div>
+              <div class="pref-row" role="radiogroup" aria-labelledby="prefs-style-label">
+                <span id="prefs-style-label" class="pref-label" data-i18n="prefs.style"></span>
+                <span class="seg">
+                  <input type="radio" id="prefs-style-github" name="style" value="github" /><label for="prefs-style-github">GitHub</label>
+                  <input type="radio" id="prefs-style-editor" name="style" value="editor" /><label for="prefs-style-editor" data-i18n="style.editor"></label>
+                  <input type="radio" id="prefs-style-terminal" name="style" value="terminal" /><label for="prefs-style-terminal" data-i18n="style.terminal"></label>
+                  <input type="radio" id="prefs-style-livro" name="style" value="livro" /><label for="prefs-style-livro" data-i18n="style.livro"></label>
+                </span>
+              </div>
               <div class="pref-row" role="radiogroup" aria-labelledby="prefs-font-label">
                 <span id="prefs-font-label" class="pref-label" data-i18n="prefs.font"></span>
                 <span class="seg seg-font">
+                  <input type="radio" id="prefs-font-auto" name="font" value="auto" /><label for="prefs-font-auto" data-i18n="font.auto"></label>
                   <input type="radio" id="prefs-font-sans" name="font" value="sans" /><label for="prefs-font-sans">Sans</label>
                   <input type="radio" id="prefs-font-serif" name="font" value="serif" /><label for="prefs-font-serif">Serif</label>
                   <input type="radio" id="prefs-font-mono" name="font" value="mono" /><label for="prefs-font-mono">Mono</label>

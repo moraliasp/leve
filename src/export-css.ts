@@ -1,16 +1,19 @@
 import documentCss from "./document.css?inline";
-import { LIGHT_DOC_CSS } from "./theme";
+import { DOC_CSS } from "./theme";
+import { type DocStyle, styleCss, styleForExport } from "./doc-style";
 import { iconCssVars } from "./icons";
 import { blobToDataUri, inlineFontFaces, normalWeight } from "./export";
 
 /**
- * CSS do HTML exportado, sempre no tema claro: GitHub (markdown + realce), o CSS do documento do
- * app (document.css: alerts, front matter, Mermaid, código, matemática), os ícones como variáveis
- * e, só se houver fórmula, o KaTeX com as fontes usadas embutidas em woff2. Importado sob demanda
- * por `main.ts` (fora do caminho de abertura). A montagem do arquivo em si está em `export.ts`.
+ * CSS do HTML exportado, sempre no tema claro: a base (src/markdown.css, documento + realce), o CSS
+ * do documento do app (document.css: alerts, front matter, Mermaid, código, matemática), o estilo
+ * escolhido (depois do document.css, porque também troca as cores dos alertas), os ícones como
+ * variáveis e, só se houver fórmula, o KaTeX com as fontes usadas embutidas em woff2. A fonte
+ * escolhida à mão não vai: o arquivo leva o estilo como ele é. Importado sob demanda por `main.ts`
+ * (fora do caminho de abertura). A montagem do arquivo em si está em `export.ts`.
  */
-export async function exportCss(root: ParentNode): Promise<string> {
-  const parts = [LIGHT_DOC_CSS.markdown, LIGHT_DOC_CSS.highlight, documentCss, iconCssVars()];
+export async function exportCss(root: ParentNode, style: DocStyle): Promise<string> {
+  const parts = [DOC_CSS, documentCss, styleForExport(await styleCss(style), style), iconCssVars()];
   if (root.querySelector(".katex")) {
     const { default: katexCss } = await import("katex/dist/katex.min.css?inline");
     parts.push(await inlineFontFaces(katexCss, await loadedFonts(), fontDataUri));

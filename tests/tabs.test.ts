@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { PREF_KEYS, TABS_KEY, savedTabs } from "../src/prefs";
 import {
   type Tab,
+  adoptSaved,
   canGoBack,
   canGoForward,
   commitDoc,
@@ -168,6 +169,12 @@ describe("leve.tabs", () => {
     expect(serializeTabs(tabs, tabs[1])).toBe('{"paths":["/a.md","/b.md"],"active":0}');
   });
 
+  it("o colado (clip:*) também fica fora, ativo ou não", () => {
+    const { tabs } = setup("/a.md", "clip:1", "/b.md", "clip:2");
+    expect(serializeTabs(tabs, tabs[2])).toBe('{"paths":["/a.md","/b.md"],"active":1}');
+    expect(serializeTabs(tabs, tabs[1])).toBe('{"paths":["/a.md","/b.md"],"active":-1}');
+  });
+
   it("exemplo ativo: -1 (a restauração cai na primeira)", () => {
     const { tabs } = setup("/a.md", "sample:pt-BR", "/b.md");
     expect(serializeTabs(tabs, tabs[1])).toBe('{"paths":["/a.md","/b.md"],"active":-1}');
@@ -194,6 +201,32 @@ describe("leve.tabs", () => {
     const act = restoreSaved(back.tabs, saved, back.make);
     expect(paths(back.tabs)).toEqual(["/a.md", "/b.md", "/c.md"]);
     expect(act?.path).toBe("/c.md");
+  });
+});
+
+describe("salvar o colado", () => {
+  it("vira a aba do arquivo: caminho, nome e histórico", () => {
+    const { tabs } = setup("/a.md", "clip:1");
+    const t = tabs[1];
+    expect(adoptSaved(tabs, t, "clip:1", "/d/Sem título.md", "Sem título.md")).toBeNull();
+    expect(t.path).toBe("/d/Sem título.md");
+    expect(t.name).toBe("Sem título.md");
+    expect(t.hist).toEqual(["/d/Sem título.md"]);
+    expect(paths(tabs)).toEqual(["/a.md", "/d/Sem título.md"]);
+  });
+
+  it("salvou por cima de um arquivo aberto em outra aba: devolve essa, e a colada fica como estava", () => {
+    const { tabs } = setup("/a.md", "clip:1", "/b.md");
+    const t = tabs[1];
+    expect(adoptSaved(tabs, t, "clip:1", "/b.md", "b.md")).toBe(tabs[2]);
+    expect(t.path).toBe("clip:1");
+    expect(t.hist).toEqual(["clip:1"]);
+  });
+
+  it("nunca devolve a própria aba", () => {
+    const { tabs } = setup("clip:1");
+    expect(adoptSaved(tabs, tabs[0], "clip:1", "/x.md", "x.md")).toBeNull();
+    expect(tabs[0].path).toBe("/x.md");
   });
 });
 

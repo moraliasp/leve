@@ -68,6 +68,7 @@ Updates are signed separately and verified by the app before installing: *Leve �
 - Syntax highlighting, Mermaid diagrams and KaTeX math, loaded only when a document needs them
 - Front matter as a table, `[[wikilinks]]`, relative links and images
 - Table of contents, find in document, tabs, back/forward
+- *File › Open Folder…* (⌘⇧O / Ctrl+Shift+O) shows a folder's Markdown files in a tree, and *File › Quick Open…* (⌘P / Ctrl+P) finds a file by typing part of its name
 - Markdown copied from an AI chat or a web page opens without saving a file first: *File › Open from Clipboard* (⌘⇧V / Ctrl+Shift+V) shows it as an unsaved "Untitled" document; *File › Save…* (⌘S / Ctrl+S) turns it into a `.md` file
 - After each reload, a mark in the margin shows what changed since the previous version; *View › Next Change* (⌘⇧↓ / Ctrl+Shift+↓) walks through the changes. The comparison stays in memory, per tab
   <br><img src="docs/img/screenshot-en-changes.png" width="640" alt="Leve after a reload: amber bars in the margin mark a rewritten paragraph and a new one, a small triangle marks where a block was deleted, and the toolbar reads “3 sections changed”">

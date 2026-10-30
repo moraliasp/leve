@@ -27,7 +27,7 @@ export function isDark(): boolean {
   return mode === "dark" || (mode === "auto" && mq.matches);
 }
 
-export function apply(): void {
+function apply(): void {
   const dark = isDark();
   styleEl.textContent = dark ? mdDark + hlDark : mdLight + hlLight;
   document.documentElement.dataset.theme = dark ? "dark" : "light";

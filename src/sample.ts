@@ -10,7 +10,7 @@
  */
 import type { Lang } from "./i18n";
 
-export const SAMPLE_SCHEME = "sample:";
+const SAMPLE_SCHEME = "sample:";
 
 export const samplePath = (l: Lang): string => `${SAMPLE_SCHEME}${l}`;
 

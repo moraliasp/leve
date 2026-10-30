@@ -89,11 +89,11 @@ No telemetry. Leve reads only files you open (dialog, double-click, drag and dro
 
 ## Size
 
-Installer size of the latest release of Leve and other Markdown viewers, as published on GitHub (asset `size` from the GitHub Releases API, `releases/latest`, queried 2026-10-26; MB = 10⁶ bytes; Leve's row is the v0.4.0 build, measured 2026-10-28). Architecture is as stated in each asset name; that Tinta's `tinta.exe` is portable, with no installer, comes from its README. A universal macOS build carries code for both Apple silicon and Intel, so it is larger than a single-architecture build of the same app. On Linux, an AppImage carries WebKitGTK and the rest of the GUI stack inside it, while a `.deb` or `.rpm` uses the system's libraries; compare like with like.
+Installer size of the latest release of Leve and other Markdown viewers, as published on GitHub (asset `size` from the GitHub Releases API, `releases/latest`, queried 2026-10-26; MB = 10⁶ bytes; Leve's row is the v0.5.0 build, measured 2026-10-30). Architecture is as stated in each asset name; that Tinta's `tinta.exe` is portable, with no installer, comes from its README. A universal macOS build carries code for both Apple silicon and Intel, so it is larger than a single-architecture build of the same app. On Linux, an AppImage carries WebKitGTK and the rest of the GUI stack inside it, while a `.deb` or `.rpm` uses the system's libraries; compare like with like.
 
 | App | Release | macOS | Windows | Linux (x86_64) |
 |---|---|--:|--:|--:|
-| **Leve** | v0.4.0 | 6.5 MB `.dmg` (universal) | 2.8 MB `setup.exe` · 3.4 MB `.msi` (x64) | 4.2 MB `.deb` · 4.3 MB `.rpm` · 82.7 MB AppImage |
+| **Leve** | v0.5.0 | 6.5 MB `.dmg` (universal) | 2.8 MB `setup.exe` · 3.4 MB `.msi` (x64) | 4.4 MB `.deb` · 4.4 MB `.rpm` · 82.9 MB AppImage |
 | [Markdown Preview](https://github.com/pluk-inc/markdown-preview) | v0.0.69 (2026-10-23) | 9.0 MB `.dmg` (not stated) | — | — |
 | [MD Reader](https://github.com/Neilooo/md-reader) | v0.3.12 (2026-10-10) | 8.8 MB `.dmg` (universal) | 4.4 MB `.msi` · 6.5 MB portable `.exe` (x64) | 4.8 MB `.deb` · 4.8 MB `.rpm` · 83.1 MB AppImage |
 | [MDHero](https://github.com/vaibhav-kakde-in/mdhero) | v0.2.10 (2026-09-13) | 11.5 MB `.dmg` (Apple silicon) | 5.4 MB `setup.exe` · 6.9 MB `.msi` (x64) | 8.4 MB `.deb` · 8.4 MB `.rpm` · 85.6 MB AppImage |

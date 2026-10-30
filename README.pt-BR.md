@@ -81,7 +81,7 @@ Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações t
 
 ## Privacidade
 
-Sem telemetria. O Leve só lê arquivos que você abriu (diálogo, duplo-clique, arrastar) e os que um documento aberto aponta por caminho relativo. Imagens remotas ficam bloqueadas até você pedir. A rede só é usada nos links que você abre, nas imagens remotas que você pedir e para procurar atualizações.
+Sem telemetria. O Leve só lê arquivos que você abriu (diálogo, duplo-clique, arrastar), os que um documento aberto aponta por caminho relativo e os Markdown de uma pasta que você abrir (*Arquivo › Abrir pasta…*), nunca outros tipos de arquivo dela. Imagens remotas ficam bloqueadas até você pedir. A rede só é usada nos links que você abre, nas imagens remotas que você pedir e para procurar atualizações.
 
 ## Tamanho
 

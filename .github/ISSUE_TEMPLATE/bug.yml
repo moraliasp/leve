@@ -7,21 +7,21 @@ body:
     attributes:
       label: Leve version
       description: Shown in About Leve.
-      placeholder: "0.2.0"
+      placeholder: "0.5.0"
     validations:
       required: true
   - type: dropdown
     id: os
     attributes:
       label: Operating system
-      options: [macOS, Windows]
+      options: [macOS, Windows, Linux]
     validations:
       required: true
   - type: input
     id: os-version
     attributes:
       label: OS version
-      placeholder: "macOS 15.1 / Windows 11 24H2"
+      placeholder: "macOS 15.1 / Windows 11 24H2 / Ubuntu 24.04"
   - type: textarea
     id: what
     attributes:

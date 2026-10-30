@@ -1,0 +1,129 @@
+/*
+ * Estilo Terminal: tudo em monoespaçada, compacto, títulos pelo peso e pela cor (não pelo tamanho)
+ * com o marcador `#` do Markdown na frente, realce nas cores de um terminal. Tokens e regras:
+ * src/doc-style.ts.
+ */
+:root[data-style="terminal"] {
+  --md-font: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --md-font-size: 14px;
+  --md-line-height: 1.5;
+  --md-heading: #1f6b2a;
+  --md-fg: #1e201e;
+  --md-bg: #f7f7f2;
+  --md-link: #0b6185;
+  --md-border-muted: #d8dad2;
+  --md-border: #c9ccc2;
+  --md-mark-bg: #f2e48f;
+  --md-muted: #595d58;
+  --md-bg-muted: #ecede6;
+  --md-danger: #b3261e;
+  --md-code-bg: #1e201e14;
+  --md-focus: #0b6185;
+  --hl-fg: #1e201e;
+  --hl-bg: #ecede6;
+  --hl-keyword: #93268c;
+  --hl-title: #1d57a0;
+  --hl-constant: #8f4c00;
+  --hl-string: #2b6b1d;
+  --hl-variable: #0a6b6a;
+  --hl-comment: #5f635e;
+  --hl-tag: #93268c;
+  --hl-subst: #1e201e;
+  --hl-section: #1d57a0;
+  --hl-bullet: #8f4c00;
+  --hl-emphasis: #1e201e;
+  --hl-strong: #1e201e;
+  --hl-addition: #2b6b1d;
+  --hl-addition-bg: #dfefd8;
+  --hl-deletion: #a4231c;
+  --hl-deletion-bg: #f6dedb;
+}
+
+:root[data-style="terminal"][data-theme="dark"] {
+  --md-heading: #8fd68a;
+  --md-fg: #d6d9d3;
+  --md-bg: #0f1110;
+  --md-link: #6cc4e8;
+  --md-border-muted: #262a27;
+  --md-border: #343a35;
+  --md-mark-bg: #b0900040;
+  --md-muted: #949a93;
+  --md-bg-muted: #181b19;
+  --md-danger: #f2928a;
+  --md-code-bg: #ffffff14;
+  --md-focus: #6cc4e8;
+  --hl-fg: #d6d9d3;
+  --hl-bg: #181b19;
+  --hl-keyword: #e48bd8;
+  --hl-title: #7cb8f2;
+  --hl-constant: #e5c07b;
+  --hl-string: #9ad48a;
+  --hl-variable: #6fd3d1;
+  --hl-comment: #8d938c;
+  --hl-tag: #e48bd8;
+  --hl-subst: #d6d9d3;
+  --hl-section: #7cb8f2;
+  --hl-bullet: #e5c07b;
+  --hl-emphasis: #d6d9d3;
+  --hl-strong: #d6d9d3;
+  --hl-addition: #9ad48a;
+  --hl-addition-bg: #17301a;
+  --hl-deletion: #f2928a;
+  --hl-deletion-bg: #3a1714;
+}
+
+/* Front matter, erro de render, imagem que falhou e botão de copiar usam as cores da interface
+   (document.css); dentro do documento elas passam a ser as do estilo. */
+:root[data-style="terminal"] .markdown-body {
+  --bar-bg: var(--md-bg-muted);
+  --bar-fg: var(--md-fg);
+  --bar-muted: var(--md-muted);
+  --border: var(--md-border);
+  --error: var(--md-danger);
+}
+
+:root[data-style="terminal"] .markdown-body :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+  padding-bottom: 0;
+  border-bottom: 0;
+  font-size: 1em;
+  font-weight: 700;
+  color: var(--md-heading);
+}
+
+:root[data-style="terminal"] .markdown-body :is(h1, h2, h3, h4, h5, h6)::before {
+  font-weight: 400;
+  color: var(--md-muted);
+}
+
+:root[data-style="terminal"] .markdown-body h1::before { content: "# "; }
+:root[data-style="terminal"] .markdown-body h2::before { content: "## "; }
+:root[data-style="terminal"] .markdown-body h3::before { content: "### "; }
+:root[data-style="terminal"] .markdown-body h4::before { content: "#### "; }
+:root[data-style="terminal"] .markdown-body h5::before { content: "##### "; }
+:root[data-style="terminal"] .markdown-body h6::before { content: "###### "; }
+
+:root[data-style="terminal"] .markdown-body h1 {
+  text-transform: uppercase;
+}
+
+:root[data-style="terminal"] .markdown-body :is(p, blockquote, ul, ol, dl, table, pre, details) {
+  margin-bottom: 0.75em;
+}
+
+:root[data-style="terminal"] .markdown-body :is(code, pre, samp, tt) {
+  font-size: 1em;
+}
+
+:root[data-style="terminal"] .markdown-body pre.hljs {
+  padding: 10px 14px;
+  border-radius: 0;
+  border-left: 2px solid var(--md-border);
+}
+
+:root[data-style="terminal"] .markdown-body hr {
+  height: 0;
+  background: none;
+  border-top: 1px dashed var(--md-border);
+}

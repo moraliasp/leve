@@ -50,6 +50,22 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## github-markdown-css 5.9.0 (MIT)
+
+Base do visual GitHub do documento: `src/markdown.css` é derivado dos arquivos claro e escuro do pacote, com as cores, a fonte e o tamanho trocados por variáveis (a regra de cada elemento é a do original). https://github.com/sindresorhus/github-markdown-css
+
+```
+MIT License
+
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
 ## DOMPurify 3.4.17 (Apache-2.0, escolhida entre MPL-2.0 OR Apache-2.0)
 
 Sanitização do HTML renderizado (`src/render.ts`). O DOMPurify é licenciado em dupla, "(MPL-2.0 OR Apache-2.0)", e permite escolher. **O Leve o redistribui sob a Apache-2.0**; a escolha vale para a redistribuição feita pelo Leve e não altera a licença do DOMPurify para quem o obtém direto da origem. Distribuído sem modificação, empacotado pelo bundler. https://github.com/cure53/DOMPurify

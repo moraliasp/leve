@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import src from "../docs/exemplo.md?raw";
 import { render } from "../src/render";
+import { loadYaml } from "../src/yaml";
+
+// O front matter lê o `yaml`, que o app carrega sob demanda (src/yaml.ts). Antes do `describe`,
+// que renderiza na coleta.
+await loadYaml();
 
 /**
  * Golden test: o HTML sanitizado de docs/exemplo.md. Mudou o render de propósito?

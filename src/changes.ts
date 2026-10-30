@@ -24,7 +24,7 @@ export interface Snapshot {
 }
 
 /** Acima disso a comparação desiste do detalhe e marca do primeiro ao último bloco diferente. */
-export const MAX_EDITS = 1000;
+const MAX_EDITS = 1000;
 
 /** cyrb53: hash de 53 bits, sem colisão prática para blocos de um documento. */
 export function hashKey(s: string): number {
@@ -156,7 +156,7 @@ export function stepChange(tops: readonly number[], viewTop: number, dir: 1 | -1
   return tops.length - 1;
 }
 
-export const CHANGE_ATTR = "data-change";
+const CHANGE_ATTR = "data-change";
 
 /**
  * Marca os blocos de `root.children`: `changed` nos que entraram ou mudaram; remoção pura marca
@@ -179,6 +179,6 @@ export function markChanges(root: Element, hunks: readonly Hunk[]): HTMLElement[
   return targets;
 }
 
-export function clearMarks(root: Element): void {
+function clearMarks(root: Element): void {
   for (const el of root.querySelectorAll(`[${CHANGE_ATTR}]`)) el.removeAttribute(CHANGE_ATTR);
 }

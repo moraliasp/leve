@@ -4,6 +4,10 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Changed
+
+- Less code loads when a window opens (310 kB instead of 430 kB): the YAML parser loads only for documents with front matter or Mermaid node data, and the updater only when checking for updates.
+
 ## [0.4.0] - 2026-10-28
 
 ### Added

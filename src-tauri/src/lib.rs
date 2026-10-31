@@ -6,10 +6,7 @@ use std::{
 };
 
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
-use notify_debouncer_mini::{
-    DebouncedEvent, Debouncer, new_debouncer,
-    notify::{RecommendedWatcher, RecursiveMode},
-};
+use notify_debouncer_mini::{Debouncer, notify::RecommendedWatcher};
 use serde::{Deserialize, Serialize};
 use tauri::{
     AppHandle, Emitter, Manager, State, Url, Wry,
@@ -22,9 +19,18 @@ use tauri_plugin_opener::OpenerExt;
 
 #[cfg(target_os = "macos")]
 mod cli;
+mod doc;
 mod editor;
 mod folder;
+mod grants;
 mod i18n;
+mod watch;
+
+use doc::{MAX_DOC_BYTES, too_big};
+use grants::{
+    asset_candidate, attach_grants_file, canonical, dir_in_grants, file_in_grants, grant,
+    grant_folder, granted, granted_dir, granted_folder, relative_only,
+};
 
 const REPO_URL: &str = "https://github.com/moraliasp/leve";
 
@@ -174,204 +180,11 @@ struct AppState {
     cli_admin_permit: std::sync::atomic::AtomicBool,
 }
 
-const GRANTS_MAX: usize = 200;
-const FOLDERS_MAX: usize = 20;
-
-fn deny(path: &Path) -> String {
-    fill(i18n::s().denied, &[("path", &path.display().to_string())])
-}
-
-/// `grants.json` é uma lista só de caminhos: arquivos e, depois, pastas. Quem lê separa pelo disco
-/// (`load_grant_lists`); versão antiga, que só aceita arquivo, descarta as pastas e segue lendo.
-fn persist_grants(file: &Path, granted: &[PathBuf], folders: &[PathBuf]) {
-    if let Some(dir) = file.parent() {
-        let _ = std::fs::create_dir_all(dir);
-    }
-    let list: Vec<String> = granted
-        .iter()
-        .chain(folders)
-        .map(|p| p.to_string_lossy().into_owned())
-        .collect();
-    if let Ok(json) = serde_json::to_string(&list) {
-        let _ = std::fs::write(file, json);
-    }
-}
-
-/// (arquivos, pastas) de `grants.json`, só o que ainda existe como tal.
-fn load_grant_lists(file: &Path) -> (Vec<PathBuf>, Vec<PathBuf>) {
-    let Ok(json) = std::fs::read_to_string(file) else {
-        return (Vec::new(), Vec::new());
-    };
-    let all: Vec<PathBuf> = serde_json::from_str::<Vec<String>>(&json)
-        .unwrap_or_default()
-        .into_iter()
-        .map(PathBuf::from)
-        .collect();
-    let files = all.iter().filter(|p| p.is_file()).cloned().collect();
-    let folders = all.into_iter().filter(|p| p.is_dir()).collect();
-    (files, folders)
-}
-
-#[cfg(test)]
-fn load_grants(file: &Path) -> Vec<PathBuf> {
-    load_grant_lists(file).0
-}
-
-/// Gravação depois de mexer numa das listas; o chamador já segura `granted` ou `folders`.
-fn save_grants(state: &AppState, granted: &[PathBuf], folders: &[PathBuf]) {
-    if let Some(f) = state.grants_file.lock().unwrap().as_deref() {
-        persist_grants(f, granted, folders);
-    }
-}
-
-/// Junta `fresh` (desta execução, mais recente) ao que veio do disco e corta pelo teto.
-fn merge_capped(saved: Vec<PathBuf>, fresh: &mut Vec<PathBuf>, max: usize) -> Vec<PathBuf> {
-    let mut merged = saved;
-    merged.retain(|p| !fresh.contains(p));
-    merged.append(fresh);
-    if merged.len() > max {
-        let excess = merged.len() - max;
-        merged.drain(..excess);
-    }
-    merged
-}
-
-/// Liga a lista em memória ao arquivo em disco: carrega o que estava salvo, mantém o que já
-/// foi concedido nesta execução (por último, como mais recente) e grava o resultado.
-fn attach_grants_file(state: &AppState, file: PathBuf) {
-    let mut g = state.granted.lock().unwrap();
-    let mut d = state.folders.lock().unwrap();
-    let (files, folders) = load_grant_lists(&file);
-    *g = merge_capped(files, &mut g, GRANTS_MAX);
-    *d = merge_capped(folders, &mut d, FOLDERS_MAX);
-    persist_grants(&file, &g, &d);
-    *state.grants_file.lock().unwrap() = Some(file);
-}
-
-/// Concede leitura a um arquivo existente (forma canônica) e persiste. Último concedido vai ao fim.
-fn grant(state: &AppState, path: &Path) -> Result<PathBuf, String> {
-    let c = canonical(&path.to_string_lossy())?;
-    let mut g = state.granted.lock().unwrap();
-    g.retain(|p| p != &c);
-    g.push(c.clone());
-    if g.len() > GRANTS_MAX {
-        let excess = g.len() - GRANTS_MAX;
-        g.drain(..excess);
-    }
-    save_grants(state, &g, &state.folders.lock().unwrap());
-    Ok(c)
-}
-
-/// Concede uma pasta inteira para listar (forma canônica, tem de ser pasta) e persiste. Só
-/// `pick_folder` chama: o diálogo no Rust é a única origem de concessão de pasta.
-fn grant_folder(state: &AppState, path: &Path) -> Result<PathBuf, String> {
-    let c = canonical(&path.to_string_lossy())?;
-    if !c.is_dir() {
-        return Err(deny(&c));
-    }
-    let g = state.granted.lock().unwrap();
-    let mut d = state.folders.lock().unwrap();
-    d.retain(|p| p != &c);
-    d.push(c.clone());
-    if d.len() > FOLDERS_MAX {
-        let excess = d.len() - FOLDERS_MAX;
-        d.drain(..excess);
-    }
-    save_grants(state, &g, &d);
-    Ok(c)
-}
-
-/// Raiz canônica se `root` for uma pasta concedida; erro legível se não.
-fn granted_folder(state: &AppState, root: &str) -> Result<PathBuf, String> {
-    let c = canonical(root)?;
-    if state.folders.lock().unwrap().contains(&c) {
-        Ok(c)
-    } else {
-        Err(deny(&c))
-    }
-}
-
-/// Caminho canônico se já concedido; erro legível se não.
-fn granted(state: &AppState, path: &str) -> Result<PathBuf, String> {
-    file_in_grants(&state.granted.lock().unwrap(), path)
-}
-
-/// Miolo de `granted`, sem `State`: `path` (forma canônica) está na lista?
-fn file_in_grants(grants: &[PathBuf], path: &str) -> Result<PathBuf, String> {
-    let c = canonical(path)?;
-    if grants.contains(&c) {
-        Ok(c)
-    } else {
-        Err(deny(&c))
-    }
-}
-
-/// Pasta de algum documento concedido: origem legítima para resolver links e imagens relativos.
-fn granted_dir(state: &AppState, dir: &str) -> Result<PathBuf, String> {
-    dir_in_grants(&state.granted.lock().unwrap(), dir)
-}
-
-/// Miolo de `granted_dir`, sem `State`: `dir` é a pasta de algum arquivo da lista?
-fn dir_in_grants(grants: &[PathBuf], dir: &str) -> Result<PathBuf, String> {
-    let d = canonical(dir)?;
-    let ok = grants.iter().any(|p| p.parent() == Some(d.as_path()));
-    if ok { Ok(d) } else { Err(deny(&d)) }
-}
-
-/// Esvazia a lista de concessões, menos `keep` (as abas abertas agora), e grava. Devolve
-/// quantos caminhos saíram.
-fn forget_grants_except(state: &AppState, keep: &[PathBuf]) -> usize {
-    let mut g = state.granted.lock().unwrap();
-    let mut d = state.folders.lock().unwrap();
-    let before = g.len() + d.len();
-    g.retain(|p| keep.contains(p));
-    d.retain(|p| keep.contains(p));
-    save_grants(state, &g, &d);
-    before - g.len() - d.len()
-}
-
-/// Preferências › "Esquecer arquivos autorizados": o frontend manda as abas abertas e a pasta
-/// aberta no painel, que continuam concedidas (senão a aba ativa falharia na próxima leitura);
-/// todo o resto, arquivo ou pasta, sai da lista em memória e de `grants.json`. Os Recentes do
-/// frontend são apagados por ele.
-#[tauri::command]
-fn forget_grants(state: State<AppState>, keep: Vec<String>) -> usize {
-    let keep: Vec<PathBuf> = keep.iter().filter_map(|p| canonical(p).ok()).collect();
-    forget_grants_except(&state, &keep)
-}
-
-/// Extensões que `allow_assets` libera no asset protocol (só o que um `<img>` mostra).
-const IMAGE_EXT: &[&str] = &[
-    "png", "jpg", "jpeg", "gif", "svg", "webp", "avif", "bmp", "ico",
-];
-
 fn ext_lower(p: &Path) -> String {
     p.extension()
         .and_then(|e| e.to_str())
         .map(|e| e.to_ascii_lowercase())
         .unwrap_or_default()
-}
-
-/// Caminho que um documento pede tem de ser relativo à pasta dele. Absoluto (`/etc/x`, `C:\\x`) ou
-/// UNC (`\\\\servidor\\pasta`) é recusado: `Path::join` trocaria a pasta inteira pelo pedido, e no
-/// Windows só resolver um UNC já abre conexão SMB com o servidor do documento. `..` continua valendo
-/// (`../img/a.png` é comum), porque o alvo ainda passa por `canonical` e pela lista de concessões.
-fn relative_only(rel: &str) -> Result<&Path, String> {
-    let p = Path::new(rel);
-    // `C:x` (relativo ao cwd do drive) também troca a base no `join` do Windows; `has_root` não o vê.
-    let drive =
-        rel.len() >= 2 && rel.as_bytes()[1] == b':' && rel.as_bytes()[0].is_ascii_alphabetic();
-    if p.has_root() || drive || rel.starts_with('/') || rel.starts_with('\\') {
-        return Err(fill(i18n::s().absolute, &[("path", rel)]));
-    }
-    Ok(p)
-}
-
-/// Imagem relativa a uma pasta concedida: existe, é arquivo e tem extensão de imagem.
-fn asset_candidate(dir: &Path, rel: &str) -> Option<PathBuf> {
-    let rel = relative_only(rel).ok()?;
-    let p = canonical(&dir.join(rel).to_string_lossy()).ok()?;
-    (p.is_file() && IMAGE_EXT.contains(&ext_lower(&p).as_str())).then_some(p)
 }
 
 /// Marca, no grupo do item (`style-*`, `width-*` ou `font-*`), só o item com esse id.
@@ -417,194 +230,6 @@ fn sync_save_menu(state: State<AppState>, on: bool) {
     if let Some(item) = state.save_item.lock().unwrap().as_ref() {
         let _ = item.set_enabled(on);
     }
-}
-
-#[derive(Serialize)]
-struct Doc {
-    path: String,
-    dir: String,
-    name: String,
-    content: String,
-    /// Aviso de leitura para mostrar ao leitor (ex.: bytes inválidos substituídos), sem impedir a abertura.
-    warning: Option<String>,
-}
-
-/// Acima disso o WebView leva segundos para desenhar e a memória dispara; ninguém lê isso num visualizador.
-const MAX_DOC_BYTES: u64 = 20 * 1024 * 1024;
-
-/// Bytes do arquivo → texto. BOM UTF-8 sai; UTF-16 (LE/BE com BOM, como salva o Bloco de Notas) é
-/// decodificado; UTF-8 inválido abre com U+FFFD e aviso, em vez de recusar o arquivo; byte nulo sem
-/// BOM de UTF-16 é binário e é recusado.
-fn decode_text(bytes: &[u8]) -> Result<(String, Option<String>), String> {
-    let utf16 = |be: bool| {
-        let units: Vec<u16> = bytes[2..]
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|c| {
-                if be {
-                    u16::from_be_bytes(*c)
-                } else {
-                    u16::from_le_bytes(*c)
-                }
-            })
-            .collect();
-        String::from_utf16_lossy(&units)
-    };
-    match bytes {
-        [0xEF, 0xBB, 0xBF, rest @ ..] => decode_utf8(rest),
-        [0xFF, 0xFE, ..] => Ok((utf16(false), None)),
-        [0xFE, 0xFF, ..] => Ok((utf16(true), None)),
-        _ if bytes.iter().take(8192).any(|&b| b == 0) => Err(i18n::s().binary.into()),
-        _ => decode_utf8(bytes),
-    }
-}
-
-fn decode_utf8(bytes: &[u8]) -> Result<(String, Option<String>), String> {
-    match std::str::from_utf8(bytes) {
-        Ok(s) => Ok((s.to_owned(), None)),
-        Err(_) => Ok((
-            String::from_utf8_lossy(bytes).into_owned(),
-            Some(i18n::s().not_utf8.into()),
-        )),
-    }
-}
-
-/// "Grande demais" para `n` bytes, com o limite (`MAX_DOC_BYTES`) em MB.
-fn too_big(n: u64) -> String {
-    fill(
-        i18n::s().too_big,
-        &[
-            ("size", &format!("{:.0}", n as f64 / 1_048_576.0)),
-            ("max", &(MAX_DOC_BYTES / 1_048_576).to_string()),
-        ],
-    )
-}
-
-/// Lê no máximo `MAX_DOC_BYTES` + 1 (o arquivo pode crescer entre o `metadata` e a leitura).
-fn read_text_file(p: &Path) -> Result<(String, Option<String>), String> {
-    use std::io::Read;
-    let f = std::fs::File::open(p).map_err(|e| format!("{}: {e}", p.display()))?;
-    let len = f.metadata().map(|m| m.len()).unwrap_or(0);
-    if len > MAX_DOC_BYTES {
-        return Err(too_big(len));
-    }
-    let mut bytes = Vec::with_capacity(len as usize);
-    f.take(MAX_DOC_BYTES + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|e| format!("{}: {e}", p.display()))?;
-    if bytes.len() as u64 > MAX_DOC_BYTES {
-        return Err(too_big(bytes.len() as u64));
-    }
-    decode_text(&bytes)
-}
-
-fn canonical(path: &str) -> Result<PathBuf, String> {
-    std::fs::canonicalize(Path::new(path)).map_err(|e| format!("{path}: {e}"))
-}
-
-#[tauri::command]
-fn read_markdown(state: State<AppState>, path: String) -> Result<Doc, String> {
-    let p = granted(&state, &path)?;
-    let (content, warning) = read_text_file(&p)?;
-    let dir = p.parent().map(Path::to_path_buf).unwrap_or_default();
-    Ok(Doc {
-        path: p.to_string_lossy().into_owned(),
-        dir: dir.to_string_lossy().into_owned(),
-        name: p
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default(),
-        content,
-        warning,
-    })
-}
-
-/// Debounce do watcher por tamanho do arquivo (como o `throttle_at_last` do peek.nvim): documento
-/// grande re-renderiza inteiro a cada salvamento, e um editor com autosave salvaria mais rápido do
-/// que a tela consegue desenhar. Degraus: (teto em bytes, espera). Medido em 2026-10-25: 5 MB levam
-/// ~1,5 s de render + 3 s até o layout, então 2 s entre renders ainda deixa a tela acompanhar.
-const DEBOUNCE_STEPS: &[(u64, u64)] = &[
-    (200 * 1024, 150),
-    (1024 * 1024, 500),
-    (5 * 1024 * 1024, 1000),
-];
-const DEBOUNCE_MAX_MS: u64 = 2000;
-
-fn debounce_for(bytes: u64) -> Duration {
-    let ms = DEBOUNCE_STEPS
-        .iter()
-        .find(|(cap, _)| bytes <= *cap)
-        .map_or(DEBOUNCE_MAX_MS, |(_, ms)| *ms);
-    Duration::from_millis(ms)
-}
-
-/// O que `watch_file` faz com o vigia atual. Trocar o debouncer descarta o evento que ele tinha
-/// na mão (o `Drop` do notify-debouncer-mini não esvazia a fila), e a recarga chama `watch_file`
-/// no fim, depois do render: com espera de 1 a 2 s num arquivo grande, um salvamento feito
-/// durante o render se perderia e a tela ficaria velha. Então: mesmo arquivo e mesma espera,
-/// mantém; só a espera mudou (o arquivo cruzou um degrau), troca e avisa o frontend uma vez,
-/// para a recarga que estiver em curso rodar de novo com o conteúdo mais novo.
-#[derive(Debug, PartialEq)]
-enum WatchDecision {
-    Keep,
-    Replace { renotify: bool },
-}
-
-fn watch_decision(
-    current: Option<&(PathBuf, Duration)>,
-    target: &Path,
-    debounce: Duration,
-) -> WatchDecision {
-    match current {
-        Some((p, d)) if p == target && *d == debounce => WatchDecision::Keep,
-        Some((p, _)) if p == target => WatchDecision::Replace { renotify: true },
-        _ => WatchDecision::Replace { renotify: false },
-    }
-}
-
-/// Observa a pasta do arquivo (não o arquivo: editores salvam via rename) e emite
-/// `file-changed` quando o alvo muda. A espera depende do tamanho do arquivo no momento
-/// (`debounce_for`); como cada recarga chama `watch_file` de novo, ela acompanha o arquivo
-/// crescendo, e `watch_decision` evita recriar o vigia à toa.
-#[tauri::command]
-fn watch_file(app: AppHandle, state: State<AppState>, path: String) -> Result<(), String> {
-    let target = granted(&state, &path)?;
-    let dir = target
-        .parent()
-        .map(Path::to_path_buf)
-        .ok_or_else(|| i18n::s().no_parent.to_string())?;
-    let size = std::fs::metadata(&target).map(|m| m.len()).unwrap_or(0);
-    let debounce = debounce_for(size);
-    let decision = watch_decision(state.watched.lock().unwrap().as_ref(), &target, debounce);
-    let renotify = match decision {
-        WatchDecision::Keep => return Ok(()),
-        WatchDecision::Replace { renotify } => renotify,
-    };
-    let emit_path = target.to_string_lossy().into_owned();
-    let t2 = target.clone();
-    let app2 = app.clone();
-    let mut debouncer = new_debouncer(
-        debounce,
-        move |res: Result<Vec<DebouncedEvent>, notify::Error>| {
-            if let Ok(events) = res
-                && events.iter().any(|e| e.path == t2)
-            {
-                let _ = app2.emit("file-changed", emit_path.clone());
-            }
-        },
-    )
-    .map_err(|e| e.to_string())?;
-    debouncer
-        .watcher()
-        .watch(&dir, RecursiveMode::NonRecursive)
-        .map_err(|e| e.to_string())?;
-    *state.watcher.lock().unwrap() = Some(debouncer);
-    *state.watched.lock().unwrap() = Some((target.clone(), debounce));
-    if renotify {
-        let _ = app.emit("file-changed", target.to_string_lossy().into_owned());
-    }
-    Ok(())
 }
 
 /// Quanto esperar, depois do `RunEvent::Ready`, por um arquivo pedido pelo SO na abertura.
@@ -682,21 +307,6 @@ async fn launch_open(app: AppHandle) -> Option<String> {
     .await
     .ok()
     .flatten()
-}
-
-/// Resolve um link relativo a partir da pasta de um documento aberto e concede o alvo;
-/// erro se a pasta não for de documento concedido ou o alvo não existir.
-#[tauri::command]
-fn resolve_path(state: State<AppState>, dir: String, rel: String) -> Result<String, String> {
-    resolve_rel(&state, &dir, &rel).map(|c| c.to_string_lossy().into_owned())
-}
-
-/// Miolo de `resolve_path`, testável sem `State`. Erro de caminho absoluto chega ao leitor como
-/// veio; alvo inexistente vira "Não encontrado", sem o texto do SO.
-fn resolve_rel(state: &AppState, dir: &str, rel: &str) -> Result<PathBuf, String> {
-    let d = granted_dir(state, dir)?;
-    let r = relative_only(rel)?;
-    grant(state, &d.join(r)).map_err(|_| fill(i18n::s().not_found, &[("path", rel)]))
 }
 
 /// Diálogo nativo de abrir: a escolha é concedida aqui, no Rust, e devolvida ao frontend.
@@ -814,74 +424,6 @@ async fn list_folder(state: State<'_, AppState>, root: String) -> Result<FolderL
             .unwrap_or_else(|| listing.root.to_string_lossy().into_owned()),
         listing,
     })
-}
-
-/// Concede e devolve (forma canônica) um Markdown de dentro de uma pasta concedida, pedido pela
-/// árvore ou pelo abrir rápido com caminho relativo à raiz.
-#[tauri::command]
-fn open_in_folder(state: State<AppState>, root: String, rel: String) -> Result<String, String> {
-    folder_rel(&state, &root, &rel).map(|c| c.to_string_lossy().into_owned())
-}
-
-/// Miolo de `open_in_folder`, testável sem `State`: relativo (`relative_only`), e o alvo canônico
-/// tem de ser Markdown dentro da raiz, mesmo por `..` ou link simbólico.
-fn folder_rel(state: &AppState, root: &str, rel: &str) -> Result<PathBuf, String> {
-    let r = granted_folder(state, root)?;
-    let p = r.join(relative_only(rel)?);
-    let c = folder::inside(&r, &p).ok_or_else(|| match canonical(&p.to_string_lossy()) {
-        Ok(c) => deny(&c),
-        Err(_) => fill(i18n::s().not_found, &[("path", rel)]),
-    })?;
-    grant(state, &c)
-}
-
-/// Quais caminhos ainda existem como arquivo (ou pasta, para pasta concedida) (Recentes: o que
-/// sumiu aparece apagado). Só responde sobre caminhos já concedidos (`granted`, `folders`): fora
-/// das listas é `false`, sem tocar o disco, para o comando não virar sonda de existência. Assíncrono porque um recente em volume
-/// de rede fora do ar demora no `stat`, e o estado vazio não pode travar a janela por isso.
-#[tauri::command]
-async fn paths_exist(state: State<'_, AppState>, paths: Vec<String>) -> Result<Vec<bool>, String> {
-    let granted: Vec<PathBuf> = state.granted.lock().unwrap().clone();
-    let folders: Vec<PathBuf> = state.folders.lock().unwrap().clone();
-    let out = tauri::async_runtime::spawn_blocking(move || {
-        paths
-            .iter()
-            .map(|p| {
-                let path = Path::new(p);
-                (granted.iter().any(|g| g == path) && path.is_file())
-                    || (folders.iter().any(|g| g == path) && path.is_dir())
-            })
-            .collect()
-    })
-    .await
-    .map_err(|e| e.to_string())?;
-    #[cfg(debug_assertions)]
-    eprintln!("paths_exist: {out:?}");
-    Ok(out)
-}
-
-/// Libera no asset protocol, arquivo por arquivo, as imagens que um documento concedido
-/// referencia. Nada de pasta inteira: só o que o `<img>` pede e existe.
-#[tauri::command]
-fn allow_assets(
-    app: AppHandle,
-    state: State<AppState>,
-    dir: String,
-    rels: Vec<String>,
-) -> Result<HashMap<String, Option<String>>, String> {
-    let d = granted_dir(&state, &dir)?;
-    let scope = app.asset_protocol_scope();
-    Ok(rels
-        .into_iter()
-        .map(|rel| {
-            let abs = asset_candidate(&d, &rel)
-                .filter(|p| scope.allow_file(p).is_ok())
-                .map(|p| p.to_string_lossy().into_owned());
-            #[cfg(debug_assertions)]
-            eprintln!("allow_assets: {rel} -> {abs:?}");
-            (rel, abs)
-        })
-        .collect())
 }
 
 /// Exportar HTML: imagem local acima disso não entra no arquivo; o frontend mantém o caminho
@@ -1546,17 +1088,17 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
-            read_markdown,
-            watch_file,
+            doc::read_markdown,
+            watch::watch_file,
             launch_open,
-            resolve_path,
+            grants::resolve_path,
             pick_markdown,
             read_clipboard,
             save_markdown,
             pick_folder,
             list_folder,
-            open_in_folder,
-            allow_assets,
+            grants::open_in_folder,
+            grants::allow_assets,
             export_images,
             save_html,
             sync_view_menu,
@@ -1567,8 +1109,8 @@ pub fn run() {
             open_external,
             reveal_in_folder,
             app_info,
-            paths_exist,
-            forget_grants,
+            grants::paths_exist,
+            grants::forget_grants,
             set_locale,
             list_editors,
             open_in_editor,
@@ -1712,265 +1254,8 @@ mod scope_tests {
         p
     }
 
-    #[test]
-    fn so_le_o_que_foi_concedido_e_persiste() {
-        let t = temp("grant");
-        let doc = t.join("doc.md");
-        std::fs::write(&doc, "# a").unwrap();
-        let state = AppState::default();
-        *state.grants_file.lock().unwrap() = Some(t.join("grants.json"));
-        let doc_s = doc.to_string_lossy().into_owned();
-        assert!(
-            granted(&state, &doc_s).is_err(),
-            "antes de conceder, recusa"
-        );
-        let c = grant(&state, &doc).unwrap();
-        assert_eq!(granted(&state, &doc_s).unwrap(), c);
-        assert!(
-            granted(&state, "/etc/hosts")
-                .unwrap_err()
-                .starts_with("Caminho não autorizado")
-        );
-        let reloaded = load_grants(&t.join("grants.json"));
-        assert_eq!(reloaded, vec![c]);
-        let _ = std::fs::remove_dir_all(&t);
-    }
-
-    #[test]
-    fn concessao_antes_do_setup_sobrevive_e_e_gravada() {
-        // macOS: RunEvent::Opened chega antes do setup ligar o arquivo de concessões.
-        let t = temp("antes-setup");
-        let antigo = t.join("antigo.md");
-        let novo = t.join("novo.md");
-        std::fs::write(&antigo, "").unwrap();
-        std::fs::write(&novo, "").unwrap();
-        let file = t.join("grants.json");
-        persist_grants(&file, &[fs_canon(&antigo)], &[]);
-        let state = AppState::default();
-        let c = grant(&state, &novo).unwrap();
-        attach_grants_file(&state, file.clone());
-        assert!(
-            granted(&state, &novo.to_string_lossy()).is_ok(),
-            "concessão em memória perdida"
-        );
-        assert!(
-            granted(&state, &antigo.to_string_lossy()).is_ok(),
-            "concessão do disco perdida"
-        );
-        assert_eq!(
-            load_grants(&file).last(),
-            Some(&c),
-            "gravada e como mais recente"
-        );
-        let _ = std::fs::remove_dir_all(&t);
-    }
-
-    #[test]
-    fn esquecer_concessoes_mantem_so_as_abas_abertas() {
-        let t = temp("esquecer");
-        let aberta = t.join("aberta.md");
-        let antiga = t.join("antiga.md");
-        let outra = t.join("outra.md");
-        for p in [&aberta, &antiga, &outra] {
-            std::fs::write(p, "# x").unwrap();
-        }
-        let state = AppState::default();
-        let file = t.join("grants.json");
-        *state.grants_file.lock().unwrap() = Some(file.clone());
-        for p in [&antiga, &aberta, &outra] {
-            grant(&state, p).unwrap();
-        }
-        let aberta_c = fs_canon(&aberta);
-        let saiu = forget_grants_except(&state, std::slice::from_ref(&aberta_c));
-        assert_eq!(saiu, 2);
-        assert!(
-            granted(&state, &aberta.to_string_lossy()).is_ok(),
-            "aba aberta perdeu a concessão"
-        );
-        assert!(granted(&state, &antiga.to_string_lossy()).is_err());
-        assert!(granted(&state, &outra.to_string_lossy()).is_err());
-        assert_eq!(
-            load_grants(&file),
-            vec![aberta_c],
-            "grants.json não acompanhou"
-        );
-        // Sem aba aberta: lista e arquivo ficam vazios.
-        assert_eq!(forget_grants_except(&state, &[]), 1);
-        assert!(load_grants(&file).is_empty());
-        let _ = std::fs::remove_dir_all(&t);
-    }
-
     fn fs_canon(p: &Path) -> PathBuf {
         std::fs::canonicalize(p).unwrap()
-    }
-
-    #[test]
-    fn pasta_concedida_e_a_do_documento_e_so_ela() {
-        let t = temp("dir");
-        std::fs::create_dir_all(t.join("outra")).unwrap();
-        let doc = t.join("doc.md");
-        std::fs::write(&doc, "").unwrap();
-        let state = AppState::default();
-        grant(&state, &doc).unwrap();
-        assert!(granted_dir(&state, &t.to_string_lossy()).is_ok());
-        assert!(granted_dir(&state, &t.join("outra").to_string_lossy()).is_err());
-        let _ = std::fs::remove_dir_all(&t);
-    }
-
-    #[test]
-    fn pasta_concedida_lista_e_concede_so_markdown_de_dentro() {
-        let t = temp("abrir-pasta");
-        let raiz = t.join("docs");
-        std::fs::create_dir_all(raiz.join("sub")).unwrap();
-        for f in ["a.md", "sub/b.md", "img.png"] {
-            std::fs::write(raiz.join(f), "# x").unwrap();
-        }
-        std::fs::write(t.join("vizinho.md"), "# fora").unwrap();
-        let state = AppState::default();
-        let raiz_s = raiz.to_string_lossy().into_owned();
-        assert!(
-            folder_rel(&state, &raiz_s, "a.md").is_err(),
-            "pasta não concedida"
-        );
-        assert!(granted_folder(&state, &raiz_s).is_err());
-        let r = grant_folder(&state, &raiz).unwrap();
-        assert_eq!(r, fs_canon(&raiz));
-        assert!(
-            grant_folder(&state, &raiz.join("a.md")).is_err(),
-            "arquivo não vira pasta concedida"
-        );
-        let b = folder_rel(&state, &raiz_s, "sub/b.md").unwrap();
-        assert!(
-            granted(&state, &b.to_string_lossy()).is_ok(),
-            "concedido ao abrir"
-        );
-        assert!(
-            folder_rel(&state, &raiz_s, "sub/../a.md").is_ok(),
-            "`..` que fica dentro da raiz vale"
-        );
-        assert!(
-            folder_rel(&state, &raiz_s, "../vizinho.md")
-                .unwrap_err()
-                .starts_with("Caminho não autorizado"),
-            "`..` para fora da raiz"
-        );
-        assert!(granted(&state, &t.join("vizinho.md").to_string_lossy()).is_err());
-        assert!(
-            folder_rel(&state, &raiz_s, "img.png").is_err(),
-            "só Markdown"
-        );
-        assert!(
-            folder_rel(&state, &raiz_s, "/etc/hosts").is_err(),
-            "absoluto recusado (relative_only)"
-        );
-        assert!(folder_rel(&state, &raiz_s, "nada.md").is_err());
-        // Subpasta da raiz não é pasta concedida: listar e abrir pedem a raiz exata.
-        assert!(granted_folder(&state, &raiz.join("sub").to_string_lossy()).is_err());
-        let _ = std::fs::remove_dir_all(&t);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn pasta_concedida_recusa_link_simbolico_para_fora() {
-        let t = temp("pasta-symlink");
-        let raiz = t.join("raiz");
-        std::fs::create_dir_all(&raiz).unwrap();
-        std::fs::create_dir_all(t.join("fora")).unwrap();
-        std::fs::write(t.join("fora/segredo.md"), "# s").unwrap();
-        std::os::unix::fs::symlink(t.join("fora/segredo.md"), raiz.join("atalho.md")).unwrap();
-        std::os::unix::fs::symlink(t.join("fora"), raiz.join("pasta")).unwrap();
-        let state = AppState::default();
-        grant_folder(&state, &raiz).unwrap();
-        let raiz_s = raiz.to_string_lossy().into_owned();
-        for rel in ["atalho.md", "pasta/segredo.md"] {
-            assert!(
-                folder_rel(&state, &raiz_s, rel)
-                    .unwrap_err()
-                    .starts_with("Caminho não autorizado"),
-                "{rel} sai da raiz pelo link"
-            );
-        }
-        assert!(granted(&state, &t.join("fora/segredo.md").to_string_lossy()).is_err());
-        let _ = std::fs::remove_dir_all(&t);
-    }
-
-    #[test]
-    fn concessao_de_pasta_persiste_le_o_formato_antigo_e_esquecer_apaga() {
-        let t = temp("pasta-persiste");
-        let doc = t.join("doc.md");
-        std::fs::write(&doc, "# a").unwrap();
-        let (p1, p2) = (t.join("p1"), t.join("p2"));
-        std::fs::create_dir_all(&p1).unwrap();
-        std::fs::create_dir_all(&p2).unwrap();
-        let file = t.join("grants.json");
-        // Formato antigo (só arquivos) continua lido.
-        persist_grants(&file, &[fs_canon(&doc)], &[]);
-        let state = AppState::default();
-        attach_grants_file(&state, file.clone());
-        assert!(granted(&state, &doc.to_string_lossy()).is_ok());
-        grant_folder(&state, &p1).unwrap();
-        grant_folder(&state, &p2).unwrap();
-        let json: Vec<String> =
-            serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
-        assert_eq!(json.len(), 3, "uma lista só: arquivos e depois pastas");
-        assert_eq!(
-            load_grant_lists(&file),
-            (vec![fs_canon(&doc)], vec![fs_canon(&p1), fs_canon(&p2)]),
-            "quem lê separa arquivo de pasta pelo disco"
-        );
-        // Nova execução: a pasta volta concedida.
-        let state2 = AppState::default();
-        attach_grants_file(&state2, file.clone());
-        assert!(granted_folder(&state2, &p1.to_string_lossy()).is_ok());
-        assert!(
-            granted(&state2, &p1.to_string_lossy()).is_err(),
-            "pasta não vira arquivo concedido"
-        );
-        // Esquecer: fica só o que o frontend mandou manter (aba aberta, pasta aberta).
-        let saiu = forget_grants_except(&state2, &[fs_canon(&doc), fs_canon(&p2)]);
-        assert_eq!(saiu, 1);
-        assert!(granted_folder(&state2, &p1.to_string_lossy()).is_err());
-        assert!(granted_folder(&state2, &p2.to_string_lossy()).is_ok());
-        assert_eq!(
-            load_grant_lists(&file),
-            (vec![fs_canon(&doc)], vec![fs_canon(&p2)])
-        );
-        assert_eq!(forget_grants_except(&state2, &[]), 2);
-        assert_eq!(load_grant_lists(&file), (vec![], vec![]));
-        let _ = std::fs::remove_dir_all(&t);
-    }
-
-    #[test]
-    fn pastas_concedidas_tem_teto() {
-        let t = temp("pasta-teto");
-        let state = AppState::default();
-        for i in 0..(FOLDERS_MAX + 3) {
-            let p = t.join(format!("p{i}"));
-            std::fs::create_dir_all(&p).unwrap();
-            grant_folder(&state, &p).unwrap();
-        }
-        let d = state.folders.lock().unwrap();
-        assert_eq!(d.len(), FOLDERS_MAX);
-        assert_eq!(
-            d.last(),
-            Some(&fs_canon(&t.join(format!("p{}", FOLDERS_MAX + 2))))
-        );
-        drop(d);
-        let _ = std::fs::remove_dir_all(&t);
-    }
-
-    #[test]
-    fn asset_candidate_exige_arquivo_existente_com_extensao_de_imagem() {
-        let t = temp("asset");
-        std::fs::create_dir_all(t.join("img")).unwrap();
-        std::fs::write(t.join("img/a.PNG"), "").unwrap();
-        std::fs::write(t.join("segredo.txt"), "").unwrap();
-        assert!(asset_candidate(&t, "img/a.PNG").is_some());
-        assert!(asset_candidate(&t, "./img/../img/a.PNG").is_some());
-        assert!(asset_candidate(&t, "segredo.txt").is_none());
-        assert!(asset_candidate(&t, "img").is_none(), "pasta não é imagem");
-        assert!(asset_candidate(&t, "nao-existe.png").is_none());
-        let _ = std::fs::remove_dir_all(&t);
     }
 
     #[test]
@@ -2140,88 +1425,6 @@ mod scope_tests {
         assert_eq!(export_image(&d, "disfarce.png", 1024).data, None);
         let _ = std::fs::remove_dir_all(&t);
     }
-
-    #[test]
-    fn documento_so_pede_caminho_relativo() {
-        // Alvos absolutos EXISTEM e têm extensão certa: só a guarda pode recusá-los.
-        let t = temp("relativo");
-        std::fs::create_dir_all(t.join("sub")).unwrap();
-        let doc = t.join("sub/doc.md");
-        std::fs::write(&doc, "").unwrap();
-        std::fs::write(t.join("irma.md"), "").unwrap();
-        std::fs::write(t.join("a.png"), "").unwrap();
-        let fora = temp("relativo-fora");
-        let fora_md = fora.join("segredo.md");
-        let fora_png = fora.join("foto.png");
-        std::fs::write(&fora_md, "").unwrap();
-        std::fs::write(&fora_png, "").unwrap();
-        let state = AppState::default();
-        grant(&state, &doc).unwrap();
-        let sub = t.join("sub");
-        let sub_s = sub.to_string_lossy().into_owned();
-
-        for ok in ["../irma.md", "./a.png", "a.png", "x\\y.png", "~/x.md"] {
-            assert!(relative_only(ok).is_ok(), "{ok} é relativo");
-        }
-        for abs in [
-            "/etc/hosts",
-            "\\\\attacker\\share\\x.md",
-            "\\x",
-            "C:\\x",
-            "C:x",
-            "d:x.png",
-            "//servidor/x",
-            "\\\\?\\C:\\x",
-        ] {
-            assert!(relative_only(abs).is_err(), "{abs} tem raiz ou drive");
-        }
-
-        // Os três pontos de aplicação recusam um alvo absoluto que existe.
-        let md_abs = fora_md.to_string_lossy().into_owned();
-        let png_abs = fora_png.to_string_lossy().into_owned();
-        let md_sem_ext = md_abs.trim_end_matches(".md").to_string();
-        assert!(asset_candidate(&sub, &png_abs).is_none(), "imagem absoluta");
-        assert_eq!(
-            resolve_wikilink(&sub, None, &mut None, &md_sem_ext),
-            None,
-            "wikilink absoluto"
-        );
-        let e = resolve_rel(&state, &sub_s, &md_abs).unwrap_err();
-        assert!(e.contains("absoluto"), "{e}");
-        assert!(!state.granted.lock().unwrap().contains(&fs_canon(&fora_md)));
-
-        // E aceitam o relativo, inclusive subindo um nível.
-        assert!(asset_candidate(&sub, "../a.png").is_some());
-        assert!(resolve_wikilink(&sub, None, &mut None, "../irma").is_some());
-        assert_eq!(
-            resolve_rel(&state, &sub_s, "../irma.md").unwrap(),
-            fs_canon(&t.join("irma.md"))
-        );
-        assert_eq!(
-            resolve_rel(&state, &sub_s, "nao-existe.md").unwrap_err(),
-            "Não encontrado: nao-existe.md"
-        );
-        let _ = std::fs::remove_dir_all(&t);
-        let _ = std::fs::remove_dir_all(&fora);
-    }
-
-    #[test]
-    fn lista_de_concessoes_tem_teto_e_sem_duplicata() {
-        let t = temp("max");
-        let state = AppState::default();
-        for i in 0..(GRANTS_MAX + 5) {
-            let f = t.join(format!("{i}.md"));
-            std::fs::write(&f, "").unwrap();
-            grant(&state, &f).unwrap();
-        }
-        let first = t.join("0.md");
-        grant(&state, &first).unwrap();
-        let g = state.granted.lock().unwrap();
-        assert_eq!(g.len(), GRANTS_MAX);
-        assert_eq!(g.iter().filter(|p| p.ends_with("0.md")).count(), 1);
-        drop(g);
-        let _ = std::fs::remove_dir_all(&t);
-    }
 }
 
 #[cfg(test)]
@@ -2240,41 +1443,6 @@ mod tests {
         // Pasta com o mesmo nome não conta.
         assert!(!flatpak_marker(&dir));
         fs::remove_dir_all(&dir).unwrap();
-    }
-
-    #[test]
-    fn decode_text_trata_bom_utf16_e_utf8_invalido() {
-        assert_eq!(
-            decode_text("# oi".as_bytes()).unwrap(),
-            ("# oi".into(), None)
-        );
-        assert_eq!(decode_text(b"\xEF\xBB\xBF# oi").unwrap().0, "# oi");
-        let le: Vec<u8> = [0xFF, 0xFE]
-            .into_iter()
-            .chain("# é".encode_utf16().flat_map(u16::to_le_bytes))
-            .collect();
-        assert_eq!(decode_text(&le).unwrap(), ("# é".into(), None));
-        let be: Vec<u8> = [0xFE, 0xFF]
-            .into_iter()
-            .chain("# é".encode_utf16().flat_map(u16::to_be_bytes))
-            .collect();
-        assert_eq!(decode_text(&be).unwrap().0, "# é");
-        let (s, w) = decode_text(b"caf\xE9 latin-1").unwrap();
-        assert_eq!(s, "caf\u{FFFD} latin-1");
-        assert!(w.unwrap().contains("UTF-8"));
-        assert!(decode_text(b"PNG\x00\x01\x02").is_err());
-    }
-
-    #[test]
-    fn read_text_file_recusa_arquivo_grande_demais() {
-        let t = TempDir::new("grande");
-        let p = t.0.join("g.md");
-        let f = fs::File::create(&p).unwrap();
-        f.set_len(MAX_DOC_BYTES + 1).unwrap();
-        let e = read_text_file(&p).unwrap_err();
-        assert!(e.contains("grande demais"), "{e}");
-        fs::write(&p, "# ok").unwrap();
-        assert_eq!(read_text_file(&p).unwrap().0, "# ok");
     }
 
     /// Pasta temporária única por teste, removida ao sair de escopo.
@@ -2322,45 +1490,6 @@ mod tests {
         ] {
             assert!(!navigation_allowed(&u(fora)), "{fora}");
         }
-    }
-
-    #[test]
-    fn debounce_cresce_com_o_tamanho_do_arquivo() {
-        let ms = |b: u64| debounce_for(b).as_millis();
-        assert_eq!(ms(0), 150);
-        assert_eq!(ms(200 * 1024), 150, "até 200 KB fica como era");
-        assert_eq!(ms(200 * 1024 + 1), 500);
-        assert_eq!(ms(1024 * 1024), 500);
-        assert_eq!(ms(1024 * 1024 + 1), 1000);
-        assert_eq!(ms(5 * 1024 * 1024), 1000);
-        assert_eq!(ms(5 * 1024 * 1024 + 1), 2000);
-        assert_eq!(ms(20 * 1024 * 1024), 2000);
-    }
-
-    #[test]
-    fn vigia_so_e_trocado_quando_arquivo_ou_espera_mudam() {
-        let a = PathBuf::from("/a.md");
-        let b = PathBuf::from("/b.md");
-        let ms = Duration::from_millis;
-        assert_eq!(
-            watch_decision(None, &a, ms(150)),
-            WatchDecision::Replace { renotify: false }
-        );
-        assert_eq!(
-            watch_decision(Some(&(a.clone(), ms(150))), &a, ms(150)),
-            WatchDecision::Keep,
-            "recarga do mesmo arquivo não perde o evento pendente"
-        );
-        assert_eq!(
-            watch_decision(Some(&(a.clone(), ms(150))), &a, ms(500)),
-            WatchDecision::Replace { renotify: true },
-            "cruzou um degrau: troca e avisa uma vez"
-        );
-        assert_eq!(
-            watch_decision(Some(&(a.clone(), ms(150))), &b, ms(150)),
-            WatchDecision::Replace { renotify: false },
-            "outro documento: troca sem avisar"
-        );
     }
 
     #[test]

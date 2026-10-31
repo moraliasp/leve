@@ -1,7 +1,7 @@
 /**
  * Preferências do app: uma chave de localStorage por preferência, listadas aqui. A tela
  * Preferências (Mod+,) e o menu Exibir leem e escrevem as mesmas chaves pelas mesmas ações
- * de `main.ts`; o menu nativo é só espelho (`sync_view_menu`/`sync_remote_menu` no Rust).
+ * de `main.ts`; o menu nativo é só espelho (`sync_menu` no Rust).
  * Recentes, pontos de leitura e abas (`src/recent.ts`, `leve.tabs`) não são preferências:
  * "Restaurar padrões" não toca neles. Por quê: docs/decisoes.md, "Preferências em localStorage".
  * Até a 0.2.0 as chaves eram `mdview.*`; `migrateLegacyKeys` as renomeia ao carregar este módulo.

@@ -121,3 +121,23 @@ Precisa de máquina Windows real ou VM. Roteiro para repetir, uma vez com o `-se
 5. Depois de reabrir: Sobre mostra 0.3.0; tema, largura, fonte e zoom iguais; as duas abas de volta; o arquivo fechado abre pelos Recentes sem diálogo.
 6. Rodada da checagem diária: perfil limpo, 0.2.0 de novo, mudar as preferências e ligar "Procurar atualizações uma vez por dia" (ele checa na hora; Cancelar). Para não esperar 24 h, fechar o app e adiantar o relógio do Windows em 25 h (Configurações › Hora, desligar o ajuste automático); `dailyCheckDue` também dispara se o relógio voltar para antes do carimbo. Abrir o Leve sem documento: a oferta deve aparecer sozinha. Instalar e repetir o passo 5. Religar o ajuste automático da hora.
 7. Registrar aqui as versões, o que foi conferido e as capturas, e devolver o perfil do passo 1.
+
+# Atualização 0.4.0 → 0.5.0 (31 de outubro de 2026)
+
+Prova de que quem tem a 0.4.0 recebe a 0.5.0 pelo atualizador do app, com pacotes da release pública e endpoint público. Mesmo método da 0.3.0: perfil limpo no lugar do real, porque o Tauri reabre o app por `open -n` e `HOME` isolado não se mantém.
+
+## macOS: passou
+
+| Passo | Resultado |
+|---|---|
+| Instalação | `.dmg` da v0.4.0 conferido com SHA256 e attestation. Sobre: 0.4.0. Abas `um`, `dois` e `tres`, com `dois` ativa. |
+| Check for Updates… | Oferta da 0.5.0 pelo endpoint público; a assinatura da 0.5.0 é a mesma do `latest.json`. |
+| Install | O app reabriu sozinho na 0.5.0, com outro PID. Sobre: 0.5.0. |
+| Bundle instalado | `diff -r` contra o `.tar.gz` da release: idêntico. |
+| Abas | As 3 voltaram com `dois` ativa, como no `leve.tabs` de antes. |
+| Uso na 0.5.0 | Documento novo com Mermaid, recarga ao salvar e marca de mudança funcionaram. |
+| Checagem seguinte | "Up to date". Sair e reabrir restaurou as 4 abas. |
+
+**Estado devolvido.** Manifesto de 42 entradas igual antes e depois; `diff -r` vazio no `Application Support`, no `WebKit` e em `/Applications/Leve.app`.
+
+**Não testado.** Windows e Linux. Gatekeeper e "Abrir mesmo assim", porque o `.dmg` baixado pelo `gh` não leva quarentena. Preferências preservadas: o clique no tema não surtiu efeito na automação, então nenhuma foi mudada antes de atualizar.

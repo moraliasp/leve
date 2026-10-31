@@ -6,15 +6,19 @@ Os instaladores ainda saem sem assinatura (macOS até a Moralia ter conta Apple 
 
 Homebrew já publicado (tap próprio, [`moraliasp/homebrew-tap`](https://github.com/moraliasp/homebrew-tap)). winget em breve: o pacote `Moralia.Leve` está em revisão no `microsoft/winget-pkgs`, e a linha abaixo só funciona depois de aceito.
 
+macOS, pelo tap próprio da Moralia:
+
 ```bash
-brew install --cask moraliasp/tap/leve   # macOS, tap próprio da Moralia
+brew install --cask moraliasp/tap/leve
 ```
+
+Windows, com o instalador por usuário:
 
 ```powershell
-winget install Moralia.Leve              # Windows, instalador por usuário
+winget install Moralia.Leve
 ```
 
-O app é o mesmo da release, com o mesmo aviso na primeira abertura (abaixo). No macOS o Homebrew mantém a quarentena de propósito, então o passo do **Abrir Mesmo Assim** vale também para quem instala pelo `brew`, e pode voltar depois de um `brew upgrade`. Pelo winget vai o instalador por usuário (`-setup.exe`); o `.msi` continua só na release.
+O app é o mesmo da release, com o mesmo aviso na primeira abertura (abaixo). No macOS o Homebrew mantém a quarentena de propósito, então o passo do **Abrir Mesmo Assim** vale também para quem instala pelo `brew`, e pode voltar depois de um `brew upgrade`. Se já houver um Leve em Aplicativos, o `brew install` fica com ele em vez de instalar por cima: o app, a liberação do Gatekeeper e a versão continuam como estão, e o atualizador do app segue cuidando das versões novas. Pelo winget vai o instalador por usuário (`-setup.exe`); o `.msi` continua só na release.
 
 ## macOS
 

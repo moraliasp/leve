@@ -78,9 +78,11 @@ brew tap moraliasp/tap
 brew trust --cask moraliasp/tap/leve
 brew style moraliasp/tap/leve
 brew audit --cask --strict --online moraliasp/tap/leve
-brew install --cask moraliasp/tap/leve   # instala em /Applications
+brew install --cask moraliasp/tap/leve
 brew uninstall --cask leve
 ```
+
+O `brew install` usa `/Applications` e fica com um Leve que já esteja lá, e o `brew uninstall` apaga esse app, mesmo que ele não tenha vindo do `brew`.
 
 `brew audit --cask --new` reprova (app não passa no Gatekeeper, repositório pouco notável): é a régua do `homebrew/cask` oficial, não a do tap, e é o motivo de o tap existir.
 
@@ -107,12 +109,14 @@ cd /tmp/winget-pkgs
 git sparse-checkout set manifests/m/Moralia
 git switch -c Moralia.Leve-X.Y.Z
 mkdir -p manifests/m/Moralia/Leve/X.Y.Z
-cp /tmp/leve-out/packaging/winget/X.Y.Z/*.yaml manifests/m/Moralia/Leve/X.Y.Z/   # 0.2.0: packaging/winget/0.2.0 deste repo
+cp /tmp/leve-out/packaging/winget/X.Y.Z/*.yaml manifests/m/Moralia/Leve/X.Y.Z/
 git add manifests/m/Moralia/Leve/X.Y.Z
 git commit -m "New package: Moralia.Leve version X.Y.Z"
 git push -u origin HEAD
 gh pr create --repo microsoft/winget-pkgs --title "New package: Moralia.Leve version X.Y.Z" --web
 ```
+
+Na 0.2.0, os manifestos estão em `packaging/winget/0.2.0` deste repositório.
 
 Para versões seguintes, o título é `New version: Moralia.Leve version X.Y.Z`. O `--web` abre o PR no navegador com o template do winget-pkgs: marque os itens que valem (o CLA da Microsoft é assinado pelo bot no primeiro PR).
 

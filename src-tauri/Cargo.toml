@@ -1,6 +1,6 @@
 [package]
 name = "leve"
-version = "0.5.0"
+version = "0.6.0"
 description = "A lightweight Markdown viewer"
 authors = ["Moralia"]
 license = "MIT"

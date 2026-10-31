@@ -88,6 +88,16 @@
   </screenshots>
 
   <releases>
+    <release version="0.6.0" date="2026-10-31">
+      <url type="details">https://github.com/moraliasp/leve/releases/tag/v0.6.0</url>
+      <description>
+        <ul>
+          <li>Review for AI: annotate selected text and copy your notes as Markdown to paste into an AI tool, with nothing written to your file or disk</li>
+          <li>Reloads show a note as resolved when its text is gone</li>
+          <li>Updated the ZIP library behind the updater</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.5.0" date="2026-10-30">
       <url type="details">https://github.com/moraliasp/leve/releases/tag/v0.5.0</url>
       <description>

@@ -7,7 +7,7 @@
  */
 import type { Update } from "@tauri-apps/plugin-updater";
 import { t } from "./i18n";
-import { PREF_KEYS, boolPref } from "./prefs";
+import { isOn } from "./prefs";
 
 /** Quando foi a última checagem automática (dado, não preferência: fora de "Restaurar padrões"). */
 const CHECKED_KEY = "leve.updateChecked";
@@ -99,5 +99,5 @@ export async function checkForUpdates(ui: UpdateUi, manual: boolean, current: st
 export function maybeDailyCheck(ui: UpdateUi, current: string): void {
   const raw = localStorage.getItem(CHECKED_KEY);
   const last = raw === null ? null : Number(raw);
-  if (dailyCheckDue(Date.now(), last, boolPref(PREF_KEYS.autoUpdate, false))) void checkForUpdates(ui, false, current);
+  if (dailyCheckDue(Date.now(), last, isOn("autoUpdate"))) void checkForUpdates(ui, false, current);
 }

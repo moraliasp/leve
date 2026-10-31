@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, migrateLegacyKeys, resetPrefs, savedAnchor, savedTabs, setBoolPref } from "../src/prefs";
+import { PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, isOn, migrateLegacyKeys, resetPrefs, savedAnchor, savedTabs, setBoolPref, setOn } from "../src/prefs";
 import { RECENT_KEY, SCROLL_KEY } from "../src/recent";
 
 describe("preferências", () => {
@@ -98,5 +98,31 @@ describe("preferências", () => {
       expect(localStorage.getItem("mdview.zoom")).toBeNull();
       expect(localStorage.getItem("outro.x")).toBe("1");
     });
+  });
+});
+
+describe("preferências de liga/desliga", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("cada uma tem o seu padrão", () => {
+    for (const on of ["toc", "restoreScroll", "restoreTabs", "sample"] as const) expect(isOn(on)).toBe(true);
+    for (const off of ["remote", "showHidden", "autoUpdate", "exportMdLinks"] as const) expect(isOn(off)).toBe(false);
+  });
+
+  it("grava na chave da preferência e vence o padrão", () => {
+    setOn("toc", false);
+    expect(localStorage.getItem(PREF_KEYS.toc)).toBe("0");
+    expect(isOn("toc")).toBe(false);
+    setOn("remote", true);
+    expect(localStorage.getItem(PREF_KEYS.remote)).toBe("1");
+    expect(isOn("remote")).toBe(true);
+  });
+
+  it("Restaurar padrões devolve o padrão", () => {
+    setOn("sample", false);
+    setOn("showHidden", true);
+    resetPrefs();
+    expect(isOn("sample")).toBe(true);
+    expect(isOn("showHidden")).toBe(false);
   });
 });

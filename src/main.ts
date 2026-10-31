@@ -18,6 +18,7 @@ import { keepTabbable, tabKeyTarget } from "./a11y";
 import { applyAnchor, captureAnchor, onImagesSettled, type ScrollAnchor } from "./scroll";
 import { copyText, decorateCodeBlocks } from "./code";
 import { renderMath } from "./math";
+import type { ReviewUi } from "./review-ui";
 import { blockKeys, markChanges, stepChange, track, type Hunk, type Snapshot } from "./changes";
 import type { ExportResult, ImageEmbed } from "./export";
 import { MD_EXT, collectWikilinkTargets, markWikilinks } from "./wikilinks";
@@ -146,14 +147,14 @@ function renderTabs(): void {
     close.innerHTML = icon("x", 14);
     close.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      closeTab(t);
+      void askCloseTab(t);
     });
     el.addEventListener("click", () => void activateTab(t));
     // Clique do meio fecha, como em navegador.
     el.addEventListener("auxclick", (ev) => {
       if (ev.button === 1) {
         ev.preventDefault();
-        closeTab(t);
+        void askCloseTab(t);
       }
     });
     el.append(name, close);
@@ -198,6 +199,12 @@ function closeTab(t: Tab): Promise<void> {
   renderTabs();
   showEmpty();
   return Promise.resolve();
+}
+
+/** Fechar por pedido do leitor: anotação só existe em memória, então pergunta antes de perder. */
+async function askCloseTab(t: Tab): Promise<void> {
+  if (review?.has(t) && !(await confirmDialog(tr("review.closeTitle"), tr("review.closeText"), tr("review.closeOk")))) return;
+  await closeTab(t);
 }
 
 function cycleTab(delta: number): void {
@@ -725,6 +732,7 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   commitDoc(tab, doc.path, doc.name, opts.push !== false);
   renderTabs();
   folder?.setCurrent(doc.path);
+  review?.sync();
   updateNavButtons();
   // Exemplo e colado não são arquivo: fora dos Recentes e sem vigia.
   if (!mem) {
@@ -744,7 +752,11 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   onImagesSettled(els.content, applyPending);
   void renderMermaid(els.content, theme.isDark()).then(applyPending);
   if (large) cancelHighlight();
-  else void highlightLazily(els.content, els.main, () => finder.refresh());
+  else
+    void highlightLazily(els.content, els.main, () => {
+      finder.refresh();
+      review?.refresh();
+    });
   renderMath(els.content)
     .then(applyPending)
     .catch((e) => flash(`KaTeX: ${String(e)}`, true));
@@ -851,6 +863,22 @@ function syncSaveMenu(on: boolean): void {
 }
 
 /** Abrir da área de transferência e salvar o colado (src/clip-ui.ts, sob demanda). */
+/** Revisão para IA: módulo sob demanda, carregado na primeira seleção ou anotação. */
+let review: ReviewUi | null = null;
+async function reviewUi(): Promise<ReviewUi> {
+  if (review) return review;
+  const { mountReview } = await import("./review-ui");
+  review ??= mountReview({
+    content: els.content,
+    scroller: els.main,
+    tab: () => active,
+    doc: () => current && { path: current.path, name: current.name, inMemory: inMemory(current.path) },
+    flash,
+    copyText,
+  });
+  return review;
+}
+
 const clipHost: ClipHost = {
   tauri: IS_TAURI,
   flash,
@@ -860,6 +888,7 @@ const clipHost: ClipHost = {
   reopen: (p) => loadDoc(p, { push: false, keepScroll: true }),
   activate: activateTab,
   close: closeTab,
+  moved: (from, to) => review?.move(from, to),
   renderTabs,
 };
 const clipUi = (f: "openClipboard" | "saveClip"): void => void import("./clip-ui").then((m) => m[f](clipHost));
@@ -1101,6 +1130,9 @@ const actions: Record<string, () => void> = {
   "export-html": () => openExport("file"),
   "copy-html": () => openExport("copy"),
   "copy-rich": copyRich,
+  annotate: () => void reviewUi().then((r) => r.annotate()),
+  // Sem `await`: a cópia começa no gesto, e sem o módulo carregado não há o que copiar.
+  "copy-review": () => (review ? review.copy() : flash(t("review.none"))),
   find: openFind,
   "next-change": () => stepToChange(1),
   "prev-change": () => stepToChange(-1),
@@ -1122,7 +1154,7 @@ const actions: Record<string, () => void> = {
   back: () => go(-1),
   forward: () => go(1),
   "close-tab": () => {
-    if (active) closeTab(active);
+    if (active) void askCloseTab(active);
   },
   "clear-recent": () => void askClearRecent(),
   "open-folder": () => void pickFolder(),
@@ -1576,6 +1608,10 @@ function wire(): void {
 
   // Links: externos abrem no navegador, .md relativos navegam aqui, âncoras rolam.
   // `<area>` (mapa de imagem) é link também: sem isto o clique navegaria a janela para fora.
+  // Soltou o mouse com texto selecionado: oferece anotar (o módulo vem aqui, na primeira vez).
+  els.content.addEventListener("mouseup", () => {
+    if (!getSelection()?.isCollapsed) void reviewUi().then((r) => r.offer());
+  });
   els.content.addEventListener("click", (ev) => {
     const a = (ev.target as HTMLElement).closest<HTMLAnchorElement | HTMLAreaElement>("a, area");
     if (!a) return;

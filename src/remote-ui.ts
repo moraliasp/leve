@@ -1,3 +1,4 @@
+import { clearBanner, showBanner } from "./banner";
 import { remoteHost, restoreRemote } from "./remote";
 import { t } from "./i18n";
 
@@ -47,18 +48,24 @@ export function applyRemotePolicy(
   banner: HTMLElement,
   opts: { allowAll: boolean; onAllowAll?: () => void } & RemoteHooks,
 ): number {
-  banner.hidden = true;
-  banner.replaceChildren();
+  clearBanner(banner);
   if (blockedCount(container) === 0) return 0;
   if (opts.allowAll) {
     allowRemote(container, opts);
     return 0;
   }
-  const text = document.createElement("span");
+  const notice = showBanner(banner, bannerText(blockedCount(container)), {
+    label: t("remote.loadAll"),
+    run: () => {
+      allowRemote(container, opts);
+      notice.hide();
+      opts.onAllowAll?.();
+    },
+  });
   const refresh = (): void => {
     const n = blockedCount(container);
-    if (n === 0) banner.hidden = true;
-    else text.textContent = bannerText(n);
+    if (n === 0) notice.hide();
+    else notice.setText(bannerText(n));
   };
   for (const img of container.querySelectorAll<HTMLImageElement>("img[data-remote-src], img[data-remote-srcset]")) {
     const url = img.dataset.remoteSrc ?? img.dataset.remoteSrcset ?? "";
@@ -80,17 +87,5 @@ export function applyRemotePolicy(
     img.classList.add("remote-hidden");
     img.after(ph);
   }
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "text";
-  btn.textContent = t("remote.loadAll");
-  btn.addEventListener("click", () => {
-    allowRemote(container, opts);
-    banner.hidden = true;
-    opts.onAllowAll?.();
-  });
-  banner.append(text, btn);
-  refresh();
-  banner.hidden = false;
   return blockedCount(container);
 }

@@ -69,7 +69,7 @@ git commit -m "leve 0.2.0"
 git push origin main
 ```
 
-Proteja o tap como a `main` do Leve (ruleset sem force-push nem delete, PR obrigatório): o cask é código Ruby que roda na máquina de quem instala. Ver [`seguranca-repo.md`](seguranca-repo.md).
+O tap é protegido como a `main` do Leve (ruleset `main` desde 2026-10-31: sem force-push nem delete, histórico linear, PR obrigatório com squash), porque o cask é código Ruby que roda na máquina de quem instala. Push direto na `main` é recusado até para admin; o admin só pula a aprovação no PR. Ver [`seguranca-repo.md`](seguranca-repo.md).
 
 ### Conferir antes de anunciar
 
@@ -88,7 +88,10 @@ brew uninstall --cask leve
 
 ```bash
 cp /tmp/leve-out/packaging/homebrew/Casks/leve.rb /tmp/homebrew-tap/Casks/leve.rb
-cd /tmp/homebrew-tap && git pull && git commit -am "leve X.Y.Z" && git push origin main
+cd /tmp/homebrew-tap && git switch main && git pull && git switch -c leve-X.Y.Z
+git commit -am "leve X.Y.Z" && git push -u origin HEAD
+gh pr create --repo moraliasp/homebrew-tap --fill
+gh pr merge --repo moraliasp/homebrew-tap --squash --admin --delete-branch
 ```
 
 O cask tem `livecheck` pela release mais recente (`brew livecheck --cask moraliasp/tap/leve` mostra se ficou para trás) e `auto_updates true`: quem usa o atualizador do app não depende do `brew upgrade`.

@@ -33,7 +33,7 @@
 
 Baixe a versão mais recente em [Releases](https://github.com/moraliasp/leve/releases/latest):
 
-- **macOS 11+**: `Leve_x.y.z_aarch64.dmg` para Apple silicon, `Leve_x.y.z_x64.dmg` para Intel. Na dúvida, veja no menu Apple > Sobre Este Mac: chip Apple M… é Apple silicon; processador Intel é Intel.
+- **macOS 11+** (Apple silicon e Intel): `Leve_x.y.z_universal.dmg` até a 0.6.0. As versões seguintes têm um download por chip: `Leve_x.y.z_aarch64.dmg` para Apple silicon, `Leve_x.y.z_x64.dmg` para Intel. Na dúvida, veja no menu Apple > Sobre Este Mac: chip Apple M… é Apple silicon; processador Intel é Intel.
 - **Windows 10/11** (x64): `Leve_x.y.z_x64-setup.exe` (por usuário, sem administrador) ou `.msi`
 - **Linux** (x86_64, compilado no Ubuntu 22.04, exige glibc 2.35+): `Leve_x.y.z_amd64.AppImage` (sem instalar) ou `Leve_x.y.z_amd64.deb` (Debian, Ubuntu e derivados), mais `Leve-x.y.z-1.x86_64.rpm` (Fedora, openSUSE) e `Leve_x.y.z_x86_64.flatpak` para Fedora, openSUSE e outras distribuições com Flatpak (a partir da 0.4.0; `flatpak install --user --bundle <arquivo>`). Novo e ainda não testado num desktop Linux real: só compilado e com teste de fumaça sem tela no CI. Relatos são bem-vindos.
 

@@ -1,0 +1,165 @@
+/* Revisão para IA (src/review-ui.ts): vem junto do módulo, na primeira seleção. */
+::highlight(leve-note) {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.review-offer,
+.review-compose,
+.review-panel {
+  position: fixed;
+  z-index: 20;
+  color: var(--bar-fg);
+  background: var(--page-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  font-size: 13px;
+}
+
+.review-offer[hidden],
+.review-compose[hidden],
+.review-panel[hidden],
+.review-panel ol[hidden] {
+  display: none;
+}
+
+.review-offer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.review-offer:hover,
+.review-toggle:hover,
+.review-note:hover,
+.review-del:hover {
+  background: var(--hover);
+}
+
+.review-compose {
+  width: min(320px, calc(100vw - 16px));
+  padding: 8px;
+}
+
+.review-compose textarea {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  resize: vertical;
+  color: inherit;
+  background: var(--bar-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.review-compose div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.review-panel {
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  width: min(320px, calc(100vw - 32px));
+  max-height: 45vh;
+}
+
+.review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+}
+
+.review-toggle {
+  flex: 1;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.review-panel ol {
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  list-style: none;
+}
+
+.review-panel li {
+  display: flex;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border);
+}
+
+.review-panel li:last-child {
+  border-bottom: 0;
+}
+
+.review-note {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.review-quote {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--bar-muted);
+}
+
+.review-state {
+  color: var(--bar-muted);
+  font-size: 12px;
+}
+
+.review-panel li.resolved .review-quote {
+  text-decoration: line-through;
+}
+
+.review-del {
+  display: flex;
+  margin: 4px;
+  padding: 4px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--bar-muted);
+  background: none;
+  cursor: pointer;
+}
+
+@media print {
+  ::highlight(leve-note) {
+    background: none;
+  }
+
+  .review-offer,
+  .review-compose,
+  .review-panel {
+    display: none !important;
+  }
+}

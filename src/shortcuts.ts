@@ -62,6 +62,8 @@ export const SHORTCUTS: Shortcut[] = [
   { id: "open-in-editor", label: "shortcuts.openInEditor", keys: "Mod+E" },
   { id: "print", label: "shortcuts.print", keys: "Mod+Shift+P" },
   { id: "copy-rich", label: "shortcuts.copyRich", keys: "Mod+Shift+C" },
+  { id: "annotate", label: "shortcuts.annotate", keys: "Mod+Shift+A" },
+  { id: "copy-review", label: "shortcuts.copyReview", keys: "Mod+Alt+C" },
   { id: "find", label: "shortcuts.find", keys: "Mod+F" },
   { id: "toggle-toc", label: "shortcuts.toc", keys: "Mod+B" },
   { id: "toggle-tree", label: "shortcuts.tree", keys: "Mod+Shift+E" },

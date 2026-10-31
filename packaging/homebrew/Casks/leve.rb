@@ -17,6 +17,14 @@ cask "leve" do
 
   app "Leve.app"
 
+  preflight_steps do
+    if_path_exists "Leve.app/Contents/Info.plist", base: :appdir do
+      run "/bin/echo", args: ["Leve is already installed. Keeping it; it updates itself."], print_stdout: true
+      remove "Leve.app", recursive: true
+      move "Leve.app", "Leve.app", source_base: :appdir
+    end
+  end
+
   zap trash: [
     "~/Library/Application Support/br.com.moralia.leve",
     "~/Library/Caches/br.com.moralia.leve",

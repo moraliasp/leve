@@ -39,16 +39,22 @@ Baixe a versão mais recente em [Releases](https://github.com/moraliasp/leve/rel
 
 Por gerenciador de pacotes:
 
+macOS:
+
 ```bash
-brew install --cask moraliasp/tap/leve   # macOS
+brew install --cask moraliasp/tap/leve
 ```
+
+Windows (em breve: em revisão no winget-pkgs):
 
 ```powershell
-winget install Moralia.Leve              # Windows (em breve: em revisão no winget-pkgs)
+winget install Moralia.Leve
 ```
 
+Linux (em breve: ainda não está no Flathub):
+
 ```bash
-flatpak install flathub br.com.moralia.leve   # Linux (em breve: ainda não está no Flathub)
+flatpak install flathub br.com.moralia.leve
 ```
 
 Cada release traz os SHA-256 em `SHA256SUMS.txt` e [attestations de proveniência](https://github.com/moraliasp/leve/attestations) (`gh attestation verify <arquivo> --repo moraliasp/leve`).
@@ -108,11 +114,23 @@ Tamanho do instalador da última release do Leve e de outros visualizadores de M
 
 Pré-requisitos: Node 22+, pnpm, Rust estável e Xcode Command Line Tools (macOS), Visual Studio Build Tools + WebView2 (Windows) ou os [pacotes do Tauri 2 para Linux](https://v2.tauri.app/start/prerequisites/#linux) (`libwebkit2gtk-4.1-dev` e afins).
 
+Instale as dependências e rode com um documento:
+
 ```bash
 pnpm install
-pnpm tauri dev -- -- docs/exemplo.md   # roda com um documento
-pnpm test                               # testes unitários e golden
-pnpm tauri build                        # .app/.dmg no macOS, .exe/.msi no Windows, .deb/.rpm/.AppImage no Linux (--bundles deb,rpm,appimage)
+pnpm tauri dev -- -- docs/exemplo.md
+```
+
+Testes unitários e golden:
+
+```bash
+pnpm test
+```
+
+Gere `.app`/`.dmg` no macOS, `.exe`/`.msi` no Windows ou `.deb`/`.rpm`/`.AppImage` no Linux (`--bundles deb,rpm,appimage`):
+
+```bash
+pnpm tauri build
 ```
 
 Do Mac também sai o instalador NSIS do Windows com `pnpm build:windows` (precisa de `cargo-xwin`, `llvm`, `lld` e `makensis`; ver `scripts/build-windows.sh`).

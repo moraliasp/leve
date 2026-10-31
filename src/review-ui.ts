@@ -40,7 +40,8 @@ export interface ReviewUi {
 export function mountReview(host: ReviewHost): ReviewUi {
   const byTab = new WeakMap<Tab, Map<string, Note[]>>();
   let nextId = 1;
-  let shownPath: string | null = null;
+  // O módulo chega com o documento já na tela.
+  let shownPath = host.doc()?.path ?? null;
   let ranges = new Map<number, Range>();
   let open = true;
   // Dentro de `#app`, onde `keepTabbable` alcança, e fora de `#main`, onde o documento não alcança.

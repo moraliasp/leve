@@ -386,6 +386,7 @@ function updateNavButtons(): void {
 
 function showEmpty(): void {
   current = null;
+  review?.sync();
   setDocNotice("", false);
   syncMenu();
   showChanges([]);
@@ -1057,7 +1058,7 @@ function wire(): void {
     const i = tabs.indexOf(active);
     if (ev.key === "Delete" || ev.key === "Backspace") {
       ev.preventDefault();
-      closeTab(active);
+      void askCloseTab(active);
       return;
     }
     if (ev.key === "Enter" || ev.key === " ") {
@@ -1115,12 +1116,13 @@ function wire(): void {
     if (ev.key === "Escape" && !els.find.classList.contains("hidden")) closeFind();
   });
 
-  // Links: externos abrem no navegador, .md relativos navegam aqui, âncoras rolam.
-  // `<area>` (mapa de imagem) é link também: sem isto o clique navegaria a janela para fora.
   // Soltou o mouse com texto selecionado: oferece anotar (o módulo vem aqui, na primeira vez).
   els.content.addEventListener("mouseup", () => {
     if (!getSelection()?.isCollapsed) void reviewUi().then((r) => r.offer());
   });
+
+  // Links: externos abrem no navegador, .md relativos navegam aqui, âncoras rolam.
+  // `<area>` (mapa de imagem) é link também: sem isto o clique navegaria a janela para fora.
   els.content.addEventListener("click", (ev) => {
     const a = (ev.target as HTMLElement).closest<HTMLAnchorElement | HTMLAreaElement>("a, area");
     if (!a) return;

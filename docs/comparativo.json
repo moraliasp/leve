@@ -1,0 +1,233 @@
+{
+  "consultado": "2026-10-31",
+  "apps": [
+    {
+      "nome": "Leve",
+      "repo": "moraliasp/leve",
+      "versao": "v0.5.0",
+      "publicado": "2026-10-30",
+      "assets": [
+        {
+          "nome": "Leve-0.5.0-1.x86_64.rpm",
+          "bytes": 4388836
+        },
+        {
+          "nome": "Leve_0.5.0_amd64.AppImage",
+          "bytes": 82868728
+        },
+        {
+          "nome": "Leve_0.5.0_amd64.deb",
+          "bytes": 4382850
+        },
+        {
+          "nome": "Leve_0.5.0_universal.dmg",
+          "bytes": 6533038
+        },
+        {
+          "nome": "Leve_0.5.0_x64-setup.exe",
+          "bytes": 2848086
+        },
+        {
+          "nome": "Leve_0.5.0_x64_en-US.msi",
+          "bytes": 3424256
+        },
+        {
+          "nome": "Leve_0.5.0_x86_64.flatpak",
+          "bytes": 4875584
+        }
+      ]
+    },
+    {
+      "nome": "Tinta",
+      "repo": "oipoistar/tinta",
+      "versao": "v3.9.6",
+      "publicado": "2026-10-31",
+      "assets": [
+        {
+          "nome": "tinta.exe",
+          "bytes": 3120640
+        }
+      ]
+    },
+    {
+      "nome": "MD Reader",
+      "repo": "Neilooo/md-reader",
+      "versao": "v0.3.12",
+      "publicado": "2026-10-10",
+      "assets": [
+        {
+          "nome": "MD-Reader-0.3.12-windows-x64-portable.exe",
+          "bytes": 6469120
+        },
+        {
+          "nome": "MD-Reader-0.3.12-windows-x64-setup.msi",
+          "bytes": 4423680
+        },
+        {
+          "nome": "MD.Reader-0.3.12-1.x86_64.rpm",
+          "bytes": 4777709
+        },
+        {
+          "nome": "MD.Reader_0.3.12_amd64.AppImage",
+          "bytes": 83114488
+        },
+        {
+          "nome": "MD.Reader_0.3.12_amd64.deb",
+          "bytes": 4776824
+        },
+        {
+          "nome": "MD.Reader_0.3.12_universal.dmg",
+          "bytes": 8792434
+        }
+      ]
+    },
+    {
+      "nome": "MDHero",
+      "repo": "vaibhav-kakde-in/mdhero",
+      "versao": "v0.2.10",
+      "publicado": "2026-09-13",
+      "assets": [
+        {
+          "nome": "MDHero-0.2.10-1.x86_64.rpm",
+          "bytes": 8417836
+        },
+        {
+          "nome": "MDHero_0.2.10_aarch64.dmg",
+          "bytes": 11508920
+        },
+        {
+          "nome": "MDHero_0.2.10_amd64.AppImage",
+          "bytes": 85625336
+        },
+        {
+          "nome": "MDHero_0.2.10_amd64.deb",
+          "bytes": 8417774
+        },
+        {
+          "nome": "MDHero_0.2.10_x64-setup.exe",
+          "bytes": 5404129
+        },
+        {
+          "nome": "MDHero_0.2.10_x64_en-US.msi",
+          "bytes": 6946816
+        }
+      ]
+    },
+    {
+      "nome": "Imark",
+      "repo": "migsilva89/imark",
+      "versao": "v0.6.9",
+      "publicado": "2026-10-31",
+      "assets": [
+        {
+          "nome": "Imark-0.6.9.dmg",
+          "bytes": 7089518
+        }
+      ]
+    },
+    {
+      "nome": "Markdown Reader",
+      "repo": "davidhoo/MarkdownReader",
+      "versao": "v2.4.11",
+      "publicado": "2026-10-19",
+      "assets": [
+        {
+          "nome": "MarkdownReader.dmg",
+          "bytes": 7878992
+        }
+      ]
+    },
+    {
+      "nome": "Markdown Preview",
+      "repo": "pluk-inc/markdown-preview",
+      "versao": "v0.0.70",
+      "publicado": "2026-10-28",
+      "assets": [
+        {
+          "nome": "Markdown-Preview.dmg",
+          "bytes": 9160468
+        }
+      ]
+    },
+    {
+      "nome": "mdview",
+      "repo": "c3er/mdview",
+      "versao": "v4.0.2",
+      "publicado": "2026-08-02",
+      "assets": [
+        {
+          "nome": "mdview-4.0.2-arm64.dmg",
+          "bytes": 119336024
+        },
+        {
+          "nome": "mdview-4.0.2-x64.exe",
+          "bytes": 102558880
+        },
+        {
+          "nome": "mdview-4.0.2-x64.msi",
+          "bytes": 114864128
+        },
+        {
+          "nome": "mdview-4.0.2-x86_64.AppImage",
+          "bytes": 134117714
+        }
+      ]
+    },
+    {
+      "nome": "MarkText",
+      "repo": "marktext/marktext",
+      "versao": "v0.23.0",
+      "publicado": "2026-10-21",
+      "assets": [
+        {
+          "nome": "marktext-linux-0.23.0.AppImage",
+          "bytes": 165020655
+        },
+        {
+          "nome": "marktext-linux-0.23.0.deb",
+          "bytes": 126657272
+        },
+        {
+          "nome": "marktext-linux-0.23.0.rpm",
+          "bytes": 110981749
+        },
+        {
+          "nome": "marktext-mac-arm64-0.23.0.dmg",
+          "bytes": 157789853
+        },
+        {
+          "nome": "marktext-mac-x64-0.23.0.dmg",
+          "bytes": 164727278
+        },
+        {
+          "nome": "marktext-win-x64-0.23.0-setup.exe",
+          "bytes": 132435617
+        }
+      ]
+    },
+    {
+      "nome": "Moji",
+      "repo": "alexishida/Moji",
+      "versao": "v1.0.7",
+      "publicado": "2026-09-10",
+      "assets": [
+        {
+          "nome": "Moji-1.0.7-amd64.deb",
+          "bytes": 118457432
+        },
+        {
+          "nome": "Moji-1.0.7-universal.dmg",
+          "bytes": 246378168
+        },
+        {
+          "nome": "Moji-1.0.7-x86_64.AppImage",
+          "bytes": 154806527
+        },
+        {
+          "nome": "Moji.Setup.1.0.7.exe",
+          "bytes": 131243736
+        }
+      ]
+    }
+  ]
+}

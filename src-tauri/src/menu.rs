@@ -1,6 +1,7 @@
 //! Menu nativo: todo atalho vive aqui (`build_menu`) e dispara o evento `menu`; o frontend mapeia em
-//! `actions`. Itens de marcar e o Salvar são sincronizados pelo frontend (`sync_*_menu`).
+//! `actions`. As marcas e o Salvar são espelho do frontend (`sync_menu`).
 
+use serde::Deserialize;
 use tauri::{
     AppHandle, Emitter, Manager, State, Wry,
     menu::{CheckMenuItem, CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder},
@@ -8,12 +9,40 @@ use tauri::{
 
 use crate::{AppState, i18n};
 
+/// O que o menu mostra, inteiro a cada chamada: quem guarda é o frontend, o Rust só espelha.
+#[derive(Deserialize)]
+pub struct MenuState {
+    style: String,
+    width: String,
+    font: String,
+    /// Exibir › Carregar imagens remotas.
+    remote: bool,
+    /// Exibir › Mostrar conteúdo oculto.
+    hidden: bool,
+    /// Arquivo › Salvar…: só o documento colado tem o que salvar.
+    save: bool,
+}
+
+/// Se o item de marcar com esse id fica marcado.
+fn is_checked(id: &str, menu: &MenuState) -> bool {
+    match id {
+        "remote-auto" => menu.remote,
+        "show-hidden" => menu.hidden,
+        _ => match id.split_once('-') {
+            Some(("style", v)) => v == menu.style,
+            Some(("width", v)) => v == menu.width,
+            Some(("font", v)) => v == menu.font,
+            _ => false,
+        },
+    }
+}
+
 /// Marca, no grupo do item (`style-*`, `width-*` ou `font-*`), só o item com esse id.
 fn check_view_item(state: &AppState, id: &str) {
     let Some(prefix) = id.split('-').next() else {
         return;
     };
-    for item in state.view_checks.lock().unwrap().iter() {
+    for item in state.menu_checks.lock().unwrap().iter() {
         let item_id = &item.id().0;
         if item_id.starts_with(prefix) {
             let _ = item.set_checked(item_id == id);
@@ -21,35 +50,14 @@ fn check_view_item(state: &AppState, id: &str) {
     }
 }
 
-/// Frontend informa o estilo, a largura e a fonte persistidos para o menu refletir.
+/// Frontend informa o estado do menu no início e a cada troca.
 #[tauri::command]
-pub fn sync_view_menu(state: State<AppState>, style: String, width: String, font: String) {
-    check_view_item(&state, &format!("style-{style}"));
-    check_view_item(&state, &format!("width-{width}"));
-    check_view_item(&state, &format!("font-{font}"));
-}
-
-/// Frontend informa se "Carregar imagens remotas" está ligado (no início e a cada troca).
-#[tauri::command]
-pub fn sync_remote_menu(state: State<AppState>, on: bool) {
-    if let Some(item) = state.remote_check.lock().unwrap().as_ref() {
-        let _ = item.set_checked(on);
+pub fn sync_menu(state: State<AppState>, menu: MenuState) {
+    for item in state.menu_checks.lock().unwrap().iter() {
+        let _ = item.set_checked(is_checked(&item.id().0, &menu));
     }
-}
-
-/// Frontend informa se "Mostrar conteúdo oculto" está ligado (no início e a cada troca).
-#[tauri::command]
-pub fn sync_hidden_menu(state: State<AppState>, on: bool) {
-    if let Some(item) = state.hidden_check.lock().unwrap().as_ref() {
-        let _ = item.set_checked(on);
-    }
-}
-
-/// Frontend informa se o documento ativo é o colado (só ele tem o que salvar).
-#[tauri::command]
-pub fn sync_save_menu(state: State<AppState>, on: bool) {
     if let Some(item) = state.save_item.lock().unwrap().as_ref() {
-        let _ = item.set_enabled(on);
+        let _ = item.set_enabled(menu.save);
     }
 }
 
@@ -75,7 +83,7 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         s.open_clipboard,
         Some("CmdOrCtrl+Shift+V"),
     )?;
-    // Desligado até o frontend dizer que o ativo é o documento colado (`sync_save_menu`).
+    // Desligado até o frontend dizer que o ativo é o documento colado (`sync_menu`).
     let save = MenuItemBuilder::with_id("save", s.save)
         .accelerator("CmdOrCtrl+S")
         .enabled(false)
@@ -145,9 +153,9 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<()> {
     #[cfg(not(target_os = "macos"))]
     let edit = edit.separator().item(&preferences);
     let edit = edit.build()?;
-    // Marcação vem do frontend (`sync_view_menu`, `sync_remote_menu`, `sync_hidden_menu`) logo depois de montar.
+    // Marcação vem do frontend (`sync_menu`) logo depois de montar.
     let mut checks = Vec::new();
-    let mut radio = |id: &str, label: &str, on: bool| -> tauri::Result<CheckMenuItem<Wry>> {
+    let mut check = |id: &str, label: &str, on: bool| -> tauri::Result<CheckMenuItem<Wry>> {
         let item = CheckMenuItemBuilder::with_id(id, label)
             .checked(on)
             .build(app)?;
@@ -155,28 +163,22 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         Ok(item)
     };
     // GitHub é nome próprio do visual (e da base, src/markdown.css): o mesmo nos dois idiomas.
-    let st_github = radio("style-github", "GitHub", true)?;
-    let st_editor = radio("style-editor", s.style_editor, false)?;
-    let st_terminal = radio("style-terminal", s.style_terminal, false)?;
-    let st_livro = radio("style-livro", s.style_livro, false)?;
-    let w_narrow = radio("width-narrow", s.width_narrow, false)?;
-    let w_normal = radio("width-normal", s.width_normal, true)?;
-    let w_wide = radio("width-wide", s.width_wide, false)?;
-    let f_auto = radio("font-auto", s.font_auto, true)?;
-    let f_sans = radio("font-sans", "Sans", false)?;
-    let f_serif = radio("font-serif", "Serif", false)?;
-    let f_mono = radio("font-mono", "Mono", false)?;
-    *app.state::<AppState>().view_checks.lock().unwrap() = checks;
+    let st_github = check("style-github", "GitHub", true)?;
+    let st_editor = check("style-editor", s.style_editor, false)?;
+    let st_terminal = check("style-terminal", s.style_terminal, false)?;
+    let st_livro = check("style-livro", s.style_livro, false)?;
+    let w_narrow = check("width-narrow", s.width_narrow, false)?;
+    let w_normal = check("width-normal", s.width_normal, true)?;
+    let w_wide = check("width-wide", s.width_wide, false)?;
+    let f_auto = check("font-auto", s.font_auto, true)?;
+    let f_sans = check("font-sans", "Sans", false)?;
+    let f_serif = check("font-serif", "Serif", false)?;
+    let f_mono = check("font-mono", "Mono", false)?;
     // Desligado por padrão (privacidade); o frontend liga se a preferência salva mandar.
-    let remote_auto = CheckMenuItemBuilder::with_id("remote-auto", s.remote)
-        .checked(false)
-        .build(app)?;
-    *app.state::<AppState>().remote_check.lock().unwrap() = Some(remote_auto.clone());
+    let remote_auto = check("remote-auto", s.remote, false)?;
     // Desligado por padrão: o documento só avisa; o frontend liga se a preferência mandar.
-    let show_hidden = CheckMenuItemBuilder::with_id("show-hidden", s.show_hidden)
-        .checked(false)
-        .build(app)?;
-    *app.state::<AppState>().hidden_check.lock().unwrap() = Some(show_hidden.clone());
+    let show_hidden = check("show-hidden", s.show_hidden, false)?;
+    *app.state::<AppState>().menu_checks.lock().unwrap() = checks;
     let style = SubmenuBuilder::new(app, s.style)
         .items(&[&st_github, &st_editor, &st_terminal, &st_livro])
         .build()?;
@@ -268,4 +270,62 @@ pub fn on_menu(app: &AppHandle, id: String) {
         check_view_item(&app.state::<AppState>(), &id);
     }
     let _ = app.emit("menu", id);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn state() -> MenuState {
+        MenuState {
+            style: "livro".into(),
+            width: "wide".into(),
+            font: "auto".into(),
+            remote: true,
+            hidden: false,
+            save: false,
+        }
+    }
+
+    /// A forma que `syncMenu` (src/main.ts) manda; campo que falte falha aqui.
+    #[test]
+    fn le_o_estado_que_o_frontend_manda() {
+        let m: MenuState = serde_json::from_str(
+            r#"{"style":"terminal","width":"narrow","font":"mono","remote":false,"hidden":true,"save":true}"#,
+        )
+        .unwrap();
+        assert!(is_checked("style-terminal", &m));
+        assert!(is_checked("width-narrow", &m));
+        assert!(is_checked("font-mono", &m));
+        assert!(is_checked("show-hidden", &m));
+        assert!(!is_checked("remote-auto", &m));
+        assert!(m.save);
+    }
+
+    #[test]
+    fn marca_o_item_de_cada_grupo() {
+        let m = state();
+        assert!(is_checked("style-livro", &m));
+        assert!(!is_checked("style-github", &m));
+        assert!(is_checked("width-wide", &m));
+        assert!(!is_checked("width-normal", &m));
+        assert!(is_checked("font-auto", &m));
+        assert!(!is_checked("font-mono", &m));
+    }
+
+    #[test]
+    fn liga_desliga_seguem_o_proprio_campo() {
+        let m = state();
+        assert!(is_checked("remote-auto", &m));
+        assert!(!is_checked("show-hidden", &m));
+    }
+
+    #[test]
+    fn valor_ou_id_desconhecido_nao_marca() {
+        let mut m = state();
+        m.style = "sumiu".into();
+        assert!(!is_checked("style-github", &m));
+        assert!(!is_checked("outro", &m));
+        assert!(!is_checked("outro-livro", &m));
+    }
 }

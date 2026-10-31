@@ -39,16 +39,22 @@ Get the latest version from [Releases](https://github.com/moraliasp/leve/release
 
 Package managers:
 
+macOS:
+
 ```bash
-brew install --cask moraliasp/tap/leve   # macOS
+brew install --cask moraliasp/tap/leve
 ```
+
+Windows (coming soon: under review in winget-pkgs):
 
 ```powershell
-winget install Moralia.Leve              # Windows (coming soon: under review in winget-pkgs)
+winget install Moralia.Leve
 ```
 
+Linux (coming soon: not on Flathub yet):
+
 ```bash
-flatpak install flathub br.com.moralia.leve   # Linux (coming soon: not on Flathub yet)
+flatpak install flathub br.com.moralia.leve
 ```
 
 Each release lists SHA-256 checksums in `SHA256SUMS.txt` and carries [build provenance attestations](https://github.com/moraliasp/leve/attestations) (`gh attestation verify <file> --repo moraliasp/leve`).
@@ -108,11 +114,23 @@ These are download sizes only; they say nothing about features, and each app doe
 
 Requirements: Node 22+, pnpm, stable Rust, and Xcode Command Line Tools (macOS), Visual Studio Build Tools + WebView2 (Windows), or the [Tauri 2 Linux packages](https://v2.tauri.app/start/prerequisites/#linux) (`libwebkit2gtk-4.1-dev` and friends).
 
+Install the dependencies and run with a document:
+
 ```bash
 pnpm install
-pnpm tauri dev -- -- docs/sample.md   # run with a document
-pnpm test                              # unit and golden tests
-pnpm tauri build                       # .app/.dmg on macOS, .exe/.msi on Windows, .deb/.rpm/.AppImage on Linux (--bundles deb,rpm,appimage)
+pnpm tauri dev -- -- docs/sample.md
+```
+
+Unit and golden tests:
+
+```bash
+pnpm test
+```
+
+Build `.app`/`.dmg` on macOS, `.exe`/`.msi` on Windows, or `.deb`/`.rpm`/`.AppImage` on Linux (`--bundles deb,rpm,appimage`):
+
+```bash
+pnpm tauri build
 ```
 
 From a Mac you can also build the Windows NSIS installer with `pnpm build:windows` (needs `cargo-xwin`, `llvm`, `lld` and `makensis`; see `scripts/build-windows.sh`).

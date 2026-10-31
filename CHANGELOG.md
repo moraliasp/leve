@@ -4,6 +4,11 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Fixed
+
+- `brew install --cask moraliasp/tap/leve` no longer fails when Leve is already in `/Applications`: it keeps that app, which goes on updating itself.
+- The install and build commands in the READMEs can be pasted as they are. Their trailing `#` notes broke them in zsh, the default macOS shell, and in the Windows Command Prompt.
+
 ### Security
 
 - Updated the ZIP library behind the Windows updater (`zip` 9.1.3) to clear three published advisories. Leve opens an update package only after verifying its signature, and its Windows updates are not ZIP files.

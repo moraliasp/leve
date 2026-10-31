@@ -88,6 +88,13 @@ describe("pacotes winget e Homebrew", () => {
     expect(cask).toContain('"~/Library/Application Support/br.com.moralia.leve"');
   });
 
+  it("cask: Leve já instalado fica no lugar, em passos declarativos", () => {
+    const cask = gen()["packaging/homebrew/Casks/leve.rb"];
+    expect(cask).toContain('if_path_exists "Leve.app/Contents/Info.plist", base: :appdir do');
+    expect(cask).toContain('move "Leve.app", "Leve.app", source_base: :appdir');
+    expect(cask).not.toMatch(/^\s*preflight do$/m);
+  });
+
   it("versão nova muda a pasta do winget, as URLs e os hashes", () => {
     const sums = SUMS_020.split("0.2.0").join("0.3.1");
     const files = gen("0.3.1", sums);

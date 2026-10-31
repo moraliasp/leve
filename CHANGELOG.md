@@ -4,6 +4,8 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-31
+
 ### Added
 
 - Review for AI: select text and choose *Annotate* (⌘⇧A / Ctrl+Shift+A, or the button beside the selection) to write what should change. *Edit › Copy Notes for AI* (⌘⌥C / Ctrl+Alt+C), or the button in the notes panel, copies the notes as Markdown with the file path, the section, the quoted text and your comment, ready to paste into an AI tool. When the AI changes the file, Leve reloads it, marks what changed, and a note whose text is gone shows as resolved. Notes stay in memory: Leve writes nothing to your file or disk and sends nothing anywhere. Closing a tab with notes asks first.
@@ -16,6 +18,7 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 ### Security
 
 - Updated the ZIP library behind the Windows updater (`zip` 9.1.3) to clear three published advisories. Leve opens an update package only after verifying its signature, and its Windows updates are not ZIP files.
+- Every release is now checked against known vulnerabilities in its dependencies, and one with a known problem doesn't ship.
 
 ## [0.5.0] - 2026-10-30
 
@@ -97,7 +100,8 @@ First public release.
 
 - Raw HTML is sanitized (DOMPurify); remote images and resources are blocked until requested; the window never navigates away from the app; documents can only reach files by relative path; file access is granted per file.
 
-[Unreleased]: https://github.com/moraliasp/leve/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/moraliasp/leve/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/moraliasp/leve/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/moraliasp/leve/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/moraliasp/leve/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/moraliasp/leve/compare/v0.2.0...v0.3.0

@@ -2,7 +2,7 @@
  * Um mapa só de atalhos, escrito com os nomes neutros `Mod`, `Shift`, `Alt`, `Enter`, `Esc`, e
  * formatado por plataforma: no macOS viram ⌘ ⇧ ⌥ ↩ ⎋; no Windows e no Linux viram Ctrl+, Shift+,
  * Alt+, Enter, Esc. Tooltips (`data-shortcut` em index.html), rótulo das abas e a tela
- * Ajuda › Atalhos leem daqui. A lista espelha o menu nativo (`build_menu` em lib.rs): atalho
+ * Ajuda › Atalhos leem daqui. A lista espelha o menu nativo (`build_menu` em menu.rs): atalho
  * novo entra lá e aqui.
  */
 

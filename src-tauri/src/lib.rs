@@ -1,36 +1,35 @@
 use std::{
-    collections::HashMap,
     path::{Path, PathBuf},
-    sync::{Condvar, Mutex, OnceLock},
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    sync::{Condvar, Mutex},
+    time::{Duration, Instant},
 };
 
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use notify_debouncer_mini::{Debouncer, notify::RecommendedWatcher};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tauri::{
     AppHandle, Emitter, Manager, State, Url, Wry,
-    menu::{
-        CheckMenuItem, CheckMenuItemBuilder, MenuBuilder, MenuItem, MenuItemBuilder, SubmenuBuilder,
-    },
+    menu::{CheckMenuItem, MenuItem},
 };
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
+mod bench;
 #[cfg(target_os = "macos")]
 mod cli;
 mod doc;
 mod editor;
+mod export;
 mod folder;
 mod grants;
 mod i18n;
+mod menu;
 mod watch;
+mod wikilinks;
 
 use doc::{MAX_DOC_BYTES, too_big};
-use grants::{
-    asset_candidate, attach_grants_file, canonical, dir_in_grants, file_in_grants, grant,
-    grant_folder, granted, granted_dir, granted_folder, relative_only,
-};
+use export::write_picked;
+use grants::{attach_grants_file, grant, grant_folder, granted, granted_folder};
+use menu::build_menu;
 
 const REPO_URL: &str = "https://github.com/moraliasp/leve";
 
@@ -63,69 +62,6 @@ fn is_flatpak() -> bool {
 
 fn flatpak_marker(info: &Path) -> bool {
     info.is_file()
-}
-
-/// Gancho de benchmark (`scripts/bench.mjs`, método em `docs/benchmark.md`). Só existe com
-/// `LEVE_BENCH=1` no ambiente: aí `run()` guarda o instante de partida, o plugin `bench` marca a
-/// página (`window.__LEVE_BENCH__`) e o frontend chama `bench_report` ao fim do layout e no
-/// primeiro quadro de cada documento (`src/bench.ts`). Desligado, o frontend não chama nada e o
-/// comando recusa. Só escreve no stdout.
-static BENCH: OnceLock<Option<Instant>> = OnceLock::new();
-
-fn bench_started() -> Option<Instant> {
-    *BENCH.get_or_init(|| bench_flag(std::env::var_os("LEVE_BENCH").as_deref()).then(Instant::now))
-}
-
-/// Só o valor exato `1` arma o gancho: `0`, vazio ou outro valor não.
-fn bench_flag(v: Option<&std::ffi::OsStr>) -> bool {
-    v.is_some_and(|v| v == "1")
-}
-
-#[derive(Deserialize, Serialize)]
-struct BenchMeasure {
-    name: String,
-    ms: f64,
-    end: f64,
-}
-
-/// Linha do stdout que o `bench.mjs` lê: prefixo fixo e JSON numa linha só.
-fn bench_line(
-    doc: &str,
-    phase: &str,
-    run_ms: f64,
-    epoch_ms: u128,
-    page_ms: f64,
-    measures: &[BenchMeasure],
-) -> String {
-    let json = serde_json::json!({
-        "doc": doc,
-        "phase": phase,
-        "runMs": run_ms,
-        "epochMs": epoch_ms as u64,
-        "pageMs": page_ms,
-        "measures": measures,
-    });
-    format!("LEVE_BENCH {json}")
-}
-
-#[tauri::command]
-fn bench_report(
-    doc: String,
-    phase: String,
-    page_ms: f64,
-    measures: Vec<BenchMeasure>,
-) -> Result<(), String> {
-    let started = bench_started().ok_or("LEVE_BENCH desligado")?;
-    let epoch_ms = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0);
-    let run_ms = started.elapsed().as_secs_f64() * 1000.0;
-    println!(
-        "{}",
-        bench_line(&doc, &phase, run_ms, epoch_ms, page_ms, &measures)
-    );
-    Ok(())
 }
 
 /// Idioma escolhido no frontend (Preferências ou o do sistema): mensagens e menu passam a ele.
@@ -185,51 +121,6 @@ fn ext_lower(p: &Path) -> String {
         .and_then(|e| e.to_str())
         .map(|e| e.to_ascii_lowercase())
         .unwrap_or_default()
-}
-
-/// Marca, no grupo do item (`style-*`, `width-*` ou `font-*`), só o item com esse id.
-fn check_view_item(state: &AppState, id: &str) {
-    let Some(prefix) = id.split('-').next() else {
-        return;
-    };
-    for item in state.view_checks.lock().unwrap().iter() {
-        let item_id = &item.id().0;
-        if item_id.starts_with(prefix) {
-            let _ = item.set_checked(item_id == id);
-        }
-    }
-}
-
-/// Frontend informa o estilo, a largura e a fonte persistidos para o menu refletir.
-#[tauri::command]
-fn sync_view_menu(state: State<AppState>, style: String, width: String, font: String) {
-    check_view_item(&state, &format!("style-{style}"));
-    check_view_item(&state, &format!("width-{width}"));
-    check_view_item(&state, &format!("font-{font}"));
-}
-
-/// Frontend informa se "Carregar imagens remotas" está ligado (no início e a cada troca).
-#[tauri::command]
-fn sync_remote_menu(state: State<AppState>, on: bool) {
-    if let Some(item) = state.remote_check.lock().unwrap().as_ref() {
-        let _ = item.set_checked(on);
-    }
-}
-
-/// Frontend informa se "Mostrar conteúdo oculto" está ligado (no início e a cada troca).
-#[tauri::command]
-fn sync_hidden_menu(state: State<AppState>, on: bool) {
-    if let Some(item) = state.hidden_check.lock().unwrap().as_ref() {
-        let _ = item.set_checked(on);
-    }
-}
-
-/// Frontend informa se o documento ativo é o colado (só ele tem o que salvar).
-#[tauri::command]
-fn sync_save_menu(state: State<AppState>, on: bool) {
-    if let Some(item) = state.save_item.lock().unwrap().as_ref() {
-        let _ = item.set_enabled(on);
-    }
 }
 
 /// Quanto esperar, depois do `RunEvent::Ready`, por um arquivo pedido pelo SO na abertura.
@@ -426,248 +317,6 @@ async fn list_folder(state: State<'_, AppState>, root: String) -> Result<FolderL
     })
 }
 
-/// Exportar HTML: imagem local acima disso não entra no arquivo; o frontend mantém o caminho
-/// relativo e avisa. Mesmo valor de `EXPORT_IMAGE_MAX_BYTES` em `src/export.ts`.
-const EXPORT_IMAGE_MAX_BYTES: u64 = 5 * 1024 * 1024;
-
-/// Imagem lida para o HTML exportado: data URI, ou nada (`too_big` diz se foi pelo tamanho).
-#[derive(Serialize, Debug, PartialEq)]
-#[serde(rename_all = "camelCase")]
-struct ExportImage {
-    data: Option<String>,
-    too_big: bool,
-}
-
-fn image_mime(p: &Path) -> &'static str {
-    match ext_lower(p).as_str() {
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "gif" => "image/gif",
-        "svg" => "image/svg+xml",
-        "webp" => "image/webp",
-        "avif" => "image/avif",
-        "bmp" => "image/bmp",
-        "ico" => "image/x-icon",
-        _ => "application/octet-stream",
-    }
-}
-
-/// Mesma regra de `allow_assets` (relativo à pasta, existe, extensão de imagem): só lê o que o
-/// documento já mostra. Acima de `max` nem lê o conteúdo. Herdado de `asset_candidate`: `..` vale
-/// (o alvo canônico pode estar fora da pasta, como no asset protocol) e symlink é seguido, mas
-/// quem decide é o alvo canônico: tem de ser arquivo com extensão de imagem.
-fn export_image(dir: &Path, rel: &str, max: u64) -> ExportImage {
-    let none = ExportImage {
-        data: None,
-        too_big: false,
-    };
-    let Some(p) = asset_candidate(dir, rel) else {
-        return none;
-    };
-    let too_big = ExportImage {
-        data: None,
-        too_big: true,
-    };
-    match std::fs::metadata(&p) {
-        Ok(m) if m.len() > max => return too_big,
-        Ok(_) => {}
-        Err(_) => return none,
-    }
-    match std::fs::read(&p) {
-        Ok(bytes) if bytes.len() as u64 > max => too_big,
-        Ok(bytes) => ExportImage {
-            data: Some(format!(
-                "data:{};base64,{}",
-                image_mime(&p),
-                BASE64.encode(bytes)
-            )),
-            too_big: false,
-        },
-        Err(_) => none,
-    }
-}
-
-/// Exportar HTML: imagens locais de um documento concedido como data URI, para o arquivo sair
-/// com elas dentro. Só a pasta de um documento concedido (`granted_dir`) e só imagem relativa.
-#[tauri::command]
-async fn export_images(
-    state: State<'_, AppState>,
-    dir: String,
-    rels: Vec<String>,
-) -> Result<HashMap<String, ExportImage>, String> {
-    let grants = state.granted.lock().unwrap().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        export_images_in(&grants, &dir, rels, EXPORT_IMAGE_MAX_BYTES)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
-/// Miolo de `export_images`, sem `State`: recusa pasta que não é de documento concedido.
-fn export_images_in(
-    grants: &[PathBuf],
-    dir: &str,
-    rels: Vec<String>,
-    max: u64,
-) -> Result<HashMap<String, ExportImage>, String> {
-    let d = dir_in_grants(grants, dir)?;
-    Ok(rels
-        .into_iter()
-        .map(|rel| {
-            let img = export_image(&d, &rel, max);
-            (rel, img)
-        })
-        .collect())
-}
-
-/// Pasta e nome sugeridos (`<nome>.html`) para exportar `doc`, que tem de estar concedido.
-fn export_source(grants: &[PathBuf], doc: &str) -> Result<(Option<PathBuf>, String), String> {
-    let src = file_in_grants(grants, doc)?;
-    let stem = src
-        .file_stem()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "documento".into());
-    Ok((src.parent().map(Path::to_path_buf), format!("{stem}.html")))
-}
-
-/// Grava o HTML no caminho escolhido no diálogo (`write_picked` com `.html`/`.htm`): o `.md` de
-/// origem nunca é sobrescrito e nada é sobrescrito sem confirmação.
-fn write_export(picked: PathBuf, html: &str) -> Result<PathBuf, String> {
-    write_picked(picked, html, &["html", "htm"], i18n::s().export_exists)
-}
-
-/// Grava `text` no caminho escolhido num diálogo de salvar. Com uma das `exts`, é o caminho que o
-/// diálogo confirmou (inclusive a sobrescrita): escrita normal. Com outra extensão (ou nenhuma),
-/// grava em `<caminho>.<exts[0]>`, que o diálogo NÃO confirmou: só se ainda não existir
-/// (`create_new`, que também recusa symlink nesse lugar); senão, recusa com `exists` (`{path}`) e
-/// não toca no que está lá.
-fn write_picked(
-    picked: PathBuf,
-    text: &str,
-    exts: &[&str],
-    exists: &str,
-) -> Result<PathBuf, String> {
-    use std::io::Write;
-    let failed = |p: &Path, e: std::io::Error| {
-        fill(
-            i18n::s().write_failed,
-            &[
-                ("path", &p.display().to_string()),
-                ("error", &e.to_string()),
-            ],
-        )
-    };
-    if exts.contains(&ext_lower(&picked).as_str()) {
-        std::fs::write(&picked, text).map_err(|e| failed(&picked, e))?;
-        return Ok(picked);
-    }
-    let mut s = picked.into_os_string();
-    s.push(".");
-    s.push(exts[0]);
-    let target = PathBuf::from(s);
-    let mut f = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&target)
-        .map_err(|e| {
-            if e.kind() == std::io::ErrorKind::AlreadyExists {
-                fill(exists, &[("path", &target.display().to_string())])
-            } else {
-                failed(&target, e)
-            }
-        })?;
-    f.write_all(text.as_bytes())
-        .map_err(|e| failed(&target, e))?;
-    Ok(target)
-}
-
-/// Exportar HTML: diálogo nativo de salvar aberto AQUI, sugerindo `<nome>.html` na pasta do
-/// documento, e escrita só no caminho escolhido nele. O frontend manda o documento de origem
-/// (precisa estar concedido) e o conteúdo; nunca o destino. `None` = cancelado.
-#[tauri::command]
-async fn save_html(app: AppHandle, doc: String, html: String) -> Result<Option<String>, String> {
-    let (dir, name) = export_source(&app.state::<AppState>().granted.lock().unwrap(), &doc)?;
-    let mut dialog = app
-        .dialog()
-        .file()
-        .add_filter("HTML", &["html", "htm"])
-        .set_file_name(name);
-    if let Some(dir) = dir {
-        dialog = dialog.set_directory(dir);
-    }
-    tauri::async_runtime::spawn_blocking(move || {
-        let Some(picked) = dialog.blocking_save_file() else {
-            return Ok(None);
-        };
-        let path = write_export(picked.into_path().map_err(|e| e.to_string())?, &html)?;
-        Ok(Some(path.to_string_lossy().into_owned()))
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
-/// Resolve wikilinks `[[nota]]`: tenta `nota.md` na pasta do documento; se não achar e houver
-/// pasta raiz aberta, busca pelo nome do arquivo nos Markdown dela (como o Obsidian). `None` = não
-/// existe.
-#[tauri::command]
-fn resolve_wikilinks(
-    state: State<AppState>,
-    dir: String,
-    root: Option<String>,
-    targets: Vec<String>,
-) -> Result<HashMap<String, Option<String>>, String> {
-    let dir = granted_dir(&state, &dir)?;
-    // A raiz só vale se for pasta concedida (Abrir pasta) e contiver a pasta do documento; senão
-    // os wikilinks resolvem só na pasta do documento.
-    let root = root
-        .and_then(|r| granted_folder(&state, &r).ok())
-        .filter(|r| dir.starts_with(r));
-    // Listada uma vez por chamada, e só se algum alvo não estiver na pasta do documento.
-    let mut listing = None;
-    Ok(targets
-        .into_iter()
-        .map(|t| {
-            let found = resolve_wikilink(&dir, root.as_deref(), &mut listing, &t)
-                .and_then(|f| grant(&state, Path::new(&f)).ok())
-                .map(|c| c.to_string_lossy().into_owned());
-            (t, found)
-        })
-        .collect())
-}
-
-fn canonical_string(p: &Path) -> Option<String> {
-    canonical(&p.to_string_lossy())
-        .ok()
-        .map(|c| c.to_string_lossy().into_owned())
-}
-
-fn resolve_wikilink(
-    dir: &Path,
-    root: Option<&Path>,
-    listing: &mut Option<folder::Listing>,
-    target: &str,
-) -> Option<String> {
-    relative_only(target).ok()?;
-    let rel = if is_markdown(Path::new(target)) {
-        target.to_string()
-    } else {
-        format!("{target}.md")
-    };
-    let direct = dir.join(&rel);
-    if direct.is_file() {
-        return canonical_string(&direct);
-    }
-    let name = Path::new(&rel)
-        .file_name()?
-        .to_string_lossy()
-        .to_lowercase();
-    let root = root?;
-    if listing.is_none() {
-        *listing = folder::list_markdown(root).ok();
-    }
-    folder::find_by_name(listing.as_ref()?, &name).map(|c| c.to_string_lossy().into_owned())
-}
-
 /// Extensões que podem ser abertas no app padrão a partir de um link do documento.
 /// Qualquer outra (executáveis, scripts, desconhecidas) só é revelada na pasta.
 const OPENABLE_EXT: &[&str] = &[
@@ -836,227 +485,10 @@ async fn install_cli(app: AppHandle, admin: bool) -> Result<serde_json::Value, S
     }
 }
 
-/// Menu nativo no idioma atual (`i18n`). Chamado no `setup` e de novo por `set_locale`; o
-/// tratamento dos cliques (`on_menu_event`) é registrado uma vez só, no `setup`.
-fn build_menu(app: &AppHandle) -> tauri::Result<()> {
-    let s = i18n::s();
-    let item = |id: &str, label: &str, accel: Option<&str>| {
-        let b = MenuItemBuilder::with_id(id, label);
-        match accel {
-            Some(a) => b.accelerator(a),
-            None => b,
-        }
-        .build(app)
-    };
-    let open = item("open", s.open, Some("CmdOrCtrl+O"))?;
-    let open_folder = item("open-folder", s.open_folder, Some("CmdOrCtrl+Shift+O"))?;
-    let close_folder = item("close-folder", s.close_folder, None)?;
-    // Mod+P é o abrir rápido, como nos editores; Imprimir foi para Mod+Shift+P (docs/decisoes.md).
-    let quick_open = item("quick-open", s.quick_open, Some("CmdOrCtrl+P"))?;
-    let open_clipboard = item(
-        "open-clipboard",
-        s.open_clipboard,
-        Some("CmdOrCtrl+Shift+V"),
-    )?;
-    // Desligado até o frontend dizer que o ativo é o documento colado (`sync_save_menu`).
-    let save = MenuItemBuilder::with_id("save", s.save)
-        .accelerator("CmdOrCtrl+S")
-        .enabled(false)
-        .build(app)?;
-    *app.state::<AppState>().save_item.lock().unwrap() = Some(save.clone());
-    let reload = item("reload", s.reload, Some("CmdOrCtrl+R"))?;
-    let reveal = item("reveal", s.reveal, Some("CmdOrCtrl+Shift+R"))?;
-    let open_in_editor = item("open-in-editor", s.open_in_editor, Some("CmdOrCtrl+E"))?;
-    let clear_recent = item("clear-recent", s.clear_recent, None)?;
-    let print = item("print", s.print, Some("CmdOrCtrl+Shift+P"))?;
-    let export_html = item("export-html", s.export_html, None)?;
-    let copy_html = item("copy-html", s.copy_html, None)?;
-    let copy_rich = item("copy-rich", s.copy_rich, Some("CmdOrCtrl+Shift+C"))?;
-    let find = item("find", s.find, Some("CmdOrCtrl+F"))?;
-    let toc = item("toggle-toc", s.toc, Some("CmdOrCtrl+B"))?;
-    let tree = item("toggle-tree", s.tree, Some("CmdOrCtrl+Shift+E"))?;
-    let next_change = item("next-change", s.next_change, Some("CmdOrCtrl+Shift+Down"))?;
-    let prev_change = item("prev-change", s.prev_change, Some("CmdOrCtrl+Shift+Up"))?;
-    let clear_changes = item("clear-changes", s.clear_changes, None)?;
-    let theme = item("cycle-theme", s.theme, Some("CmdOrCtrl+Shift+L"))?;
-    let zoom_in = item("zoom-in", s.zoom_in, Some("CmdOrCtrl+="))?;
-    let zoom_out = item("zoom-out", s.zoom_out, Some("CmdOrCtrl+-"))?;
-    let zoom_reset = item("zoom-reset", s.zoom_reset, Some("CmdOrCtrl+0"))?;
-    let back = item("back", s.back, Some("CmdOrCtrl+["))?;
-    let forward = item("forward", s.forward, Some("CmdOrCtrl+]"))?;
-    let close_tab = item("close-tab", s.close_tab, Some("CmdOrCtrl+W"))?;
-    let close_window = item("close-window", s.close_window, Some("CmdOrCtrl+Shift+W"))?;
-    let next_tab = item("next-tab", s.next_tab, Some("CmdOrCtrl+Shift+]"))?;
-    let prev_tab = item("prev-tab", s.prev_tab, Some("CmdOrCtrl+Shift+["))?;
-    let shortcuts = item("shortcuts", s.shortcuts, Some("CmdOrCtrl+/"))?;
-    let sample = item("sample", s.sample, None)?;
-    // Sobre e Verificar atualizações são telas do app, iguais nos dois sistemas: no macOS ficam no
-    // menu do app, como manda a convenção; nos outros, em Ajuda.
-    let about = item("about", s.about, None)?;
-    let check_updates = item("check-updates", s.check_updates, None)?;
-    // Preferências é tela do app (`#prefs` em index.html): no macOS fica no menu do app, acima
-    // de Serviços, como manda a convenção; no Windows e no Linux, em Editar.
-    let preferences = item("preferences", s.preferences, Some("CmdOrCtrl+,"))?;
-
-    let file = SubmenuBuilder::new(app, s.file)
-        .item(&open)
-        .item(&open_folder)
-        .item(&quick_open)
-        .item(&close_folder)
-        .item(&open_clipboard)
-        .item(&save)
-        .separator()
-        .item(&reload)
-        .item(&reveal)
-        .item(&open_in_editor)
-        .separator()
-        .item(&clear_recent)
-        .separator()
-        .item(&print)
-        .item(&export_html)
-        .item(&copy_html)
-        .separator()
-        .item(&close_tab)
-        .item(&close_window)
-        .build()?;
-    let edit = SubmenuBuilder::new(app, s.edit)
-        .copy_with_text(s.copy)
-        .item(&copy_rich)
-        .select_all_with_text(s.select_all)
-        .separator()
-        .item(&find);
-    #[cfg(not(target_os = "macos"))]
-    let edit = edit.separator().item(&preferences);
-    let edit = edit.build()?;
-    // Marcação vem do frontend (`sync_view_menu`, `sync_remote_menu`, `sync_hidden_menu`) logo depois de montar.
-    let mut checks = Vec::new();
-    let mut radio = |id: &str, label: &str, on: bool| -> tauri::Result<CheckMenuItem<Wry>> {
-        let item = CheckMenuItemBuilder::with_id(id, label)
-            .checked(on)
-            .build(app)?;
-        checks.push(item.clone());
-        Ok(item)
-    };
-    // GitHub é nome próprio do visual (e da base, src/markdown.css): o mesmo nos dois idiomas.
-    let st_github = radio("style-github", "GitHub", true)?;
-    let st_editor = radio("style-editor", s.style_editor, false)?;
-    let st_terminal = radio("style-terminal", s.style_terminal, false)?;
-    let st_livro = radio("style-livro", s.style_livro, false)?;
-    let w_narrow = radio("width-narrow", s.width_narrow, false)?;
-    let w_normal = radio("width-normal", s.width_normal, true)?;
-    let w_wide = radio("width-wide", s.width_wide, false)?;
-    let f_auto = radio("font-auto", s.font_auto, true)?;
-    let f_sans = radio("font-sans", "Sans", false)?;
-    let f_serif = radio("font-serif", "Serif", false)?;
-    let f_mono = radio("font-mono", "Mono", false)?;
-    *app.state::<AppState>().view_checks.lock().unwrap() = checks;
-    // Desligado por padrão (privacidade); o frontend liga se a preferência salva mandar.
-    let remote_auto = CheckMenuItemBuilder::with_id("remote-auto", s.remote)
-        .checked(false)
-        .build(app)?;
-    *app.state::<AppState>().remote_check.lock().unwrap() = Some(remote_auto.clone());
-    // Desligado por padrão: o documento só avisa; o frontend liga se a preferência mandar.
-    let show_hidden = CheckMenuItemBuilder::with_id("show-hidden", s.show_hidden)
-        .checked(false)
-        .build(app)?;
-    *app.state::<AppState>().hidden_check.lock().unwrap() = Some(show_hidden.clone());
-    let style = SubmenuBuilder::new(app, s.style)
-        .items(&[&st_github, &st_editor, &st_terminal, &st_livro])
-        .build()?;
-    let width = SubmenuBuilder::new(app, s.width)
-        .items(&[&w_narrow, &w_normal, &w_wide])
-        .build()?;
-    let font = SubmenuBuilder::new(app, s.font)
-        .item(&f_auto)
-        .separator()
-        .items(&[&f_sans, &f_serif, &f_mono])
-        .build()?;
-
-    let view = SubmenuBuilder::new(app, s.view)
-        .item(&tree)
-        .item(&toc)
-        .item(&theme)
-        .separator()
-        .item(&style)
-        .item(&width)
-        .item(&font)
-        .separator()
-        .item(&remote_auto)
-        .item(&show_hidden)
-        .separator()
-        .item(&next_change)
-        .item(&prev_change)
-        .item(&clear_changes)
-        .separator()
-        .item(&zoom_in)
-        .item(&zoom_out)
-        .item(&zoom_reset)
-        .build()?;
-    let go = SubmenuBuilder::new(app, s.go)
-        .item(&back)
-        .item(&forward)
-        .separator()
-        .item(&next_tab)
-        .item(&prev_tab)
-        .build()?;
-
-    let help = SubmenuBuilder::new(app, s.help)
-        .item(&shortcuts)
-        .item(&sample);
-    #[cfg(not(target_os = "macos"))]
-    let help = help.separator().item(&check_updates).item(&about);
-    let help = help.build()?;
-
-    #[cfg(target_os = "macos")]
-    let builder = {
-        let app_menu = SubmenuBuilder::new(app, "Leve")
-            .item(&about)
-            .item(&check_updates)
-            .separator()
-            .item(&preferences)
-            .item(&item("install-cli", s.install_cli, None)?)
-            .separator()
-            .services_with_text(s.services)
-            .separator()
-            .hide_with_text(s.hide)
-            .hide_others_with_text(s.hide_others)
-            .show_all_with_text(s.show_all)
-            .separator()
-            .quit_with_text(s.quit)
-            .build()?;
-        MenuBuilder::new(app).item(&app_menu)
-    };
-    #[cfg(not(target_os = "macos"))]
-    let builder = MenuBuilder::new(app);
-    let menu = builder
-        .item(&file)
-        .item(&edit)
-        .item(&view)
-        .item(&go)
-        .item(&help)
-        .build()?;
-    app.set_menu(menu)?;
-    Ok(())
-}
-
-fn on_menu(app: &AppHandle, id: String) {
-    // Fechar janela fica no Rust (sem permissão de janela no frontend); ⌘W é da aba.
-    if id == "close-window" {
-        if let Some(w) = app.get_webview_window("main") {
-            let _ = w.close();
-        }
-        return;
-    }
-    if id.starts_with("style-") || id.starts_with("width-") || id.starts_with("font-") {
-        check_view_item(&app.state::<AppState>(), &id);
-    }
-    let _ = app.emit("menu", id);
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
-    if bench_started().is_some() {
+    if bench::bench_started().is_some() {
         builder = builder.plugin(
             tauri::plugin::Builder::<Wry>::new("bench")
                 .js_init_script("window.__LEVE_BENCH__ = true;")
@@ -1099,13 +531,13 @@ pub fn run() {
             list_folder,
             grants::open_in_folder,
             grants::allow_assets,
-            export_images,
-            save_html,
-            sync_view_menu,
-            sync_remote_menu,
-            sync_hidden_menu,
-            sync_save_menu,
-            resolve_wikilinks,
+            export::export_images,
+            export::save_html,
+            menu::sync_view_menu,
+            menu::sync_remote_menu,
+            menu::sync_hidden_menu,
+            menu::sync_save_menu,
+            wikilinks::resolve_wikilinks,
             open_external,
             reveal_in_folder,
             app_info,
@@ -1115,12 +547,12 @@ pub fn run() {
             list_editors,
             open_in_editor,
             install_cli,
-            bench_report
+            bench::bench_report
         ])
         .setup(|app| {
             i18n::set(i18n::system());
             build_menu(app.handle())?;
-            app.on_menu_event(|app, event| on_menu(app, event.id().0.clone()));
+            app.on_menu_event(|app, event| menu::on_menu(app, event.id().0.clone()));
             // Concessões persistidas (Recentes): só arquivos que ainda existem. No macOS o
             // duplo-clique (RunEvent::Opened) pode chegar antes deste setup e já ter concedido
             // o arquivo em memória: juntar, nunca sobrescrever.
@@ -1244,85 +676,9 @@ mod launch_tests {
 }
 
 #[cfg(test)]
-mod scope_tests {
+mod tests {
     use super::*;
-
-    fn temp(tag: &str) -> PathBuf {
-        let p = std::env::temp_dir().join(format!("leve-scope-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&p);
-        std::fs::create_dir_all(&p).unwrap();
-        p
-    }
-
-    fn fs_canon(p: &Path) -> PathBuf {
-        std::fs::canonicalize(p).unwrap()
-    }
-
-    #[test]
-    fn exportar_embute_so_imagem_relativa_e_respeita_o_limite() {
-        let t = temp("export-img");
-        std::fs::create_dir_all(t.join("img")).unwrap();
-        std::fs::write(t.join("img/a.png"), [0x89, b'P', b'N', b'G']).unwrap();
-        std::fs::write(t.join("img/b.svg"), "<svg/>").unwrap();
-        std::fs::write(t.join("segredo.txt"), "x").unwrap();
-        let a = export_image(&t, "img/a.png", 1024);
-        assert_eq!(a.data.as_deref(), Some("data:image/png;base64,iVBORw=="));
-        assert!(!a.too_big);
-        assert_eq!(
-            export_image(&t, "img/b.svg", 1024).data.as_deref(),
-            Some("data:image/svg+xml;base64,PHN2Zy8+")
-        );
-        // Acima do limite: não lê, avisa pelo tamanho.
-        assert_eq!(
-            export_image(&t, "img/a.png", 3),
-            ExportImage {
-                data: None,
-                too_big: true
-            }
-        );
-        // Mesma regra do asset protocol: só imagem, só relativo, só o que existe.
-        let none = ExportImage {
-            data: None,
-            too_big: false,
-        };
-        assert_eq!(export_image(&t, "segredo.txt", 1024), none);
-        let abs = t.join("img/a.png").to_string_lossy().into_owned();
-        assert_eq!(export_image(&t, &abs, 1024), none);
-        assert_eq!(export_image(&t, "nao-existe.png", 1024), none);
-        let _ = std::fs::remove_dir_all(&t);
-    }
-
-    #[test]
-    fn exportar_grava_so_o_que_o_dialogo_confirmou() {
-        let t = temp("export-write");
-        // `.html` do diálogo: sobrescrita confirmada.
-        std::fs::write(t.join("a.html"), "velho").unwrap();
-        assert_eq!(
-            write_export(t.join("a.html"), "novo").unwrap(),
-            t.join("a.html")
-        );
-        assert_eq!(std::fs::read_to_string(t.join("a.html")).unwrap(), "novo");
-        // Outra extensão: cria `<nome>.html` se não existir; o `.md` não é tocado.
-        std::fs::write(t.join("doc.md"), "fonte").unwrap();
-        assert_eq!(
-            write_export(t.join("doc.md"), "x").unwrap(),
-            t.join("doc.md.html")
-        );
-        assert_eq!(std::fs::read_to_string(t.join("doc.md")).unwrap(), "fonte");
-        assert_eq!(
-            write_export(t.join("sem-ext"), "y").unwrap(),
-            t.join("sem-ext.html")
-        );
-        // ...e recusa se já existir, sem alterar o arquivo.
-        std::fs::write(t.join("b.md.html"), "existente").unwrap();
-        let err = write_export(t.join("b.md"), "z").unwrap_err();
-        assert!(err.contains("b.md.html"), "{err}");
-        assert_eq!(
-            std::fs::read_to_string(t.join("b.md.html")).unwrap(),
-            "existente"
-        );
-        let _ = std::fs::remove_dir_all(&t);
-    }
+    use std::fs;
 
     #[test]
     fn clipboard_vazio_ou_nao_texto_vira_none() {
@@ -1336,101 +692,6 @@ mod scope_tests {
         let big = "a".repeat(MAX_DOC_BYTES as usize + 1);
         assert!(clipboard_text(Ok(big)).unwrap_err().contains("20"));
     }
-
-    #[test]
-    fn salvar_md_grava_so_o_que_o_dialogo_confirmou() {
-        let t = temp("salvar-md");
-        let save = |p: PathBuf, text: &str| write_picked(p, text, MD_EXTS, "existe {path}");
-        // Nome com extensão Markdown veio do diálogo, que confirmou sobrescrever.
-        std::fs::write(t.join("a.md"), "velho").unwrap();
-        assert_eq!(save(t.join("a.md"), "novo").unwrap(), t.join("a.md"));
-        assert_eq!(std::fs::read_to_string(t.join("a.md")).unwrap(), "novo");
-        assert_eq!(
-            save(t.join("b.MARKDOWN"), "x").unwrap(),
-            t.join("b.MARKDOWN")
-        );
-        // Sem extensão (ou outra): ganha `.md` e é criado.
-        assert_eq!(save(t.join("nota"), "oi").unwrap(), t.join("nota.md"));
-        assert_eq!(std::fs::read_to_string(t.join("nota.md")).unwrap(), "oi");
-        assert_eq!(save(t.join("n.txt"), "oi").unwrap(), t.join("n.txt.md"));
-        // O `.md` acrescentado já existe: recusa e não toca.
-        std::fs::write(t.join("outra.md"), "intacto").unwrap();
-        let err = save(t.join("outra"), "x").unwrap_err();
-        assert_eq!(err, format!("existe {}", t.join("outra.md").display()));
-        assert_eq!(
-            std::fs::read_to_string(t.join("outra.md")).unwrap(),
-            "intacto"
-        );
-        #[cfg(unix)]
-        {
-            std::fs::write(t.join("alvo.txt"), "alvo").unwrap();
-            std::os::unix::fs::symlink(t.join("alvo.txt"), t.join("link.md")).unwrap();
-            assert!(save(t.join("link"), "x").is_err());
-            assert_eq!(std::fs::read_to_string(t.join("alvo.txt")).unwrap(), "alvo");
-        }
-        let _ = std::fs::remove_dir_all(&t);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn exportar_nao_segue_symlink_no_nome_acrescentado() {
-        let t = temp("export-symlink");
-        std::fs::write(t.join("alvo.txt"), "intocado").unwrap();
-        std::os::unix::fs::symlink(t.join("alvo.txt"), t.join("c.html")).unwrap();
-        assert!(write_export(t.join("c"), "z").is_err());
-        assert_eq!(
-            std::fs::read_to_string(t.join("alvo.txt")).unwrap(),
-            "intocado"
-        );
-        let _ = std::fs::remove_dir_all(&t);
-    }
-
-    #[test]
-    fn exportar_so_a_partir_de_documento_concedido() {
-        let t = temp("export-grant");
-        std::fs::create_dir_all(t.join("docs")).unwrap();
-        std::fs::create_dir_all(t.join("outra")).unwrap();
-        std::fs::write(t.join("docs/nota.md"), "# x").unwrap();
-        std::fs::write(t.join("outra/solta.md"), "# y").unwrap();
-        std::fs::write(t.join("outra/a.png"), "png").unwrap();
-        let grants = vec![fs_canon(&t.join("docs/nota.md"))];
-        let docs = t.join("docs").to_string_lossy().into_owned();
-        let outra = t.join("outra").to_string_lossy().into_owned();
-        // Origem do diálogo de salvar: só documento concedido.
-        let (dir, name) =
-            export_source(&grants, &t.join("docs/nota.md").to_string_lossy()).unwrap();
-        assert_eq!(dir, Some(fs_canon(&t.join("docs"))));
-        assert_eq!(name, "nota.html");
-        assert!(export_source(&grants, &t.join("outra/solta.md").to_string_lossy()).is_err());
-        // Imagens: só da pasta de documento concedido.
-        assert!(export_images_in(&grants, &outra, vec!["a.png".into()], 1024).is_err());
-        let ok = export_images_in(&grants, &docs, vec!["../outra/a.png".into()], 1024).unwrap();
-        // `..` vale como no asset protocol (herdado de `asset_candidate`).
-        assert!(ok["../outra/a.png"].data.is_some());
-        let _ = std::fs::remove_dir_all(&t);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn exportar_imagem_por_symlink_decide_pelo_alvo() {
-        let t = temp("export-img-link");
-        std::fs::create_dir_all(t.join("docs")).unwrap();
-        std::fs::write(t.join("foto.png"), "png").unwrap();
-        std::fs::write(t.join("segredo.txt"), "s").unwrap();
-        std::os::unix::fs::symlink(t.join("foto.png"), t.join("docs/link.png")).unwrap();
-        std::os::unix::fs::symlink(t.join("segredo.txt"), t.join("docs/disfarce.png")).unwrap();
-        let d = t.join("docs");
-        // Segue o link, mas o alvo canônico precisa ser imagem: `.txt` com nome `.png` não entra.
-        assert!(export_image(&d, "link.png", 1024).data.is_some());
-        assert_eq!(export_image(&d, "disfarce.png", 1024).data, None);
-        let _ = std::fs::remove_dir_all(&t);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
 
     #[test]
     fn flatpak_so_com_o_arquivo_do_sandbox() {
@@ -1587,107 +848,5 @@ mod tests {
         .unwrap();
         assert!(granted(&state, &doc.to_string_lossy()).is_ok());
         assert_eq!(c, fs::canonicalize(&doc).unwrap());
-    }
-
-    #[test]
-    fn resolve_wikilink_na_pasta_do_documento() {
-        let t = TempDir::new("wiki-dir");
-        let nota = t.file("nota.md", "");
-        t.file("sub/outra.markdown", "");
-        let dir = &t.0;
-        let canon = |p: &Path| fs::canonicalize(p).unwrap().to_string_lossy().into_owned();
-        assert_eq!(
-            resolve_wikilink(dir, None, &mut None, "nota"),
-            Some(canon(&nota))
-        );
-        assert_eq!(
-            resolve_wikilink(dir, None, &mut None, "nota.md"),
-            Some(canon(&nota))
-        );
-        assert_eq!(
-            resolve_wikilink(dir, None, &mut None, "sub/outra.markdown"),
-            Some(canon(&dir.join("sub/outra.markdown")))
-        );
-        assert_eq!(resolve_wikilink(dir, None, &mut None, "inexistente"), None);
-        assert_eq!(
-            resolve_wikilink(dir, None, &mut None, "outra"),
-            None,
-            "sem root não desce em subpastas"
-        );
-    }
-
-    #[test]
-    fn resolve_wikilink_busca_recursiva_na_raiz() {
-        let t = TempDir::new("wiki-root");
-        let dir = t.0.join("docs");
-        fs::create_dir_all(&dir).unwrap();
-        let alvo = t.file("vault/pasta/Profunda/Nota Alvo.md", "");
-        t.file("vault/.obsidian/Nota Alvo.md", "");
-        t.file("vault/node_modules/Nota Alvo.md", "");
-        let canon = |p: &Path| fs::canonicalize(p).unwrap().to_string_lossy().into_owned();
-        assert_eq!(
-            resolve_wikilink(&dir, Some(&t.0.join("vault")), &mut None, "nota alvo"),
-            Some(canon(&alvo)),
-            "nome sem distinguir caixa, ignorando .obsidian e node_modules"
-        );
-        assert_eq!(
-            resolve_wikilink(&dir, Some(&t.0.join("vault")), &mut None, "nada"),
-            None
-        );
-    }
-}
-
-#[cfg(test)]
-mod bench_tests {
-    use super::*;
-
-    #[test]
-    fn linha_do_bench_e_json_numa_linha() {
-        let m = vec![BenchMeasure {
-            name: "leve:render".into(),
-            ms: 12.5,
-            end: 40.0,
-        }];
-        let line = bench_line(
-            "/tmp/a\nb.md",
-            "paint",
-            340.25,
-            1_700_000_000_123,
-            210.0,
-            &m,
-        );
-        assert!(line.starts_with("LEVE_BENCH {"));
-        assert!(
-            !line.contains('\n'),
-            "quebra de linha no caminho vira escape"
-        );
-        let v: serde_json::Value = serde_json::from_str(&line["LEVE_BENCH ".len()..]).unwrap();
-        assert_eq!(v["doc"], "/tmp/a\nb.md");
-        assert_eq!(v["phase"], "paint");
-        assert_eq!(v["epochMs"], 1_700_000_000_123u64);
-        assert_eq!(v["runMs"], 340.25);
-        assert_eq!(v["pageMs"], 210.0);
-        assert_eq!(v["measures"][0]["name"], "leve:render");
-        assert_eq!(v["measures"][0]["ms"], 12.5);
-        assert_eq!(v["measures"][0]["end"], 40.0);
-    }
-
-    #[test]
-    fn so_o_valor_1_arma() {
-        use std::ffi::OsStr;
-        assert!(bench_flag(Some(OsStr::new("1"))));
-        assert!(!bench_flag(Some(OsStr::new("0"))));
-        assert!(!bench_flag(Some(OsStr::new(""))));
-        assert!(!bench_flag(Some(OsStr::new("true"))));
-        assert!(!bench_flag(None));
-    }
-
-    #[test]
-    fn sem_variavel_o_comando_recusa() {
-        // O teste não define LEVE_BENCH; se o ambiente de quem roda definir, não há o que provar.
-        if std::env::var_os("LEVE_BENCH").is_some() {
-            return;
-        }
-        assert!(bench_report("x.md".into(), "layout".into(), 0.0, vec![]).is_err());
     }
 }

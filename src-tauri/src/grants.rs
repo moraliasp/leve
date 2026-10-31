@@ -298,7 +298,7 @@ pub fn allow_assets(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resolve_wikilink;
+    use crate::wikilinks::resolve_wikilink;
 
     fn temp(tag: &str) -> PathBuf {
         let p = std::env::temp_dir().join(format!("leve-scope-{tag}-{}", std::process::id()));

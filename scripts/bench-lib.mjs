@@ -97,7 +97,7 @@ export function generateDoc(targetBytes, seed = 1) {
   return parts.join("");
 }
 
-/** Linha do gancho (`bench_line` em lib.rs): `LEVE_BENCH {json}`. Outra linha qualquer dá null. */
+/** Linha do gancho (`bench_line` em bench.rs): `LEVE_BENCH {json}`. Outra linha qualquer dá null. */
 export function parseBenchLine(line) {
   const m = /^LEVE_BENCH (\{.*\})\s*$/.exec(line);
   if (!m) return null;

@@ -95,18 +95,46 @@ No telemetry. Leve reads only files you open (dialog, double-click, drag and dro
 
 ## Size
 
-Installer size of the latest release of Leve and other Markdown viewers, as published on GitHub (asset `size` from the GitHub Releases API, `releases/latest`, queried 2026-10-26; MB = 10⁶ bytes; Leve's row is the v0.5.0 build, measured 2026-10-30). Architecture is as stated in each asset name; that Tinta's `tinta.exe` is portable, with no installer, comes from its README. A universal macOS build carries code for both Apple silicon and Intel, so it is larger than a single-architecture build of the same app. On Linux, an AppImage carries WebKitGTK and the rest of the GUI stack inside it, while a `.deb` or `.rpm` uses the system's libraries; compare like with like.
+<!-- comparativo:inicio (gerado por `pnpm comparativo`, não editar) -->
+
+Download size of the smallest installer each Markdown viewer publishes on GitHub, one chart per platform. The scale is linear and each chart has its own.
+
+<p><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/tamanho-macos-en-dark.svg">
+  <img alt="macOS, smallest installer of each app: Leve 6.5 MB (.dmg), Imark 7.1 MB (.dmg), Markdown Reader 7.9 MB (.dmg), MD Reader 8.8 MB (.dmg), Markdown Preview 9.2 MB (.dmg), MDHero 11.5 MB (.dmg), mdview 119.3 MB (.dmg), MarkText 157.8 MB (.dmg), Moji 246.4 MB (.dmg)." src="docs/img/tamanho-macos-en-light.svg">
+</picture></p>
+
+<p><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/tamanho-windows-en-dark.svg">
+  <img alt="Windows, smallest installer of each app: Leve 2.8 MB (setup.exe), Tinta 3.1 MB (portable .exe), MD Reader 4.4 MB (.msi), MDHero 5.4 MB (setup.exe), mdview 102.6 MB (.exe), Moji 131.2 MB (setup.exe), MarkText 132.4 MB (setup.exe)." src="docs/img/tamanho-windows-en-light.svg">
+</picture></p>
+
+<p><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/tamanho-linux-en-dark.svg">
+  <img alt="Linux (x86_64), smallest installer of each app: Leve 4.4 MB (.deb), MD Reader 4.8 MB (.deb), MDHero 8.4 MB (.deb), MarkText 111.0 MB (.rpm), Moji 118.5 MB (.deb), mdview 134.1 MB (AppImage)." src="docs/img/tamanho-linux-en-light.svg">
+</picture></p>
+
+<details>
+<summary>Every format, version and link</summary>
+
+Asset `size` from the GitHub Releases API, `releases/latest`, queried 2026-10-31; MB = 10⁶ bytes. Installers are `.dmg`, `.msi`, `.exe`, `.deb`, `.rpm`, AppImage and Flatpak, for x64 on Windows and Linux; archives (`.zip`, `.tar.gz`) and update-only packages don't count. Architecture is as stated in each asset name; that Tinta's `tinta.exe` is portable, with no installer, comes from its README. A universal macOS build carries code for both Apple silicon and Intel, so it is larger than a single-architecture build of the same app. On Linux, an AppImage carries WebKitGTK and the rest of the GUI stack inside it, while a `.deb` or `.rpm` uses the system's libraries; compare like with like.
 
 | App | Release | macOS | Windows | Linux (x86_64) |
 |---|---|--:|--:|--:|
-| **Leve** | v0.5.0 | 6.5 MB `.dmg` (universal) | 2.8 MB `setup.exe` · 3.4 MB `.msi` (x64) | 4.4 MB `.deb` · 4.4 MB `.rpm` · 82.9 MB AppImage |
-| [Markdown Preview](https://github.com/pluk-inc/markdown-preview) | v0.0.69 (2026-10-23) | 9.0 MB `.dmg` (not stated) | — | — |
+| **Leve** | v0.5.0 (2026-10-30) | 6.5 MB `.dmg` (universal) | 2.8 MB `setup.exe` · 3.4 MB `.msi` (x64) | 4.4 MB `.deb` · 4.4 MB `.rpm` · 4.9 MB `.flatpak` · 82.9 MB AppImage |
+| [Tinta](https://github.com/oipoistar/tinta) | v3.9.6 (2026-10-31) | — | 3.1 MB portable `tinta.exe`, no installer (not stated) | — |
 | [MD Reader](https://github.com/Neilooo/md-reader) | v0.3.12 (2026-10-10) | 8.8 MB `.dmg` (universal) | 4.4 MB `.msi` · 6.5 MB portable `.exe` (x64) | 4.8 MB `.deb` · 4.8 MB `.rpm` · 83.1 MB AppImage |
 | [MDHero](https://github.com/vaibhav-kakde-in/mdhero) | v0.2.10 (2026-09-13) | 11.5 MB `.dmg` (Apple silicon) | 5.4 MB `setup.exe` · 6.9 MB `.msi` (x64) | 8.4 MB `.deb` · 8.4 MB `.rpm` · 85.6 MB AppImage |
-| [Tinta](https://github.com/oipoistar/tinta) | v3.9.3 (2026-10-26) | — | 3.0 MB portable `tinta.exe`, no installer (not stated) | — |
+| [Imark](https://github.com/migsilva89/imark) | v0.6.9 (2026-10-31) | 7.1 MB `.dmg` (not stated) | — | — |
+| [Markdown Reader](https://github.com/davidhoo/MarkdownReader) | v2.4.11 (2026-10-19) | 7.9 MB `.dmg` (not stated) | — | — |
+| [Markdown Preview](https://github.com/pluk-inc/markdown-preview) | v0.0.70 (2026-10-28) | 9.2 MB `.dmg` (not stated) | — | — |
 | [mdview](https://github.com/c3er/mdview) | v4.0.2 (2026-08-02) | 119.3 MB `.dmg` (Apple silicon) | 102.6 MB `.exe` · 114.9 MB `.msi` (x64) | 134.1 MB AppImage |
-| [MarkText](https://github.com/marktext/marktext) | v0.23.0 (2026-10-21) | 157.8 MB (Apple silicon) · 164.7 MB (Intel) `.dmg` | 132.4 MB `setup.exe` (x64) | 126.7 MB `.deb` · 111.0 MB `.rpm` · 165.0 MB AppImage |
-| [Moji](https://github.com/alexishida/Moji) | v1.0.7 (2026-09-10) | 246.4 MB `.dmg` (universal) | 131.2 MB `Setup.exe` (not stated) | 118.5 MB `.deb` · 154.8 MB AppImage |
+| [MarkText](https://github.com/marktext/marktext) | v0.23.0 (2026-10-21) | 157.8 MB `.dmg` (Apple silicon) · 164.7 MB `.dmg` (Intel) | 132.4 MB `setup.exe` (x64) | 111.0 MB `.rpm` · 126.7 MB `.deb` · 165.0 MB AppImage |
+| [Moji](https://github.com/alexishida/Moji) | v1.0.7 (2026-09-10) | 246.4 MB `.dmg` (universal) | 131.2 MB `setup.exe` (not stated) | 118.5 MB `.deb` · 154.8 MB AppImage |
+
+</details>
+
+<!-- comparativo:fim -->
 
 These are download sizes only; they say nothing about features, and each app does different things. Opening time and memory are measured for Leve alone, because we have no comparable measurement of the others: method, machine and numbers in [`docs/benchmark.md`](docs/benchmark.md).
 

@@ -6,7 +6,7 @@
 
 web
 
-A interface é HTML/CSS num WebView do Tauri 2; menus, diálogos de arquivo e janela são nativos e seguem o SO sozinhos. Distribuído para macOS 11+ (universal) e Windows 10/11 (x64).
+A interface é HTML/CSS num WebView do Tauri 2; menus, diálogos de arquivo e janela são nativos e seguem o SO sozinhos. Distribuído para macOS 11+ (Apple silicon e Intel, um pacote para cada) e Windows 10/11 (x64).
 
 ## Users
 

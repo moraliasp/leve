@@ -165,7 +165,7 @@ Decisão estrutural nova entra aqui, no fim, no mesmo formato.
 ## Distribuição: release do GitHub, sem assinatura de sistema por enquanto
 
 - **Contexto:** a Moralia ainda não tem conta Apple Developer nem certificado de assinatura de código Windows.
-- **Decisão:** o canal é a release do GitHub de `moraliasp/leve`: `.dmg` universal para macOS, `-setup.exe` (NSIS, por usuário) e `.msi` para Windows, `.AppImage` e `.deb` para Linux x86_64 (ver "Linux: AppImage e .deb"), com `SHA256SUMS.txt` e attestation de proveniência (`actions/attest-build-provenance`). Sem assinatura Apple nem Authenticode até a Moralia ter as contas; o README explica o aviso do Gatekeeper e do SmartScreen. Versão semver `0.y.z`, a tag manda na versão, notas de release geradas por PR e guiadas pelo `CHANGELOG.md`.
+- **Decisão:** o canal é a release do GitHub de `moraliasp/leve`: `.dmg` para macOS (por arquitetura desde "Mac por arquitetura e dmg em LZMA"), `-setup.exe` (NSIS, por usuário) e `.msi` para Windows, `.AppImage` e `.deb` para Linux x86_64 (ver "Linux: AppImage e .deb"), com `SHA256SUMS.txt` e attestation de proveniência (`actions/attest-build-provenance`). Sem assinatura Apple nem Authenticode até a Moralia ter as contas; o README explica o aviso do Gatekeeper e do SmartScreen. Versão semver `0.y.z`, a tag manda na versão, notas de release geradas por PR e guiadas pelo `CHANGELOG.md`.
 - **Consequência:** ligar a assinatura é configurar segredos e variáveis (ver `docs/assinatura.md`), sem mudar o fluxo. Homebrew e winget ficavam para depois da assinatura; revisto em "Homebrew (tap próprio) e winget antes da assinatura".
 
 ## Versão e tag
@@ -423,3 +423,21 @@ Decisão estrutural nova entra aqui, no fim, no mesmo formato.
 - **Contexto:** `main.ts` chegou a 1.833 linhas com Recentes, exportar, editor, Preferências, zoom e recarga juntos (#52), e o padrão dos liga/desliga se repetia em cada leitura.
 - **Decisão:** `main.ts` fica com o estado e os efeitos do documento; cada tela vira um `*-ui.ts` (`recent-ui`, `export-ui`, `editor-ui`, `prefs-ui`) que recebe de `main.ts` um objeto só, `ui`, com o que precisa, no molde de `clip-ui.ts`. Zoom e recarga viram decisão pura testada (`zoom.ts`, `reload.ts`), com o efeito em `main.ts`. Preferências e editor vêm por `import()`: são raras, e tirar 2,7 kB do chunk de abertura pagou o peso da divisão. `export-ui.ts` fica estático porque `copyRich` tem de começar a escrever na área de transferência dentro do gesto do leitor, antes de qualquer `await`. Liga/desliga têm o padrão numa tabela (`TOGGLES`) e os interruptores da tela outra (`SWITCHES`).
 - **Consequência:** a primeira abertura das Preferências espera o `import()`, e os controles da tela se ligam nela; até lá `prefsUi` é nulo e `runAction` não tem o que reler. Módulo de tela não lê `current` nem `tabs`: pede a `ui`.
+
+## Mac por arquitetura e dmg em LZMA
+
+- **Contexto:** tamanho é argumento do Leve, e o dmg universal carregava dois binários para quem só usa um. Medido na `main` depois da 0.6.0 (`40f4146`), com o mesmo `identifier` e a mesma chave de teste nas quatro colunas:
+
+| Pacote | Universal | Apple silicon, antes | Apple silicon, depois | Intel, depois |
+|---|---|---|---:|---:|
+| `.dmg` | 6.532.612 | 3.303.838 (UDZO) | 2.715.205 (ULMO) | 2.805.185 (ULMO) |
+| `.app.tar.gz` | 6.558.755 | 3.288.363 | 3.122.819 | 3.165.650 |
+| Binário | 10.003.968 | 4.613.632 | 4.312.912 | 4.893.896 |
+
+- **Por arquitetura:** a release publica `Leve_x.y.z_aarch64.dmg` e `Leve_x.y.z_x64.dmg`, cada um com o seu `.app.tar.gz` assinado (`release.yml`, um job por arquitetura, com `lipo -archs` conferindo o binário antes de juntar). O `latest.json` aponta `darwin-aarch64` e `darwin-x86_64` para o pacote de cada uma. Os dois saem do mesmo runner arm64: o de Intel é compilado cruzado.
+- **Quem está na universal:** o atualizador escolhe pela arquitetura em que o processo roda, não pelo que está no pacote instalado. Um universal nativo em Apple silicon recebe o `aarch64` e, no Intel, o `x64`, sem migração. Quem estiver sob Rosetta recebe o `x64` e fica nele, porque o atualizador não troca de arquitetura sozinho; reinstalar pelo dmg de Apple silicon resolve. Isso já era assim num app só-Intel, e o Rosetta tem saída anunciada pela Apple.
+- **Cask:** um `sha256` e uma `url` por arquitetura em `on_arm`/`on_intel`. `scripts/packaging.mjs` segue o `SHA256SUMS.txt`: release com dmg universal (até a 0.6.0) ainda gera o cask antigo, para o `packaging.yml` servir a uma versão publicada antes desta mudança.
+- **LZMA:** o bundler do Tauri só gera UDZO, então `scripts/dmg-lzma.sh` converte o dmg para ULMO com `hdiutil convert`. Pede macOS 10.15, abaixo do `minimumSystemVersion` (11.0). A conversão só troca a compressão: UDZO e ULMO expandidos dão o mesmo volume, byte a byte. O `.app.tar.gz` fica em gzip, porque quem o lê é o atualizador.
+- **Assinatura do dmg:** a conversão perde a assinatura, e a keychain que o Tauri cria termina com o build. O script assina de novo numa keychain temporária própria, com os mesmos segredos e só com `APPLE_SIGNING_IDENTITY` definida, e o passo seguinte notariza e grampeia. Sem a variável, sai sem assinar, como hoje.
+- **`removeUnusedCommands`:** ligado em `tauri.conf.json`. Comando de plugin fora de `capabilities` sai do binário em `tauri build` (301 KB a menos no Apple silicon) e vale em todas as plataformas. Só alcança comando chamado do WebView: `dialog`, `opener` e `window-state` são usados pelo Rust, sem comando, e os comandos do próprio app não têm manifesto e ficam todos. O frontend chama `event`, `resources`, `updater`, `process` e `set_title`, cobertos pelas permissões; `process|exit` vem no bundle com o módulo do plugin, mas o app só usa `relaunch`.
+- **Consequência:** dois arquivos no download do Mac, e o README diz qual escolher. Plugin novo chamado do frontend precisa de permissão em `capabilities/default.json`, como antes; agora, sem ela, o comando nem existe no build de release. O limite de `scripts/tamanho.mjs` não muda: ele mede `dist/`, e nada disso mexe no frontend. Comparativo só muda no `pnpm comparativo --buscar` depois da próxima release.

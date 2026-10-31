@@ -33,7 +33,7 @@
 
 Get the latest version from [Releases](https://github.com/moraliasp/leve/releases/latest):
 
-- **macOS 11+** (Apple silicon and Intel): `Leve_x.y.z_universal.dmg`
+- **macOS 11+**: `Leve_x.y.z_aarch64.dmg` for Apple silicon, `Leve_x.y.z_x64.dmg` for Intel. Not sure which? In the Apple menu > About This Mac, a chip named Apple M… is Apple silicon; a processor named Intel is Intel.
 - **Windows 10/11** (x64): `Leve_x.y.z_x64-setup.exe` (per-user, no admin) or `.msi`
 - **Linux** (x86_64, built on Ubuntu 22.04, needs glibc 2.35+): `Leve_x.y.z_amd64.AppImage` (no install) or `Leve_x.y.z_amd64.deb` (Debian, Ubuntu and derivatives), plus `Leve-x.y.z-1.x86_64.rpm` (Fedora, openSUSE) and `Leve_x.y.z_x86_64.flatpak` for Fedora, openSUSE and other distributions with Flatpak (from 0.4.0; `flatpak install --user --bundle <file>`). New and not yet tested on a real Linux desktop: only built and smoke-tested headless in CI. Reports welcome.
 

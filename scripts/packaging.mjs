@@ -15,9 +15,11 @@ export const WINGET_ID = "Moralia.Leve";
 export const WINGET_SCHEMA = "1.12.0";
 export const EXTENSIONS = ["md", "markdown", "mdown", "mkd"];
 
-/** Nomes dos pacotes da release, como o release.yml os grava. */
+/** Nomes dos pacotes da release, como o release.yml os grava. O dmg universal vale até a 0.6.0. */
 export const assetNames = (version) => ({
-  dmg: `Leve_${version}_universal.dmg`,
+  dmgArm: `Leve_${version}_aarch64.dmg`,
+  dmgIntel: `Leve_${version}_x64.dmg`,
+  dmgUniversal: `Leve_${version}_universal.dmg`,
   nsis: `Leve_${version}_x64-setup.exe`,
 });
 
@@ -118,11 +120,28 @@ export function buildPackaging({ version, sums, releaseDate }) {
     `ReleaseNotesUrl: ${notes}\n` +
     tail("locale");
 
+  // A release dita o formato: a 0.6.0 e anteriores têm um dmg só, e o cask delas ainda sai daqui.
+  const caskUrl = (arch) => `https://github.com/${REPO}/releases/download/v#{version}/Leve_#{version}_${arch}.dmg`;
+  const caskSource = sums.has(names.dmgUniversal)
+    ? `  sha256 "${hash(names.dmgUniversal)}"
+
+  url "${caskUrl("universal")}"`
+    : `
+  on_arm do
+    sha256 "${hash(names.dmgArm)}"
+
+    url "${caskUrl("aarch64")}"
+  end
+  on_intel do
+    sha256 "${hash(names.dmgIntel)}"
+
+    url "${caskUrl("x64")}"
+  end
+`;
+
   const cask = `cask "leve" do
   version "${version}"
-  sha256 "${hash(names.dmg)}"
-
-  url "https://github.com/${REPO}/releases/download/v#{version}/Leve_#{version}_universal.dmg"
+${caskSource}
   name "Leve"
   desc "Small, fast, private Markdown viewer"
   homepage "https://github.com/${REPO}"

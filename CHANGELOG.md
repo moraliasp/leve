@@ -4,6 +4,10 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Added
+
+- Review for AI: select text and choose *Annotate* (⌘⇧A / Ctrl+Shift+A, or the button beside the selection) to write what should change. *Edit › Copy Notes for AI* (⌘⌥C / Ctrl+Alt+C), or the button in the notes panel, copies the notes as Markdown with the file path, the section, the quoted text and your comment, ready to paste into an AI tool. When the AI changes the file, Leve reloads it, marks what changed, and a note whose text is gone shows as resolved. Notes stay in memory: Leve writes nothing to your file or disk and sends nothing anywhere. Closing a tab with notes asks first.
+
 ### Fixed
 
 - `brew install --cask moraliasp/tap/leve` no longer fails when Leve is already in `/Applications`: it keeps that app, which goes on updating itself.

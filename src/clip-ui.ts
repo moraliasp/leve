@@ -21,6 +21,8 @@ export interface ClipHost {
   reopen(path: string): Promise<unknown>;
   activate(tab: Tab): Promise<void>;
   close(tab: Tab): Promise<void>;
+  /** As anotações do colado seguem para o caminho salvo. */
+  moved(from: { tab: Tab; path: string }, to: { tab: Tab; path: string }): void;
   renderTabs(): void;
 }
 
@@ -80,6 +82,7 @@ export async function saveClip(h: ClipHost): Promise<void> {
   const name = saved.split(/[\\/]/).pop() ?? saved;
   const other = adoptSaved(h.tabs(), tab, from, saved, name);
   dropClip(from);
+  h.moved({ tab, path: from }, { tab: other ?? tab, path: saved });
   if (other) {
     await h.activate(other);
     await h.close(tab);

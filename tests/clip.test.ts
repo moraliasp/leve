@@ -81,6 +81,7 @@ function host(paths: string[], activeIdx: number, tauri = true) {
       tabs.splice(tabs.indexOf(t), 1);
       log.push(`fecha ${t.path}`);
     },
+    moved: (from, to) => log.push(`notas ${from.tab.path === to.tab.path ? "na aba" : "para outra aba"} → ${to.path}`),
     renderTabs: () => log.push("abas"),
   };
   return { h, tabs, log };
@@ -150,7 +151,11 @@ describe("salvar o colado", () => {
     expect(tabs[1].path).toBe("/Users/eu/Documents/Sem título.md");
     expect(tabs[1].name).toBe("Sem título.md");
     expect(clipText(path)).toBeUndefined();
-    expect(log).toEqual(["relê /Users/eu/Documents/Sem título.md", "aviso: Salvo: Sem título.md"]);
+    expect(log).toEqual([
+      "notas na aba → /Users/eu/Documents/Sem título.md",
+      "relê /Users/eu/Documents/Sem título.md",
+      "aviso: Salvo: Sem título.md",
+    ]);
   });
 
   it("salvou por cima de arquivo aberto em outra aba: foca essa e fecha a colada", async () => {
@@ -158,7 +163,7 @@ describe("salvar o colado", () => {
     reply = async () => "/b.md";
     const { h, tabs, log } = host(["/b.md", path], 1);
     await saveClip(h);
-    expect(log).toEqual(["foca /b.md", `fecha ${path}`, "aviso: Salvo: b.md"]);
+    expect(log).toEqual(["notas para outra aba → /b.md", "foca /b.md", `fecha ${path}`, "aviso: Salvo: b.md"]);
     expect(tabs.map((t) => t.path)).toEqual(["/b.md"]);
   });
 

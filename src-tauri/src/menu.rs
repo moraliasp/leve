@@ -89,6 +89,8 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<()> {
     let export_html = item("export-html", s.export_html, None)?;
     let copy_html = item("copy-html", s.copy_html, None)?;
     let copy_rich = item("copy-rich", s.copy_rich, Some("CmdOrCtrl+Shift+C"))?;
+    let annotate = item("annotate", s.annotate, Some("CmdOrCtrl+Shift+A"))?;
+    let copy_review = item("copy-review", s.copy_review, Some("CmdOrCtrl+Alt+C"))?;
     let find = item("find", s.find, Some("CmdOrCtrl+F"))?;
     let toc = item("toggle-toc", s.toc, Some("CmdOrCtrl+B"))?;
     let tree = item("toggle-tree", s.tree, Some("CmdOrCtrl+Shift+E"))?;
@@ -140,6 +142,9 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .copy_with_text(s.copy)
         .item(&copy_rich)
         .select_all_with_text(s.select_all)
+        .separator()
+        .item(&annotate)
+        .item(&copy_review)
         .separator()
         .item(&find);
     #[cfg(not(target_os = "macos"))]

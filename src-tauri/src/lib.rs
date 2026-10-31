@@ -94,13 +94,9 @@ struct AppState {
     watcher: Mutex<Option<Debouncer<RecommendedWatcher>>>,
     /// Arquivo e espera do vigia atual: `watch_file` só o recria quando um dos dois muda.
     watched: Mutex<Option<(PathBuf, Duration)>>,
-    /// Itens de rádio do menu Exibir (estilo, largura e fonte); o frontend sincroniza o estado salvo.
-    view_checks: Mutex<Vec<CheckMenuItem<Wry>>>,
-    /// Exibir › Carregar imagens remotas (liga/desliga); a preferência vive no frontend.
-    remote_check: Mutex<Option<CheckMenuItem<Wry>>>,
-    /// Exibir › Mostrar conteúdo oculto (liga/desliga); a preferência vive no frontend.
-    hidden_check: Mutex<Option<CheckMenuItem<Wry>>>,
-    /// Arquivo › Salvar…: habilitado só com o documento colado ativo (`sync_save_menu`).
+    /// Itens de marcar do menu Exibir; quem guarda o estado é o frontend (`sync_menu`).
+    menu_checks: Mutex<Vec<CheckMenuItem<Wry>>>,
+    /// Arquivo › Salvar…: habilitado só com o documento colado ativo (`sync_menu`).
     save_item: Mutex<Option<MenuItem<Wry>>>,
     /// Arquivos que o app pode ler: só os que chegaram por diálogo, SO, drop ou link de um
     /// documento já aberto. O frontend não concede nada; só pede. Persistido em `grants_file`
@@ -533,10 +529,7 @@ pub fn run() {
             grants::allow_assets,
             export::export_images,
             export::save_html,
-            menu::sync_view_menu,
-            menu::sync_remote_menu,
-            menu::sync_hidden_menu,
-            menu::sync_save_menu,
+            menu::sync_menu,
             wikilinks::resolve_wikilinks,
             open_external,
             reveal_in_folder,

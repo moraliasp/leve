@@ -36,7 +36,7 @@ Plano Free. Repositórios: `leve` (público) e `mfo` (privado). O que vale para 
 | Actions da org: fork em repo privado | não roda; sem token de escrita nem secrets | idem | — | ✅ |
 | Rulesets da org | indisponível no Free ("Upgrade to GitHub Team") | rulesets por repositório | — | — |
 | Deploy keys | desligadas na org | desligadas | — | ✅ |
-| Tap `moraliasp/homebrew-tap` | público, sem ruleset e sem proteção na `main` (2026-10-30) | ruleset sem force-push nem delete, PR obrigatório, como manda `publicar-pacotes.md` | médio: o cask é código Ruby que roda na máquina de quem instala | ⏳ |
+| Tap `moraliasp/homebrew-tap` | público, ruleset `main` ativo (2026-10-31): sem force-push nem delete, histórico linear, PR com squash e 1 aprovação; admin pula só no PR | idem, como manda `publicar-pacotes.md` | médio: o cask é código Ruby que roda na máquina de quem instala | ✅ |
 | Padrões para repositório novo | Dependabot, grafo de dependências, secret scanning, push protection e validity checks **desligados**; a configuração "GitHub recommended" existe mas não é aplicada a nada | ligados | baixo (vale para os próximos) | ⏳ |
 
 ## Repositório

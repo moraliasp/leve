@@ -1,24 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="560" height="258" viewBox="0 0 560 258" role="img" aria-label="Linux (x86_64), menor instalador de cada app: Leve 4,4 MB (.deb), MD Reader 4,8 MB (.deb), MDHero 8,4 MB (.deb), MarkText 111,0 MB (.rpm), Moji 118,5 MB (.deb), mdview 134,1 MB (AppImage)." font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="258" viewBox="0 0 500 258" role="img" aria-label="Linux (x86_64), menor instalador de cada app: Leve 4,4 MB (.deb), MD Reader 4,8 MB (.deb), MDHero 8,4 MB (.deb), MarkText 111,0 MB (.rpm), Moji 118,5 MB (.deb), mdview 134,1 MB (AppImage)." font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif">
   <!-- Gerado por scripts/comparativo.mjs a partir de docs/comparativo.json. Não editar. -->
   <text x="0" y="24" font-size="22" font-weight="700" fill="#f0f6fc">Linux (x86_64)</text>
   <text x="0" y="50" font-size="15" fill="#9198a1">Menor instalador de cada app, última release no GitHub, 2026-10-31</text>
   <path d="M157.5 74V252" stroke="#3d444d" fill="none"/>
   <text x="0" y="93" font-size="17" font-weight="700" fill="#f0f6fc">Leve</text>
-  <path d="M158 80h3.6a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-3.6z" fill="#c9a6f2"/>
-  <text x="173.6" y="93" font-size="17" font-weight="700" fill="#f0f6fc">4,4 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.deb</tspan></text>
+  <path d="M158 80h1.8a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-1.8z" fill="#c9a6f2"/>
+  <text x="171.8" y="93" font-size="17" font-weight="700" fill="#f0f6fc">4,4 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.deb</tspan></text>
   <text x="0" y="123" font-size="17" fill="#f0f6fc">MD Reader</text>
-  <path d="M158 110h4.3a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-4.3z" fill="#737b86"/>
-  <text x="174.3" y="123" font-size="17" fill="#f0f6fc">4,8 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.deb</tspan></text>
+  <path d="M158 110h2.3a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-2.3z" fill="#737b86"/>
+  <text x="172.3" y="123" font-size="17" fill="#f0f6fc">4,8 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.deb</tspan></text>
   <text x="0" y="153" font-size="17" fill="#f0f6fc">MDHero</text>
-  <path d="M158 140h10.6a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-10.6z" fill="#737b86"/>
-  <text x="180.6" y="153" font-size="17" fill="#f0f6fc">8,4 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.deb</tspan></text>
+  <path d="M158 140h7.1a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-7.1z" fill="#737b86"/>
+  <text x="177.1" y="153" font-size="17" fill="#f0f6fc">8,4 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.deb</tspan></text>
   <text x="0" y="183" font-size="17" fill="#f0f6fc">MarkText</text>
-  <path d="M158 170h188a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-188z" fill="#737b86"/>
-  <text x="358" y="183" font-size="17" fill="#f0f6fc">111,0 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.rpm</tspan></text>
+  <path d="M158 170h142.5a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-142.5z" fill="#737b86"/>
+  <text x="312.5" y="183" font-size="17" fill="#f0f6fc">111,0 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.rpm</tspan></text>
   <text x="0" y="213" font-size="17" fill="#f0f6fc">Moji</text>
-  <path d="M158 200h200.9a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-200.9z" fill="#737b86"/>
-  <text x="370.9" y="213" font-size="17" fill="#f0f6fc">118,5 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.deb</tspan></text>
+  <path d="M158 200h152.3a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-152.3z" fill="#737b86"/>
+  <text x="322.3" y="213" font-size="17" fill="#f0f6fc">118,5 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.deb</tspan></text>
   <text x="0" y="243" font-size="17" fill="#f0f6fc">mdview</text>
-  <path d="M158 230h228a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-228z" fill="#737b86"/>
-  <text x="398" y="243" font-size="17" fill="#f0f6fc">134,1 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">AppImage</tspan></text>
+  <path d="M158 230h173a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-173z" fill="#737b86"/>
+  <text x="343" y="243" font-size="17" fill="#f0f6fc">134,1 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">AppImage</tspan></text>
 </svg>

@@ -109,7 +109,7 @@ export function mb(bytes, idioma) {
 const rotuloFormato = (formato, idioma) => (formato === "portatil" ? TEXTO[idioma].portatil : formato);
 const escapar = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-const LARGURA = 560;
+const LARGURA = 500; // no celular o GitHub dá ~310 px: 17 vira ~10,5 px
 const FONTES = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif";
 const CORPO = 17;
 const MIUDO = 15;
@@ -122,7 +122,7 @@ const VAO = 8;
 const BARRA_MINIMA = 2; // o valor está escrito; abaixo disso a barra sumiria
 
 // Sem fonte para medir no Node: largura estimada por cima, para a ponta nunca cortar em nenhuma pilha.
-const larguraTexto = (s, fonte) => s.length * fonte * 0.6;
+const larguraTexto = (s, fonte) => s.length * fonte * 0.58;
 
 /** Maior comprimento de barra em que todo rótulo ainda cabe à direita da ponta da sua barra. */
 export function comprimentoMaximo(linhas, largura = LARGURA, xBarra = X_BARRA) {

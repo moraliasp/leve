@@ -37,6 +37,8 @@ const dados: Dados = {
 describe("classificar", () => {
   it("reconhece instaladores por plataforma, formato e arquitetura", () => {
     expect(classificar("Leve_0.5.0_universal.dmg")).toEqual({ plataforma: "macos", formato: ".dmg", arq: "universal" });
+    expect(classificar("Leve_0.7.0_aarch64.dmg")).toEqual({ plataforma: "macos", formato: ".dmg", arq: "silicon" });
+    expect(classificar("Leve_0.7.0_x64.dmg")).toEqual({ plataforma: "macos", formato: ".dmg", arq: "intel" });
     expect(classificar("MDHero_0.2.10_aarch64.dmg")).toEqual({ plataforma: "macos", formato: ".dmg", arq: "silicon" });
     expect(classificar("marktext-mac-x64-0.23.0.dmg")).toEqual({ plataforma: "macos", formato: ".dmg", arq: "intel" });
     expect(classificar("Leve_0.5.0_x64-setup.exe")).toEqual({ plataforma: "windows", formato: "setup.exe", arq: "x64" });

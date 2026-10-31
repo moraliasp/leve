@@ -25,6 +25,14 @@ bfff88adf5753095c40a66da7eb99cd1307d278a82e103398a5d0fcabb824f27  Leve_0.2.0_x64
 fbc1a13dbc350fa07d2d6e8eeb6a4030ee4daa2cfb6d7e569d563763f414ba69  latest.json
 `;
 
+// Mesmo formato, da primeira release com um pacote por arquitetura.
+const SUMS_ARQ = `${"a".repeat(64)}  Leve_0.7.0_aarch64.app.tar.gz
+${"b".repeat(64)}  Leve_0.7.0_aarch64.dmg
+${"c".repeat(64)}  Leve_0.7.0_x64.app.tar.gz
+${"d".repeat(64)}  Leve_0.7.0_x64.dmg
+${"e".repeat(64)}  Leve_0.7.0_x64-setup.exe
+`;
+
 const gen = (version = "0.2.0", sums = SUMS_020) =>
   buildPackaging({ version, sums: parseSums(sums), releaseDate: "2026-10-25" });
 
@@ -80,12 +88,22 @@ describe("pacotes winget e Homebrew", () => {
     expect(parse(files[`${dir}/Moralia.Leve.yaml`])).toMatchObject({ DefaultLocale: "en-US", ManifestType: "version" });
   });
 
-  it("cask: versão e sha256 do dmg universal; a URL usa #{version}", () => {
+  it("cask: release universal (até a 0.6.0) segue com um sha256 só; a URL usa #{version}", () => {
     const cask = gen()["packaging/homebrew/Casks/leve.rb"];
     expect(cask).toContain('version "0.2.0"');
     expect(cask).toContain('sha256 "f3b9d08363e18522cb755a9ffed9f955541eea5e701ee0818d5cba49bcc7a4de"');
     expect(cask).toContain("releases/download/v#{version}/Leve_#{version}_universal.dmg");
     expect(cask).toContain('"~/Library/Application Support/br.com.moralia.leve"');
+  });
+
+  it("cask: um sha256 e uma URL por arquitetura, cada um com o seu dmg", () => {
+    const cask = gen("0.7.0", SUMS_ARQ)["packaging/homebrew/Casks/leve.rb"];
+    const bloco = (nome: string) => new RegExp(`  ${nome} do\\n([\\s\\S]*?)\\n  end\\n`).exec(cask)?.[1] ?? "";
+    expect(bloco("on_arm")).toContain(`sha256 "${"b".repeat(64)}"`);
+    expect(bloco("on_arm")).toContain("releases/download/v#{version}/Leve_#{version}_aarch64.dmg");
+    expect(bloco("on_intel")).toContain(`sha256 "${"d".repeat(64)}"`);
+    expect(bloco("on_intel")).toContain("releases/download/v#{version}/Leve_#{version}_x64.dmg");
+    expect(cask).not.toContain("universal");
   });
 
   it("cask: Leve já instalado fica no lugar, em passos declarativos", () => {
@@ -107,7 +125,8 @@ describe("pacotes winget e Homebrew", () => {
     expect(() => gen("0.2.1-rc.1")).toThrow(/versão inválida/);
     expect(() => buildPackaging({ version: "0.2.0", sums: parseSums(SUMS_020), releaseDate: "25/10/2026" })).toThrow(/data/);
     const semDmg = SUMS_020.split("\n").filter((l) => !l.endsWith(".dmg")).join("\n");
-    expect(() => gen("0.2.0", semDmg)).toThrow(/Leve_0.2.0_universal.dmg/);
+    expect(() => gen("0.2.0", semDmg)).toThrow(/Leve_0.2.0_aarch64.dmg/);
+    expect(() => gen("0.7.0", SUMS_ARQ.replace(/.*_x64\.dmg\n/, ""))).toThrow(/Leve_0.7.0_x64.dmg/);
     const semExe = SUMS_020.split("\n").filter((l) => !l.endsWith("setup.exe")).join("\n");
     expect(() => gen("0.2.0", semExe)).toThrow(/x64-setup.exe/);
   });

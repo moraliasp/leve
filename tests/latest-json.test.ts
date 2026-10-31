@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import { buildLatest } from "../scripts/latest-json.mjs";
 
 const files = [
-  "Leve_0.2.0_universal.dmg",
-  "Leve_0.2.0_universal.app.tar.gz",
-  "Leve_0.2.0_universal.app.tar.gz.sig",
+  "Leve_0.2.0_aarch64.dmg",
+  "Leve_0.2.0_aarch64.app.tar.gz",
+  "Leve_0.2.0_aarch64.app.tar.gz.sig",
+  "Leve_0.2.0_x64.dmg",
+  "Leve_0.2.0_x64.app.tar.gz",
+  "Leve_0.2.0_x64.app.tar.gz.sig",
   "Leve_0.2.0_x64-setup.exe",
   "Leve_0.2.0_x64-setup.exe.sig",
   "Leve_0.2.0_x64_en-US.msi",
@@ -25,10 +28,13 @@ describe("latest.json do atualizador", () => {
     expect(l.pub_date).toBe("2026-10-25T12:00:00.000Z");
     const base = "https://github.com/moraliasp/leve/releases/download/v0.2.0/";
     expect(l.platforms["darwin-aarch64"]).toEqual({
-      url: `${base}Leve_0.2.0_universal.app.tar.gz`,
-      signature: "assinatura de Leve_0.2.0_universal.app.tar.gz",
+      url: `${base}Leve_0.2.0_aarch64.app.tar.gz`,
+      signature: "assinatura de Leve_0.2.0_aarch64.app.tar.gz",
     });
-    expect(l.platforms["darwin-x86_64"]).toEqual(l.platforms["darwin-aarch64"]);
+    expect(l.platforms["darwin-x86_64"]).toEqual({
+      url: `${base}Leve_0.2.0_x64.app.tar.gz`,
+      signature: "assinatura de Leve_0.2.0_x64.app.tar.gz",
+    });
     expect(l.platforms["windows-x86_64"].url).toBe(`${base}Leve_0.2.0_x64-setup.exe`);
     expect(l.platforms["windows-x86_64-msi"].url).toBe(`${base}Leve_0.2.0_x64_en-US.msi`);
   });
@@ -61,6 +67,11 @@ describe("latest.json do atualizador", () => {
   it("recusa pacote sem assinatura ou plataforma faltando", () => {
     expect(() => buildLatest({ tag: "v0.2.0", files: files.filter((f) => !f.endsWith("setup.exe.sig")), sig })).toThrow(/assinatura/);
     expect(() => buildLatest({ tag: "v0.2.0", files: files.filter((f) => !f.includes(".msi")), sig })).toThrow(/msi/);
+    expect(() => buildLatest({ tag: "v0.2.0", files: files.filter((f) => !f.includes("_x64.app")), sig })).toThrow(/macOS Intel/);
+    expect(() => buildLatest({ tag: "v0.2.0", files: files.filter((f) => !f.includes("_aarch64.app")), sig })).toThrow(/Apple silicon/);
+    expect(() => buildLatest({ tag: "v0.2.0", files: files.filter((f) => f !== "Leve_0.2.0_x64.app.tar.gz.sig"), sig })).toThrow(
+      /assinatura de Leve_0\.2\.0_x64\.app\.tar\.gz/,
+    );
     expect(() => buildLatest({ tag: "v0.2.0", files: files.filter((f) => f !== "Leve_0.2.0_amd64.AppImage.sig"), sig })).toThrow(
       /assinatura de Leve_0\.2\.0_amd64\.AppImage/,
     );

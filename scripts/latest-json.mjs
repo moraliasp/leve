@@ -2,7 +2,8 @@
 // Gera o `latest.json` que o atualizador do app lê (endpoint em tauri.conf.json), a partir dos
 // pacotes e assinaturas que o release.yml juntou numa pasta:
 //   node scripts/latest-json.mjs <pasta> <tag>   → grava <pasta>/latest.json
-// macOS: um `.app.tar.gz` universal serve às duas arquiteturas. Windows: o `-setup.exe` (NSIS) é o
+// macOS: um `.app.tar.gz` por arquitetura; o app escolhe pela arquitetura em que está rodando, então
+// quem instalou um universal (até a 0.6.0) recebe o da sua. Windows: o `-setup.exe` (NSIS) é o
 // padrão; o `.msi` entra como `windows-x86_64-msi` para quem instalou por ele. Linux: o `.AppImage`
 // é o padrão (`linux-x86_64`, o próprio arquivo assinado, sem .tar.gz); o `.deb` entra como
 // `linux-x86_64-deb` e o `.rpm` como `linux-x86_64-rpm`, que o atualizador procura antes do padrão
@@ -28,7 +29,8 @@ export function buildLatest({ tag, files, sig, date = new Date(), notes }) {
     if (!files.includes(`${f}.sig`)) throw new Error(`falta a assinatura de ${f}`);
     return { url: url(f), signature: sig(f).trim() };
   };
-  const mac = pick(/_universal\.app\.tar\.gz$/, "macOS (.app.tar.gz)");
+  const macArm = pick(/_aarch64\.app\.tar\.gz$/, "macOS Apple silicon (.app.tar.gz)");
+  const macIntel = pick(/_x64\.app\.tar\.gz$/, "macOS Intel (.app.tar.gz)");
   const nsis = pick(/-setup\.exe$/, "Windows (-setup.exe)");
   const msi = pick(/\.msi$/, "Windows (.msi)");
   const appimage = pick(/_amd64\.AppImage$/, "Linux (.AppImage)");
@@ -39,8 +41,8 @@ export function buildLatest({ tag, files, sig, date = new Date(), notes }) {
     notes: notes ?? `https://github.com/${REPO}/releases/tag/${tag}`,
     pub_date: date.toISOString(),
     platforms: {
-      "darwin-aarch64": mac,
-      "darwin-x86_64": mac,
+      "darwin-aarch64": macArm,
+      "darwin-x86_64": macIntel,
       "windows-x86_64": nsis,
       "windows-x86_64-nsis": nsis,
       "windows-x86_64-msi": msi,

@@ -4,6 +4,11 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Changed
+
+- macOS downloads are now one per architecture, about half the size of the old universal build: `Leve_x.y.z_aarch64.dmg` for Apple silicon and `Leve_x.y.z_x64.dmg` for Intel, compressed with LZMA. Installed copies update themselves to the right one, including universal installs from 0.6.0 and earlier. The Homebrew cask picks the right file.
+- Smaller app on every platform: plugin commands that Leve never allows are left out of the build.
+
 ## [0.6.0] - 2026-10-31
 
 ### Added

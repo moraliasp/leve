@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import html from "../index.html?raw";
 import main from "../src/main.ts?raw";
-import lib from "../src-tauri/src/lib.rs?raw";
+import menu from "../src-tauri/src/menu.rs?raw";
 import { SHORTCUTS, applyTooltips, detectPlatform, formatKeys, keysFor, shortcutRows, tooltip } from "../src/shortcuts";
 import { applyI18n } from "../src/i18n";
 
@@ -97,11 +97,11 @@ describe("atalhos por plataforma", () => {
   });
 
   it("menu nativo: nenhum atalho repetido e todo atalho do menu está no mapa (Mod+E = Abrir no editor)", () => {
-    const accels = [...lib.matchAll(/Some\("CmdOrCtrl\+([^"]+)"\)/g)].map((m) => `Mod+${m[1]}`);
+    const accels = [...menu.matchAll(/Some\("CmdOrCtrl\+([^"]+)"\)/g)].map((m) => `Mod+${m[1]}`);
     expect(new Set(accels).size).toBe(accels.length);
     const mapped = SHORTCUTS.flatMap((s) => s.keys.split("  "));
     for (const a of accels) expect(mapped, a).toContain(a);
-    expect(lib).toMatch(/item\("open-in-editor", s\.open_in_editor, Some\("CmdOrCtrl\+E"\)\)/);
+    expect(menu).toMatch(/item\("open-in-editor", s\.open_in_editor, Some\("CmdOrCtrl\+E"\)\)/);
     expect(keysFor("open-in-editor", "windows")).toBe("Ctrl+E");
     expect(main).toMatch(/"open-in-editor": \(\) =>/);
   });

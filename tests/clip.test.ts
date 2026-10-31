@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import lib from "../src-tauri/src/lib.rs?raw";
+import menu from "../src-tauri/src/menu.rs?raw";
 import caps from "../src-tauri/capabilities/default.json?raw";
 import cargo from "../src-tauri/Cargo.toml?raw";
 import html from "../index.html?raw";
@@ -184,8 +185,8 @@ describe("salvar o colado", () => {
 
 describe("menu, permissões e estado vazio", () => {
   it("Arquivo › Abrir da área de transferência (Mod+Shift+V) e Salvar… (Mod+S), no menu e no mapa", () => {
-    expect(lib).toMatch(/item\(\s*"open-clipboard",\s*s\.open_clipboard,\s*Some\("CmdOrCtrl\+Shift\+V"\),?\s*\)/);
-    expect(lib).toMatch(/MenuItemBuilder::with_id\("save", s\.save\)\s*\.accelerator\("CmdOrCtrl\+S"\)\s*\.enabled\(false\)/);
+    expect(menu).toMatch(/item\(\s*"open-clipboard",\s*s\.open_clipboard,\s*Some\("CmdOrCtrl\+Shift\+V"\),?\s*\)/);
+    expect(menu).toMatch(/MenuItemBuilder::with_id\("save", s\.save\)\s*\.accelerator\("CmdOrCtrl\+S"\)\s*\.enabled\(false\)/);
     expect(keysFor("open-clipboard", "windows")).toBe("Ctrl+Shift+V");
     expect(keysFor("save", "mac")).toBe("⌘S");
     expect(shortcutRows("mac").find(([w]) => w === "Abrir da área de transferência")?.[1]).toBe("⌘⇧V");

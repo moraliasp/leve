@@ -6,7 +6,7 @@ import { icon, installIcons } from "./icons";
 import * as theme from "./theme";
 import { DOC_STYLES, applyDocStyle, type DocStyle } from "./doc-style";
 import { hydrateImages, joinPath, markBrokenImage, render, renderErrorBlock, renderMermaid, slugify } from "./render";
-import { cancelHighlight, highlightAll, highlightLazily } from "./highlight";
+import { cancelHighlight, highlightLazily } from "./highlight";
 import { LARGE_TOC_MAX_LEVEL, isLargeDoc } from "./limits";
 import { hasFrontMatter, loadYaml } from "./yaml";
 import { applyRemotePolicy } from "./remote-ui";
@@ -20,13 +20,12 @@ import { copyText, decorateCodeBlocks } from "./code";
 import { renderMath } from "./math";
 import type { ReviewUi } from "./review-ui";
 import { blockKeys, markChanges, stepChange, track, type Hunk, type Snapshot } from "./changes";
-import type { ExportResult, ImageEmbed } from "./export";
 import { MD_EXT, collectWikilinkTargets, markWikilinks } from "./wikilinks";
 import { applyTooltips, detectPlatform, keysFor, shortcutRows, tooltip } from "./shortcuts";
-import { SCROLL_KEY, addRecent, clearRecent, folderEntry, isFolderEntry, readRecent, removeRecent, splitPath } from "./recent";
-import { FOLDER_KEY, PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, readJson, resetPrefs, savedAnchor, savedFolderRoot, savedTabs, setBoolPref } from "./prefs";
+import { SCROLL_KEY, addRecent, folderEntry, isFolderEntry, readRecent } from "./recent";
+import { FOLDER_KEY, PREF_KEYS, TABS_KEY, TIP_KEY, TOP, isOn, readJson, savedAnchor, savedFolderRoot, savedTabs, setOn } from "./prefs";
 import type { FolderPanel } from "./folder-ui";
-import { applyI18n, detectLang, lang, langPref, setLangPref, t, type Key, type LangPref } from "./i18n";
+import { applyI18n, lang, t, type Key } from "./i18n";
 import { checkForUpdates, maybeDailyCheck, updateSource, type UpdateUi } from "./updater";
 import { type Tab, canGoBack, canGoForward, commitDoc, cycleTarget, findTab, insertTab, removeTab, restoreSaved, serializeTabs, stepHistory, tabFactory } from "./tabs";
 import { SAMPLE_SESSION_KEY, SESSION_KEY, isSample, sampleOnLaunch, samplePath, sampleText, sampleToReplace } from "./sample";
@@ -34,7 +33,14 @@ import { clipName, clipText, dropClip, inMemory, isClip } from "./clip";
 import type { ClipHost } from "./clip-ui";
 import { installErrorReporting } from "./errors";
 import { reportPainted } from "./bench";
-import { type EditorInfo, editablePath, editorOptions, editorPref, isEditorId, setEditorPref } from "./editor";
+import { confirmDialog } from "./dialog";
+import { $ } from "./dom";
+import type { EditorHost } from "./editor-ui";
+import { type ExportHost, copyRich, openExport, wireExport } from "./export-ui";
+import type { PrefsHost } from "./prefs-ui";
+import { type RecentHost, askClearRecent, renderRecent } from "./recent-ui";
+import { latestWins } from "./reload";
+import { parseZoom, stepZoom } from "./zoom";
 
 // Erro não tratado (promessa com `void`, exceção em callback) aparece na barra, não só no console.
 // Instalado antes de tudo; `reportUnexpected` cobre o erro que chega antes de `els` existir.
@@ -65,8 +71,6 @@ const IS_TAURI = "__TAURI_INTERNALS__" in window;
 type TauriMeta = { currentWindow: { label: string }; currentWebview: { label: string } };
 const tauriMeta = (): TauriMeta => (window as unknown as { __TAURI_INTERNALS__: { metadata: TauriMeta } }).__TAURI_INTERNALS__.metadata;
 
-const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
-
 const els = {
   content: $("content"),
   empty: $("empty"),
@@ -74,7 +78,6 @@ const els = {
   main: $("main"),
   title: $("title"),
   status: $("status"),
-  recent: $("recent"),
   drop: $("drop"),
   find: $("find"),
   findInput: $<HTMLInputElement>("find-input"),
@@ -219,7 +222,7 @@ function cycleTab(delta: number): void {
 function restoreTabs(): Tab | null {
   return restoreSaved(tabs, savedTabs(), (p) => makeTab(p, baseName(p)));
 }
-let zoom = Number(localStorage.getItem(PREF_KEYS.zoom) ?? "1") || 1;
+let zoom = parseZoom(localStorage.getItem(PREF_KEYS.zoom));
 
 // ---------- leitura: estilo, largura e fonte (menu Exibir, persistidas) ----------
 
@@ -249,7 +252,14 @@ function applyReading(): void {
   localStorage.setItem(PREF_KEYS.font, readFont);
   localStorage.setItem(PREF_KEYS.style, docStyle);
   void applyDocStyle(docStyle);
-  if (IS_TAURI) void invoke("sync_view_menu", { style: docStyle, width: readWidth, font: readFont });
+  syncMenu();
+}
+
+/** O menu nativo é espelho: vai tudo de uma vez, no início e a cada troca. Salvar só vale no colado. */
+function syncMenu(): void {
+  if (!IS_TAURI) return;
+  const menu = { style: docStyle, width: readWidth, font: readFont, remote: remoteAuto, hidden: hiddenAuto, save: current !== null && isClip(current.path) };
+  void invoke("sync_menu", { menu });
 }
 const finder = new Finder(els.content, els.main, els.findCount, $("find-live"));
 
@@ -333,7 +343,7 @@ function syncTocAria(): void {
 
 function setTocVisible(visible: boolean): void {
   document.body.classList.toggle("toc-hidden", !visible);
-  setBoolPref(PREF_KEYS.toc, visible);
+  setOn("toc", visible);
   syncTocAria();
 }
 
@@ -377,7 +387,7 @@ function updateNavButtons(): void {
 function showEmpty(): void {
   current = null;
   setDocNotice("", false);
-  syncSaveMenu(false);
+  syncMenu();
   showChanges([]);
   els.remoteBanner.hidden = true;
   els.hiddenBanner.hidden = true;
@@ -387,132 +397,7 @@ function showEmpty(): void {
   els.toc.replaceChildren();
   setWindowTitle("Leve");
   showTipOnce();
-  renderRecent();
-}
-
-// ---------- recentes: lista do estado vazio, com remoção e limpeza ----------
-
-/** Quais dos caminhos ainda existem. No navegador, HEAD no servidor do Vite; no app, o Rust confere. */
-async function pathsExist(paths: string[]): Promise<boolean[]> {
-  if (IS_TAURI) return invoke<boolean[]>("paths_exist", { paths });
-  return Promise.all(
-    paths.map(async (p) => {
-      try {
-        const res = await fetch(p, { method: "HEAD" });
-        return res.ok && !(res.headers.get("content-type") ?? "").includes("text/html");
-      } catch {
-        return false;
-      }
-    }),
-  );
-}
-
-/**
- * Confirmação no próprio app (`#confirm`, mesmo estilo do Sobre): Esc e "Cancelar" devolvem
- * falso; só o botão de ação devolve verdadeiro. Igual no app e no navegador.
- */
-function confirmDialog(title: string, message: string, ok: string): Promise<boolean> {
-  const dlg = $<HTMLDialogElement>("confirm");
-  $("confirm-title").textContent = title;
-  $("confirm-text").textContent = message;
-  $("confirm-ok").textContent = ok;
-  dlg.returnValue = "";
-  return new Promise((resolve) => {
-    dlg.addEventListener("close", () => resolve(dlg.returnValue === "ok"), { once: true });
-    dlg.showModal();
-  });
-}
-
-function renderRecent(): void {
-  const recent = readRecent();
-  els.recent.replaceChildren();
-  if (recent.length === 0) return;
-  const head = document.createElement("div");
-  head.className = "recent-head";
-  const h = document.createElement("h2");
-  h.id = "recent-title";
-  h.textContent = t("recent.title");
-  const clear = document.createElement("button");
-  clear.type = "button";
-  clear.className = "link recent-clear";
-  clear.textContent = t("recent.clear");
-  clear.title = t("recent.clearLabel");
-  clear.setAttribute("aria-label", t("recent.clearLabel"));
-  clear.addEventListener("click", () => void askClearRecent());
-  head.append(h, clear);
-  els.recent.appendChild(head);
-  const ul = document.createElement("ul");
-  ul.setAttribute("aria-labelledby", "recent-title");
-  const items: { li: HTMLLIElement; open: HTMLButtonElement; path: string }[] = [];
-  for (const p of recent) {
-    const li = document.createElement("li");
-    const { name, dir } = splitPath(p);
-    const isFolder = isFolderEntry(p);
-    const open = document.createElement("button");
-    open.type = "button";
-    open.className = "recent-item";
-    open.title = p;
-    open.innerHTML = `<strong>${isFolder ? icon("folder", 14) : ""}</strong><span></span>`;
-    (open.firstElementChild as HTMLElement).append(name);
-    (open.lastElementChild as HTMLElement).textContent = dir;
-    open.addEventListener("click", () => {
-      // Arquivo que sumiu: o clique tira da lista em vez de abrir e falhar.
-      if (li.classList.contains("missing")) forgetRecent(p);
-      else if (isFolder) void openFolder(p.slice(0, -1));
-      else void loadDoc(p, { target: "new" });
-    });
-    const rm = document.createElement("button");
-    rm.type = "button";
-    rm.className = "icon recent-remove";
-    rm.title = t("recent.remove");
-    rm.setAttribute("aria-label", t("recent.removeNamed", { name }));
-    rm.innerHTML = icon("x", 14);
-    rm.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      forgetRecent(p);
-    });
-    li.append(open, rm);
-    ul.appendChild(li);
-    items.push({ li, open, path: p });
-  }
-  els.recent.appendChild(ul);
-  // Existência conferida depois: a lista aparece já, e o que sumiu fica apagado.
-  void pathsExist(items.map((i) => i.path))
-    .then((exists) => {
-      if (!ul.isConnected) return;
-      items.forEach(({ li, open, path }, i) => {
-        if (exists[i]) return;
-        li.classList.add("missing");
-        open.title = t("recent.missing", { path });
-        open.setAttribute("aria-label", t("recent.missingLabel", { name: splitPath(path).name }));
-      });
-    })
-    .catch((e) => console.warn("recentes:", e));
-}
-
-/** Tira da lista e, no estado vazio, redesenha mantendo o foco de teclado na vizinhança. */
-function forgetRecent(path: string): void {
-  const idx = readRecent().indexOf(path);
-  const hadFocus = els.recent.contains(document.activeElement);
-  removeRecent(path);
-  if (current) return;
-  renderRecent();
-  if (!hadFocus) return;
-  const items = els.recent.querySelectorAll<HTMLButtonElement>(".recent-item");
-  const next = items[Math.min(Math.max(idx, 0), items.length - 1)] ?? $("empty-open");
-  next.focus({ preventScroll: true });
-}
-
-async function askClearRecent(): Promise<void> {
-  if (readRecent().length === 0) {
-    flash(t("recent.none"));
-    return;
-  }
-  const ok = await confirmDialog(t("recent.confirmTitle"), t("recent.confirmText"), t("recent.clear"));
-  if (!ok) return;
-  clearRecent();
-  if (!current) renderRecent();
-  flash(t("recent.cleared"));
+  renderRecent(ui);
 }
 
 // ---------- carregamento ----------
@@ -571,7 +456,7 @@ async function resolveWikilinks(dir: string, targets: string[]): Promise<Record<
 
 /** Documentos em que o leitor pediu para carregar tudo (só nesta execução). */
 const remoteAllowed = new Set<string>();
-let remoteAuto = boolPref(PREF_KEYS.remote, false);
+let remoteAuto = isOn("remote");
 
 /** Imagem liberada depois do render: `hydrateImages` já passou, então o erro é vigiado aqui. */
 const watchRemote = (img: HTMLImageElement, url: string): void => {
@@ -589,15 +474,11 @@ function applyRemote(doc: Doc): void {
   });
 }
 
-function syncRemoteMenu(): void {
-  if (IS_TAURI) void invoke("sync_remote_menu", { on: remoteAuto });
-}
-
 // ---------- conteúdo oculto: avisado ao abrir, mostrado só a pedido (src/hidden-ui.ts) ----------
 
 /** Documentos em que o leitor pediu "Mostrar" (só nesta execução). */
 const hiddenShown = new Set<string>();
-let hiddenAuto = boolPref(PREF_KEYS.showHidden, false);
+let hiddenAuto = isOn("showHidden");
 
 /** Antes de `applyRemote`: a classe que ele põe nas imagens bloqueadas não é do documento. */
 function applyHidden(doc: Doc, comments: CommentSink | null): void {
@@ -610,10 +491,6 @@ function applyHidden(doc: Doc, comments: CommentSink | null): void {
       els.main.focus({ preventScroll: true });
     },
   });
-}
-
-function syncHiddenMenu(): void {
-  if (IS_TAURI) void invoke("sync_hidden_menu", { on: hiddenAuto });
 }
 
 function setWindowTitle(t: string): void {
@@ -710,7 +587,7 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   performance.measure("leve:dom", "leve:start");
   // Aviso de leitura e de modo grande ficam até o próximo documento; documento sem aviso limpa o anterior.
   setDocNotice([isClip(doc.path) ? t("clip.notSaved") : "", doc.warning, large ? t("doc.large") : ""].filter(Boolean).join(" · "), Boolean(doc.warning));
-  syncSaveMenu(isClip(doc.path));
+  syncMenu();
   applyHidden(doc, comments);
   applyRemote(doc);
   await hydrateImages(els.content, doc.dir, IS_TAURI);
@@ -816,7 +693,7 @@ async function openFolder(root: string, atLaunch = false): Promise<void> {
       onClose: () => (folder = null),
     });
     addRecent(folderEntry(folder.root));
-    if (!current) renderRecent();
+    if (!current) renderRecent(ui);
     // Wikilinks do documento aberto passam a resolver também pela raiz da pasta.
     else linkWikilinks(current);
   } catch (e) {
@@ -857,12 +734,6 @@ async function quickOpen(): Promise<void> {
     });
 }
 
-/** Arquivo › Salvar… só vale com o documento colado ativo; o item do menu acompanha. */
-function syncSaveMenu(on: boolean): void {
-  if (IS_TAURI) void invoke("sync_save_menu", { on });
-}
-
-/** Abrir da área de transferência e salvar o colado (src/clip-ui.ts, sob demanda). */
 /** Revisão para IA: módulo sob demanda, carregado na primeira seleção ou anotação. */
 let review: ReviewUi | null = null;
 async function reviewUi(): Promise<ReviewUi> {
@@ -879,6 +750,7 @@ async function reviewUi(): Promise<ReviewUi> {
   return review;
 }
 
+/** Abrir da área de transferência e salvar o colado (src/clip-ui.ts, sob demanda). */
 const clipHost: ClipHost = {
   tauri: IS_TAURI,
   flash,
@@ -897,175 +769,6 @@ function go(delta: number): void {
   if (!active) return;
   const path = stepHistory(active, delta);
   if (path !== null) void loadDoc(path, { push: false });
-}
-
-// ---------- Exportar HTML / Copiar como HTML (src/export.ts) ----------
-
-/** Sheet `#export` aberta para gravar arquivo ou para copiar; o botão principal decide. */
-let exportMode: "file" | "copy" = "file";
-
-/** Abre a sheet com a opção dos links `.md`. Nada é montado até o leitor confirmar. */
-function openExport(mode: "file" | "copy"): void {
-  if (!current) {
-    flash(t("export.noDoc"), true);
-    return;
-  }
-  exportMode = mode;
-  $("export-title").textContent = t(mode === "copy" ? "export.copyTitle" : "export.title");
-  $("export-ok").textContent = t(mode === "copy" ? "export.copy" : "export.ok");
-  $<HTMLInputElement>("export-md-links").checked = boolPref(PREF_KEYS.exportMdLinks, false);
-  $<HTMLDialogElement>("export").showModal();
-}
-
-/**
- * Imagens locais do documento como data URI. No app, o Rust lê só o que `allow_assets` já liberaria
- * (pasta de documento concedido, caminho relativo, extensão de imagem) e recusa acima de 5 MB sem ler;
- * no navegador, `fetch` no servidor do Vite.
- */
-async function readExportImages(dir: string, rels: string[], max: number): Promise<Record<string, ImageEmbed>> {
-  if (rels.length === 0) return {};
-  if (IS_TAURI) return invoke<Record<string, ImageEmbed>>("export_images", { dir, rels });
-  const { blobToDataUri } = await import("./export");
-  const out: Record<string, ImageEmbed> = {};
-  await Promise.all(
-    rels.map(async (rel) => {
-      out[rel] = { data: null, tooBig: false };
-      try {
-        const res = await fetch(joinPath(dir, rel));
-        const blob = await res.blob();
-        if (!res.ok || blob.type.includes("text/html")) return;
-        if (blob.size > max) out[rel].tooBig = true;
-        else out[rel].data = await blobToDataUri(blob);
-      } catch {
-        /* fica com o caminho relativo */
-      }
-    }),
-  );
-  return out;
-}
-
-/**
- * Monta o HTML a partir de um clone do documento desenhado: realce completo (fora do modo grande),
- * Mermaid redesenhado no tema claro se a página está no escuro ou ainda não terminou, KaTeX pendente,
- * CSS claro com as fontes usadas e imagens locais embutidas. A página não é tocada.
- */
-async function buildExport(doc: Doc): Promise<ExportResult> {
-  const [ex, { exportCss }] = await Promise.all([import("./export"), import("./export-css")]);
-  const root = ex.cloneContent(els.content);
-  if (!isLargeDoc(doc.content)) await highlightAll(root);
-  const unrendered = Array.from(root.querySelectorAll("pre.mermaid")).some((p) => !p.querySelector("svg") && !p.classList.contains("has-error"));
-  if (theme.isDark() || unrendered) await renderMermaid(root, false);
-  await renderMath(root);
-  const [css, images] = await Promise.all([
-    exportCss(root, docStyle),
-    readExportImages(doc.dir, ex.localImageRels(root), ex.EXPORT_IMAGE_MAX_BYTES),
-  ]);
-  const mdLinks = boolPref(PREF_KEYS.exportMdLinks, false) ? "html" : "text";
-  return ex.buildExportHtml(root, { fileName: doc.name, lang: lang(), css, mdLinks, images });
-}
-
-function oversizedNotice(n: number): string {
-  return n === 0 ? "" : n === 1 ? t("export.oversizedOne") : t("export.oversizedMany", { n });
-}
-
-/** Grava pelo diálogo nativo do Rust (`save_html`): o frontend manda o documento de origem e o HTML, nunca o destino. */
-async function saveExport(doc: Doc, pending: Promise<ExportResult>): Promise<void> {
-  try {
-    const { html, oversized } = await pending;
-    let saved: string | null;
-    if (IS_TAURI) saved = await invoke<string | null>("save_html", { doc: doc.path, html });
-    else {
-      // Modo navegador: download do arquivo, para a prova manual.
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
-      a.download = doc.name.replace(/\.[^.]+$/, "") + ".html";
-      a.click();
-      URL.revokeObjectURL(a.href);
-      saved = a.download;
-    }
-    if (!saved) return;
-    flash([t("export.saved", { path: saved }), oversizedNotice(oversized)].filter(Boolean).join(" · "), false, oversized > 0);
-  } catch (e) {
-    flash(t("export.failed", { error: String(e) }), true);
-  }
-}
-
-/**
- * Copia o HTML como texto. Chamada dentro do clique do botão da sheet: o WebKit só aceita escrever
- * na área de transferência com um gesto do leitor, e o `ClipboardItem` com promessa segura o gesto
- * enquanto o HTML é montado. Sem `ClipboardItem`, `copyText` (Clipboard API ou `execCommand`).
- */
-async function copyExport(pending: Promise<ExportResult>): Promise<void> {
-  try {
-    let copied = false;
-    if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
-      const blob = pending.then((r) => new Blob([r.html], { type: "text/plain" }));
-      // Recusa (permissão negada pelo WebView) cai no caminho de `copyText`.
-      copied = await navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]).then(
-        () => true,
-        () => false,
-      );
-    }
-    if (!copied) await copyText((await pending).html);
-    const { oversized } = await pending;
-    flash([t("export.copied"), oversizedNotice(oversized)].filter(Boolean).join(" · "), false, oversized > 0);
-  } catch (e) {
-    flash(t("export.failed", { error: String(e) }), true);
-  }
-}
-
-function wireExport(): void {
-  $("export-ok").addEventListener("click", () => {
-    setBoolPref(PREF_KEYS.exportMdLinks, $<HTMLInputElement>("export-md-links").checked);
-    const doc = current;
-    if (!doc) return;
-    const pending = buildExport(doc);
-    if (exportMode === "copy") void copyExport(pending);
-    else void saveExport(doc, pending);
-  });
-}
-
-// ---------- Copiar como texto formatado (src/rich.ts) ----------
-
-/**
- * Editar › Copiar como texto formatado (Mod+Shift+C): `text/html` com estilo inline + `text/plain`
- * (o Markdown-fonte, ou o texto da seleção) num `ClipboardItem` só. A escrita começa aqui, de forma
- * síncrona, dentro do gesto do leitor; o conteúdo chega pelas promessas, montado por `src/rich.ts`
- * (carregado sob demanda, como o resto: reserva por `execCommand` e aviso).
- */
-function copyRich(): void {
-  const doc = current;
-  if (!doc) {
-    flash(t("rich.noDoc"), true);
-    return;
-  }
-  const sel = window.getSelection();
-  const range = sel && !sel.isCollapsed && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
-  const rich = import("./rich");
-  const job = rich.then((m) =>
-    m.richCopyJob({
-      content: els.content,
-      range,
-      source: doc.content,
-      large: isLargeDoc(doc.content),
-      readImages: (rels, max) => readExportImages(doc.dir, rels, max),
-    }),
-  );
-  const write =
-    typeof ClipboardItem !== "undefined" && navigator.clipboard?.write
-      ? navigator.clipboard.write([
-          new ClipboardItem({
-            "text/html": job.then((j) => new Blob([j.html], { type: "text/html" })),
-            "text/plain": job.then((j) => new Blob([j.plain], { type: "text/plain" })),
-          }),
-        ])
-      : Promise.reject(new Error("ClipboardItem indisponível"));
-  rich
-    .then((m) => m.finishCopy(job, write))
-    .then(
-      ({ message, oversized }) => flash([message, oversizedNotice(oversized)].filter(Boolean).join(" · "), false, oversized > 0),
-      (e) => flash(t("rich.failed", { error: String(e) }), true),
-    );
 }
 
 // ---------- ações (menu nativo + botões) ----------
@@ -1091,30 +794,18 @@ function closeFind(): void {
   back.focus({ preventScroll: true });
 }
 
-// ---------- recarga: uma de cada vez, a última vence ----------
-
-let reloading: Promise<boolean> | null = null;
-let reloadAgain = false;
-
 /**
- * Recarrega o documento atual mantendo o ponto de leitura. Se uma recarga ainda está em
- * andamento (render de documento grande), só marca: ao terminar, roda mais uma, com o conteúdo
- * mais novo do disco. Eventos intermediários do watcher caem nessa marca única (coalescing).
+ * Recarrega o documento atual mantendo o ponto de leitura, uma de cada vez (`latestWins`): eventos
+ * intermediários do watcher caem numa recarga só, que lê o conteúdo mais novo do disco.
  */
+const requestReload = latestWins(() => (current ? loadDoc(current.path, { push: false, keepScroll: true }) : null));
+
 function reloadCurrent(): void {
-  if (!current) return;
-  if (reloading) {
-    reloadAgain = true;
-    return;
-  }
-  reloading = loadDoc(current.path, { push: false, keepScroll: true }).finally(() => {
-    reloading = null;
-    if (reloadAgain) {
-      reloadAgain = false;
-      reloadCurrent();
-    }
-  });
+  if (current) requestReload();
 }
+
+/** Abrir no editor e comando `leve` (src/editor-ui.ts, sob demanda). */
+const editorUi = (f: "openInEditor" | "installCli"): void => void import("./editor-ui").then((m) => m[f](ui));
 
 const actions: Record<string, () => void> = {
   open: () => void pickAndOpen(),
@@ -1124,12 +815,12 @@ const actions: Record<string, () => void> = {
   reveal: () => {
     if (current && !inMemory(current.path)) void invoke("reveal_in_folder", { path: current.path });
   },
-  "open-in-editor": () => void openInEditor(),
-  "install-cli": () => void installCli(),
+  "open-in-editor": () => editorUi("openInEditor"),
+  "install-cli": () => editorUi("installCli"),
   print: () => window.print(),
-  "export-html": () => openExport("file"),
-  "copy-html": () => openExport("copy"),
-  "copy-rich": copyRich,
+  "export-html": () => openExport(ui, "file"),
+  "copy-html": () => openExport(ui, "copy"),
+  "copy-rich": () => copyRich(ui),
   annotate: () => void reviewUi().then((r) => r.annotate()),
   // Sem `await`: a cópia começa no gesto, e sem o módulo carregado não há o que copiar.
   "copy-review": () => (review ? review.copy() : flash(t("review.none"))),
@@ -1140,11 +831,11 @@ const actions: Record<string, () => void> = {
   "toggle-toc": toggleToc,
   "cycle-theme": () => flashTheme(theme.cycle()),
   "zoom-in": () => {
-    zoom = Math.min(2.5, Math.round((zoom + 0.1) * 10) / 10);
+    zoom = stepZoom(zoom, 1);
     applyZoom();
   },
   "zoom-out": () => {
-    zoom = Math.max(0.5, Math.round((zoom - 0.1) * 10) / 10);
+    zoom = stepZoom(zoom, -1);
     applyZoom();
   },
   "zoom-reset": () => {
@@ -1156,7 +847,7 @@ const actions: Record<string, () => void> = {
   "close-tab": () => {
     if (active) void askCloseTab(active);
   },
-  "clear-recent": () => void askClearRecent(),
+  "clear-recent": () => void askClearRecent(ui),
   "open-folder": () => void pickFolder(),
   "quick-open": () => void quickOpen(),
   "close-folder": () => folder?.close(),
@@ -1169,179 +860,50 @@ const actions: Record<string, () => void> = {
   shortcuts: openShortcuts,
   // Ajuda › Documento de exemplo: aba nova, ou foca a que já está aberta.
   sample: () => void loadDoc(samplePath(lang()), { target: "new" }),
-  preferences: openPreferences,
+  preferences: () => void openPreferences(),
   // Preferência global (Exibir): liga/desliga e reaplica ao documento aberto, com o ponto de leitura.
   "remote-auto": () => {
     remoteAuto = !remoteAuto;
-    setBoolPref(PREF_KEYS.remote, remoteAuto);
+    setOn("remote", remoteAuto);
     // Desligar volta a bloquear tudo, inclusive o que foi liberado "neste documento".
     if (!remoteAuto) remoteAllowed.clear();
-    syncRemoteMenu();
+    syncMenu();
     flash(remoteAuto ? t("remote.always") : t("remote.blocked"));
     reloadCurrent();
   },
   // Exibir › Mostrar conteúdo oculto: mesma forma da preferência acima.
   "show-hidden": () => {
     hiddenAuto = !hiddenAuto;
-    setBoolPref(PREF_KEYS.showHidden, hiddenAuto);
+    setOn("showHidden", hiddenAuto);
     if (!hiddenAuto) hiddenShown.clear();
-    syncHiddenMenu();
+    syncMenu();
     flash(hiddenAuto ? t("hidden.always") : t("hidden.warnOnly"));
     reloadCurrent();
   },
 };
 
-// ---------- Abrir no editor e comando `leve` (Preferências › Integração) ----------
-
-/** Lista vinda do Rust (`list_editors`), lida ao abrir as Preferências e antes de abrir no editor. */
-let editors: EditorInfo[] = [];
-
-async function loadEditors(): Promise<EditorInfo[]> {
-  if (!IS_TAURI) return editors;
-  try {
-    editors = await invoke<EditorInfo[]>("list_editors");
-  } catch (e) {
-    flash(String(e), true);
-  }
-  return editors;
-}
-
-/** Arquivo › Abrir no editor: o documento ativo no editor escolhido. O Rust monta o comando. */
-async function openInEditor(): Promise<void> {
-  if (!current) {
-    flash(t("editor.noDoc"));
-    return;
-  }
-  const path = editablePath(current.path);
-  if (!path) {
-    flash(isClip(current.path) ? t("clip.saveFirst") : t("editor.sample"));
-    return;
-  }
-  if (!IS_TAURI) {
-    flash(t("editor.browser"), true);
-    return;
-  }
-  const id = editorPref();
-  try {
-    await invoke("open_in_editor", { editor: id, path });
-    const name = editors.find((e) => e.id === id)?.name ?? (await loadEditors()).find((e) => e.id === id)?.name ?? id;
-    flash(t("editor.opened", { name }));
-  } catch (e) {
-    flash(String(e), true);
-  }
-}
-
-interface CliOutcome {
-  status: "installed" | "needs-admin" | "cancelled";
-  path?: string;
-}
-
-/** Leve › Instalar comando 'leve' (macOS): sem senha se der; senão pergunta antes de pedir a senha. */
-async function installCli(): Promise<void> {
-  if (!IS_TAURI || PLATFORM !== "mac") {
-    flash(t("cli.pc"));
-    return;
-  }
-  try {
-    let out = await invoke<CliOutcome>("install_cli", { admin: false });
-    if (out.status === "needs-admin") {
-      const ok = await confirmDialog(t("cli.adminTitle"), t("cli.adminText", { path: out.path ?? "" }), t("cli.adminOk"));
-      if (!ok) return;
-      out = await invoke<CliOutcome>("install_cli", { admin: true });
-    }
-    if (out.status === "installed") flash(t("cli.installed", { path: out.path ?? "" }), false, true);
-    else if (out.status === "cancelled") flash(t("cli.cancelled"));
-  } catch (e) {
-    flash(String(e), true);
-  }
-}
-
-/** Preenche o seletor de editor com o que está instalado e o escolhido (mesmo se sumiu). */
-function renderEditorSelect(): void {
-  const sel = $<HTMLSelectElement>("prefs-editor");
-  const chosen = editorPref();
-  const list = editors.length ? editors : [{ id: "system", name: t("prefs.editorSystem"), available: true, selfDefault: false } as EditorInfo];
-  sel.replaceChildren(
-    ...editorOptions(list, chosen).map((o) => {
-      const opt = document.createElement("option");
-      opt.value = o.id;
-      // "Aplicativo padrão" indisponível é o caso do padrão ser o Leve: a dica abaixo explica.
-      opt.textContent = o.missing && o.id !== "system" ? t("prefs.editorMissing", { name: o.name }) : o.name;
-      return opt;
-    }),
-  );
-  sel.value = chosen;
-  const self = editors.find((e) => e.id === "system")?.selfDefault && chosen === "system";
-  $("prefs-editor-hint").textContent = self ? t("prefs.editorSelf") : t("prefs.editorHint");
-}
-
-// ---------- Preferências (Mod+,): mesmas chaves e mesmas ações do menu ----------
+// ---------- Preferências (Mod+,; src/prefs-ui.ts): mesmas chaves e mesmas ações do menu ----------
 
 function flashTheme(m: theme.ThemeMode): void {
   flash(t("theme.flash", { mode: t(`theme.${m}`) }));
 }
 
-function setTheme(m: theme.ThemeMode): void {
-  theme.setMode(m);
-  flashTheme(m);
-}
+/** Carregado na primeira abertura da tela: antes dela não há o que sincronizar. */
+let prefsUi: typeof import("./prefs-ui") | null = null;
 
-/** Lê o estado vivo para os controles da tela; chamada ao abrir e depois de cada ação. */
-function syncPrefsUI(): void {
-  const dlg = $<HTMLDialogElement>("prefs");
-  if (!dlg.open) return;
-  const choose = (name: string, value: string): void => {
-    for (const r of dlg.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`)) r.checked = r.value === value;
-  };
-  choose("theme", theme.getMode());
-  choose("style", docStyle);
-  choose("font", readFont);
-  choose("width", readWidth);
-  $("prefs-zoom-value").textContent = `${Math.round(zoom * 100)} %`;
-  $<HTMLInputElement>("prefs-toc").checked = boolPref(PREF_KEYS.toc, true);
-  $<HTMLInputElement>("prefs-restore-scroll").checked = boolPref(PREF_KEYS.restoreScroll, true);
-  $<HTMLInputElement>("prefs-restore-tabs").checked = boolPref(PREF_KEYS.restoreTabs, true);
-  $<HTMLInputElement>("prefs-sample").checked = boolPref(PREF_KEYS.sample, true);
-  $<HTMLInputElement>("prefs-remote").checked = remoteAuto;
-  $<HTMLInputElement>("prefs-hidden").checked = hiddenAuto;
-  $<HTMLInputElement>("prefs-auto-update").checked = boolPref(PREF_KEYS.autoUpdate, false);
-  choose("lang", langPref());
-  renderEditorSelect();
-}
-
-/**
- * Troca de idioma recarrega a página: todo texto (inclusive o do documento renderizado, como
- * títulos de alerta) sai de novo no idioma novo, e o menu nativo acompanha por `set_locale`.
- * As abas e o ponto de leitura voltam pelo `beforeunload`.
- */
-function changeLang(p: LangPref): void {
-  const before = lang();
-  setLangPref(p);
-  const next = p === "auto" ? detectLang(navigator.languages) : p;
-  if (next !== before) location.reload();
-}
-
-function openPreferences(): void {
-  const dlg = $<HTMLDialogElement>("prefs");
-  const first = !dlg.open;
-  if (first) dlg.showModal();
-  syncPrefsUI();
-  // A detecção roda no Rust (LaunchServices, PATH); a lista chega depois e o seletor se refaz.
-  if (first) void loadEditors().then(syncPrefsUI);
-  // O diálogo foca o primeiro rádio na ordem do DOM; o foco vai para o que está marcado.
-  if (first) dlg.querySelector<HTMLInputElement>('input[name="theme"]:checked')?.focus();
+async function openPreferences(): Promise<void> {
+  prefsUi ??= await import("./prefs-ui");
+  prefsUi.openPreferences(ui);
 }
 
 /** Ação do menu (nativo ou do navegador); a tela Preferências, se aberta, acompanha. */
 function runAction(id: string): void {
   actions[id]?.();
-  syncPrefsUI();
+  prefsUi?.syncPrefsUI(ui);
 }
 
-/** Apaga as chaves de preferência e reaplica os padrões; recentes e abas ficam. */
-function resetPreferences(): void {
-  const langBefore = langPref();
-  resetPrefs();
+/** Volta aos padrões o que está em memória; quem chama já apagou as chaves. */
+function resetView(): void {
   theme.setMode("auto");
   readWidth = "normal";
   readFont = "auto";
@@ -1353,95 +915,6 @@ function resetPreferences(): void {
   // Reaplica ao documento aberto, como o item do menu.
   if (remoteAuto) actions["remote-auto"]();
   if (hiddenAuto) actions["show-hidden"]();
-  syncPrefsUI();
-  flash(t("prefs.restored"));
-  if (langBefore !== "auto") location.reload();
-}
-
-/**
- * Esquece as concessões de leitura do Rust (menos as abas abertas, que continuam funcionando),
- * os recentes e os pontos de leitura. A lista de abas salva já é só a das abas abertas.
- */
-async function askForgetGrants(): Promise<void> {
-  const ok = await confirmDialog(t("prefs.forgetTitle"), t("prefs.forgetText"), t("prefs.forgetOk"));
-  if (!ok) return;
-  if (IS_TAURI) {
-    try {
-      const keep = tabs.map((t) => t.path).filter((p) => !inMemory(p));
-      // A pasta aberta no painel continua concedida, como as abas.
-      if (folder) keep.push(folder.root);
-      await invoke("forget_grants", { keep });
-    } catch (e) {
-      flash(String(e), true);
-      return;
-    }
-  }
-  clearRecent();
-  saveTabs();
-  if (!current) renderRecent();
-  flash(t("prefs.forgotten"));
-}
-
-function wirePreferences(): void {
-  const dlg = $<HTMLDialogElement>("prefs");
-  dlg.addEventListener("change", (ev) => {
-    const t = ev.target;
-    if (!(t instanceof HTMLInputElement)) return;
-    switch (t.name) {
-      case "theme":
-        setTheme(t.value as theme.ThemeMode);
-        break;
-      case "style":
-      case "font":
-      case "width":
-        actions[`${t.name}-${t.value}`]?.();
-        break;
-      case "toc":
-        setTocVisible(t.checked);
-        break;
-      case "restore-scroll":
-        setBoolPref(PREF_KEYS.restoreScroll, t.checked);
-        break;
-      case "restore-tabs":
-        setBoolPref(PREF_KEYS.restoreTabs, t.checked);
-        break;
-      case "sample":
-        setBoolPref(PREF_KEYS.sample, t.checked);
-        break;
-      case "remote":
-        if (t.checked !== remoteAuto) actions["remote-auto"]();
-        break;
-      case "hidden":
-        if (t.checked !== hiddenAuto) actions["show-hidden"]();
-        break;
-      case "auto-update":
-        setBoolPref(PREF_KEYS.autoUpdate, t.checked);
-        if (t.checked && updateSource(IS_TAURI, appInfo.flatpak) === "app") maybeDailyCheck(updateUi, appInfo.version);
-        break;
-      case "lang":
-        changeLang(t.value as LangPref);
-        return;
-    }
-    syncPrefsUI();
-  });
-  $<HTMLSelectElement>("prefs-editor").addEventListener("change", (ev) => {
-    const v = (ev.target as HTMLSelectElement).value;
-    if (isEditorId(v)) setEditorPref(v);
-    syncPrefsUI();
-  });
-  $("prefs-cli-hint").textContent = PLATFORM === "mac" ? t("prefs.cliHintMac") : t("prefs.cliHintPc");
-  $("prefs-cli-actions").hidden = PLATFORM !== "mac";
-  $("prefs-cli-install").addEventListener("click", () => void installCli());
-  $("prefs-zoom-out").addEventListener("click", () => runAction("zoom-out"));
-  $("prefs-zoom-in").addEventListener("click", () => runAction("zoom-in"));
-  $("prefs-zoom-reset").addEventListener("click", () => runAction("zoom-reset"));
-  $("prefs-clear-recent").addEventListener("click", () => void askClearRecent());
-  $("prefs-forget-grants").addEventListener("click", () => void askForgetGrants());
-  // Abrem por cima da tela; Esc volta para ela.
-  $("prefs-shortcuts").addEventListener("click", openShortcuts);
-  $("prefs-about").addEventListener("click", openAbout);
-  $("prefs-check-update").addEventListener("click", checkUpdatesNow);
-  $("prefs-reset").addEventListener("click", resetPreferences);
 }
 
 // ---------- ajuda: Sobre, Atalhos e a dica da primeira abertura ----------
@@ -1538,6 +1011,42 @@ for (const s of DOC_STYLES) {
     flash(t("style.flash", { value: styleLabel(s) }));
   };
 }
+
+/** O que os módulos de interface pedem emprestado: estado e efeitos que moram aqui. */
+const ui: RecentHost & EditorHost & ExportHost & PrefsHost = {
+  tauri: IS_TAURI,
+  platform: PLATFORM,
+  flash,
+  contentEl: els.content,
+  hasDoc: () => current !== null,
+  currentDoc: () => current,
+  currentPath: () => current?.path ?? null,
+  docStyle: () => docStyle,
+  reading: () => ({ style: docStyle, font: readFont, width: readWidth, zoom }),
+  open: (p) => void loadDoc(p, { target: "new" }),
+  openFolder: (root) => void openFolder(root),
+  action: (id) => actions[id]?.(),
+  runAction,
+  setTheme: (m) => {
+    theme.setMode(m);
+    flashTheme(m);
+  },
+  setTocVisible,
+  resetView,
+  keepPaths: () => {
+    const keep = tabs.map((t) => t.path).filter((p) => !inMemory(p));
+    // A pasta aberta no painel continua concedida, como as abas.
+    if (folder) keep.push(folder.root);
+    return keep;
+  },
+  saveTabs,
+  dailyCheck: () => {
+    if (updateSource(IS_TAURI, appInfo.flatpak) === "app") maybeDailyCheck(updateUi, appInfo.version);
+  },
+  openShortcuts,
+  openAbout,
+  checkUpdates: checkUpdatesNow,
+};
 
 // ---------- wiring ----------
 
@@ -1792,7 +1301,7 @@ async function openAtLaunch(): Promise<void> {
   const showSample = sampleOnLaunch({
     fileArrived: Boolean(file),
     restoredTabs: tabs.length > 0,
-    prefOn: boolPref(PREF_KEYS.sample, true),
+    prefOn: isOn("sample"),
     reload,
     sampleWasOpen: sampleBefore !== null,
   });
@@ -1837,14 +1346,11 @@ async function main(): Promise<void> {
   if (IS_TAURI) await invoke("set_locale", { lang: lang() }).catch((e) => console.warn("set_locale:", e));
   keepTabbable($("app"));
   applyTooltips($("app"), PLATFORM);
-  setTocVisible(boolPref(PREF_KEYS.toc, true));
+  setTocVisible(isOn("toc"));
   applyZoom();
   applyReading();
-  syncRemoteMenu();
-  syncHiddenMenu();
   wire();
-  wirePreferences();
-  wireExport();
+  wireExport(ui);
   if (IS_TAURI) await wireTauri();
   else {
     wireBrowserShortcuts();

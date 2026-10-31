@@ -7,7 +7,7 @@ use std::{
 use notify_debouncer_mini::{Debouncer, notify::RecommendedWatcher};
 use serde::Serialize;
 use tauri::{
-    AppHandle, Emitter, Manager, State, Url, Wry,
+    AppHandle, Manager, State, Url, Wry,
     menu::{CheckMenuItem, MenuItem},
 };
 use tauri_plugin_dialog::DialogExt;
@@ -23,6 +23,7 @@ mod folder;
 mod grants;
 mod i18n;
 mod menu;
+mod open;
 mod watch;
 mod wikilinks;
 
@@ -30,6 +31,7 @@ use doc::{MAX_DOC_BYTES, too_big};
 use export::write_picked;
 use grants::{attach_grants_file, grant, grant_folder, granted, granted_folder};
 use menu::build_menu;
+use open::{first_markdown_arg, mark_ready, request_open};
 
 const REPO_URL: &str = "https://github.com/moraliasp/leve";
 
@@ -94,13 +96,9 @@ struct AppState {
     watcher: Mutex<Option<Debouncer<RecommendedWatcher>>>,
     /// Arquivo e espera do vigia atual: `watch_file` só o recria quando um dos dois muda.
     watched: Mutex<Option<(PathBuf, Duration)>>,
-    /// Itens de rádio do menu Exibir (estilo, largura e fonte); o frontend sincroniza o estado salvo.
-    view_checks: Mutex<Vec<CheckMenuItem<Wry>>>,
-    /// Exibir › Carregar imagens remotas (liga/desliga); a preferência vive no frontend.
-    remote_check: Mutex<Option<CheckMenuItem<Wry>>>,
-    /// Exibir › Mostrar conteúdo oculto (liga/desliga); a preferência vive no frontend.
-    hidden_check: Mutex<Option<CheckMenuItem<Wry>>>,
-    /// Arquivo › Salvar…: habilitado só com o documento colado ativo (`sync_save_menu`).
+    /// Itens de marcar do menu Exibir; quem guarda o estado é o frontend (`sync_menu`).
+    menu_checks: Mutex<Vec<CheckMenuItem<Wry>>>,
+    /// Arquivo › Salvar…: habilitado só com o documento colado ativo (`sync_menu`).
     save_item: Mutex<Option<MenuItem<Wry>>>,
     /// Arquivos que o app pode ler: só os que chegaram por diálogo, SO, drop ou link de um
     /// documento já aberto. O frontend não concede nada; só pede. Persistido em `grants_file`
@@ -121,83 +119,6 @@ fn ext_lower(p: &Path) -> String {
         .and_then(|e| e.to_str())
         .map(|e| e.to_ascii_lowercase())
         .unwrap_or_default()
-}
-
-/// Quanto esperar, depois do `RunEvent::Ready`, por um arquivo pedido pelo SO na abertura.
-/// No macOS o duplo-clique num `.md` chega como `RunEvent::Opened` (Apple Event `odoc`), que na
-/// prática vem antes do `setup`, mas o AppKit não garante a ordem em relação ao fim da abertura:
-/// sem esta folga, o frontend poderia concluir "abertura direta" e mostrar o exemplo por cima
-/// do arquivo pedido. No Windows e no Linux o arquivo vem por argv, lido no `setup` (antes do
-/// `Ready`), então não há o que esperar.
-#[cfg(target_os = "macos")]
-const LAUNCH_GRACE: Duration = Duration::from_millis(500);
-#[cfg(not(target_os = "macos"))]
-const LAUNCH_GRACE: Duration = Duration::ZERO;
-/// Teto da espera, contado da chamada: se o `Ready` não for visto, o frontend não trava.
-const LAUNCH_WAIT_MAX: Duration = Duration::from_secs(2);
-
-/// A abertura assentou: já chegou um arquivo, ou o `Ready` passou há pelo menos `grace`.
-fn launch_settled(
-    ready_at: Option<Instant>,
-    now: Instant,
-    has_file: bool,
-    grace: Duration,
-) -> bool {
-    has_file || ready_at.is_some_and(|r| now.saturating_duration_since(r) >= grace)
-}
-
-/// Espera a abertura assentar (ou `max`) e devolve o arquivo pedido pelo SO, se houver. Dorme
-/// até o prazo (fim da folga ou teto) e só acorda antes por `notify_all` de `mark_ready` ou
-/// `queue_open`: sem o aviso, um arquivo tardio esperaria a folga inteira.
-fn wait_launch(state: &AppState, grace: Duration, max: Duration) -> Option<String> {
-    let start = Instant::now();
-    let mut ready = state.ready_at.lock().unwrap();
-    loop {
-        let now = Instant::now();
-        let has_file = state.pending_open.lock().unwrap().is_some();
-        let cap = start + max;
-        if launch_settled(*ready, now, has_file, grace) || now >= cap {
-            break;
-        }
-        let deadline = ready.map_or(cap, |r| (r + grace).min(cap));
-        ready = state
-            .launch_cv
-            .wait_timeout(ready, deadline.saturating_duration_since(now))
-            .unwrap()
-            .0;
-    }
-    drop(ready);
-    state.pending_open.lock().unwrap().take()
-}
-
-/// Põe o arquivo pedido pelo SO na fila e acorda quem espera a abertura (`wait_launch`).
-fn queue_open(state: &AppState, path: String) {
-    *state.pending_open.lock().unwrap() = Some(path);
-    state.launch_cv.notify_all();
-}
-
-fn mark_ready(state: &AppState) {
-    state
-        .ready_at
-        .lock()
-        .unwrap()
-        .get_or_insert_with(Instant::now);
-    state.launch_cv.notify_all();
-}
-
-/// Arquivo que o SO pediu na abertura (argv, duplo-clique), depois de a abertura assentar.
-/// `None` quer dizer abertura direta (ícone, Dock, menu Iniciar) ou recarga da página: o
-/// frontend decide entre abas salvas, documento de exemplo e estado vazio. Arquivo que chegar
-/// depois disto vem pelo evento `open-file`. Espera fora da thread principal, que entrega os
-/// eventos do SO.
-#[tauri::command]
-async fn launch_open(app: AppHandle) -> Option<String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        wait_launch(&app.state::<AppState>(), LAUNCH_GRACE, LAUNCH_WAIT_MAX)
-    })
-    .await
-    .ok()
-    .flatten()
 }
 
 /// Diálogo nativo de abrir: a escolha é concedida aqui, no Rust, e devolvida ao frontend.
@@ -361,22 +282,6 @@ fn is_markdown(p: &Path) -> bool {
     MD_EXTS.contains(&ext_lower(p).as_str())
 }
 
-/// Abertura vinda do SO (duplo-clique, argv, segunda instância): concede e avisa o frontend.
-fn request_open(app: &AppHandle, path: PathBuf) {
-    let Some(state) = app.try_state::<AppState>() else {
-        return;
-    };
-    let Ok(c) = grant(&state, &path) else {
-        return;
-    };
-    let s = c.to_string_lossy().into_owned();
-    queue_open(&state, s.clone());
-    let _ = app.emit("open-file", s);
-    if let Some(w) = app.get_webview_window("main") {
-        let _ = w.set_focus();
-    }
-}
-
 /// Só a própria página do app pode ser mostrada na janela: um `.md` não navega o WebView para fora
 /// (formulário, `<area>`, URL arrastada). Link externo sai pelo navegador via `open_external`.
 /// `tauri://localhost` no macOS/Linux, `http://tauri.localhost` no Windows e o Vite em dev.
@@ -390,17 +295,6 @@ fn navigation_allowed(url: &Url) -> bool {
         "http" if cfg!(debug_assertions) && host == Some("localhost") => true,
         _ => false,
     }
-}
-
-/// Primeiro argumento que é `.md` existente. Relativo vale a partir de `cwd`, a pasta de quem
-/// chamou (`leve README.md` no terminal): na 1ª instância é a do próprio processo; na 2ª vem do
-/// plugin single-instance, porque a instância que já está aberta tem outra pasta atual (`/`
-/// quando aberta pelo Finder).
-fn first_markdown_arg(argv: &[String], cwd: &Path) -> Option<PathBuf> {
-    argv.iter()
-        .skip(1)
-        .map(|a| cwd.join(a))
-        .find(|p| is_markdown(p) && p.exists())
 }
 
 /// O que pode ir para um editor: só arquivo Markdown (mesma regra de extensão do argv). Um alvo de
@@ -522,7 +416,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             doc::read_markdown,
             watch::watch_file,
-            launch_open,
+            open::launch_open,
             grants::resolve_path,
             pick_markdown,
             read_clipboard,
@@ -533,10 +427,7 @@ pub fn run() {
             grants::allow_assets,
             export::export_images,
             export::save_html,
-            menu::sync_view_menu,
-            menu::sync_remote_menu,
-            menu::sync_hidden_menu,
-            menu::sync_save_menu,
+            menu::sync_menu,
             wikilinks::resolve_wikilinks,
             open_external,
             reveal_in_folder,
@@ -599,80 +490,6 @@ pub fn run() {
             }
             _ => {}
         });
-}
-
-#[cfg(test)]
-mod launch_tests {
-    use super::*;
-
-    const GRACE: Duration = Duration::from_millis(500);
-
-    #[test]
-    fn assenta_com_arquivo_ou_depois_da_folga() {
-        let t0 = Instant::now();
-        assert!(!launch_settled(None, t0, false, GRACE), "sem Ready, espera");
-        assert!(
-            launch_settled(None, t0, true, GRACE),
-            "arquivo decide na hora"
-        );
-        assert!(!launch_settled(
-            Some(t0),
-            t0 + Duration::from_millis(100),
-            false,
-            GRACE
-        ));
-        assert!(launch_settled(Some(t0), t0 + GRACE, false, GRACE));
-        assert!(
-            launch_settled(Some(t0), t0, false, Duration::ZERO),
-            "sem folga fora do macOS"
-        );
-    }
-
-    #[test]
-    fn arquivo_que_chega_durante_a_espera_e_entregue() {
-        // Opened depois do Ready (ordem que o AppKit não proíbe): a espera devolve o arquivo.
-        // Folga longa (5 s) de propósito: só o `notify_all` de `queue_open` (o caminho de
-        // `request_open`) acorda a espera antes dela; sem o aviso, o teste estoura o tempo.
-        let state = std::sync::Arc::new(AppState::default());
-        mark_ready(&state);
-        let s2 = state.clone();
-        let late = std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(80));
-            queue_open(&s2, "/x/tarde.md".into());
-        });
-        let t = Instant::now();
-        let got = wait_launch(&state, Duration::from_secs(5), Duration::from_secs(10));
-        let waited = t.elapsed();
-        late.join().unwrap();
-        assert_eq!(got.as_deref(), Some("/x/tarde.md"));
-        assert!(
-            waited < Duration::from_secs(1),
-            "acordou pelo aviso, não pelo prazo: {waited:?}"
-        );
-        assert!(
-            state.pending_open.lock().unwrap().is_none(),
-            "entregue uma vez só"
-        );
-    }
-
-    #[test]
-    fn sem_arquivo_devolve_nada_apos_a_folga_e_o_teto_vale_sem_ready() {
-        let state = AppState::default();
-        mark_ready(&state);
-        let t = Instant::now();
-        assert_eq!(
-            wait_launch(&state, Duration::from_millis(60), Duration::from_secs(2)),
-            None
-        );
-        assert!(t.elapsed() >= Duration::from_millis(60));
-        let sem_ready = AppState::default();
-        let t = Instant::now();
-        assert_eq!(
-            wait_launch(&sem_ready, GRACE, Duration::from_millis(80)),
-            None
-        );
-        assert!(t.elapsed() < Duration::from_millis(400), "teto respeitado");
-    }
 }
 
 #[cfg(test)]
@@ -771,37 +588,6 @@ mod tests {
     }
 
     #[test]
-    fn first_markdown_arg_pula_binario_e_exige_arquivo_existente() {
-        let t = TempDir::new("argv");
-        let real = t.file("doc.md", "# oi");
-        let argv = |xs: &[&str]| xs.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let real_s = real.to_string_lossy().into_owned();
-        let elsewhere = Path::new("/");
-        assert_eq!(
-            first_markdown_arg(&argv(&["leve", &real_s]), elsewhere),
-            Some(real.clone())
-        );
-        assert_eq!(
-            first_markdown_arg(&argv(&["leve", "--flag", &real_s]), elsewhere),
-            Some(real.clone())
-        );
-        assert_eq!(
-            first_markdown_arg(&argv(&[&real_s]), elsewhere),
-            None,
-            "argv[0] é o binário"
-        );
-        assert_eq!(
-            first_markdown_arg(&argv(&["leve", "/nao/existe.md"]), elsewhere),
-            None
-        );
-        let txt = t.file("x.txt", "");
-        assert_eq!(
-            first_markdown_arg(&argv(&["leve", &txt.to_string_lossy()]), elsewhere),
-            None
-        );
-    }
-
-    #[test]
     fn abrir_no_editor_so_aceita_markdown() {
         let t = TempDir::new("editor-alvo");
         let md = t.file("doc.md", "# oi");
@@ -816,37 +602,5 @@ mod tests {
         let dir = t.0.join("pasta.md");
         fs::create_dir_all(&dir).unwrap();
         assert!(editor_target(&dir).is_err());
-    }
-
-    #[test]
-    fn caminho_relativo_do_terminal_vale_a_partir_da_pasta_de_quem_chamou() {
-        // `leve doc.md` e `leve ../outra/doc.md` num terminal: a 2ª instância repassa a pasta
-        // dela (single-instance), que não é a do app já aberto.
-        let t = TempDir::new("argv-rel");
-        let doc = t.file("proj/doc.md", "# oi");
-        t.file("outra/x.md", "");
-        let argv = |xs: &[&str]| xs.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let proj = t.0.join("proj");
-        let got = first_markdown_arg(&argv(&["leve", "doc.md"]), &proj).unwrap();
-        assert_eq!(
-            fs::canonicalize(got).unwrap(),
-            fs::canonicalize(&doc).unwrap()
-        );
-        let up = first_markdown_arg(&argv(&["leve", "../outra/x.md"]), &proj).unwrap();
-        assert!(up.ends_with("proj/../outra/x.md") && up.is_file());
-        assert_eq!(
-            first_markdown_arg(&argv(&["leve", "doc.md"]), &t.0),
-            None,
-            "na pasta errada, não acha"
-        );
-        // O caminho resolvido é concedido como qualquer abertura vinda do SO.
-        let state = AppState::default();
-        let c = grant(
-            &state,
-            &first_markdown_arg(&argv(&["leve", "doc.md"]), &proj).unwrap(),
-        )
-        .unwrap();
-        assert!(granted(&state, &doc.to_string_lossy()).is_ok());
-        assert_eq!(c, fs::canonicalize(&doc).unwrap());
     }
 }

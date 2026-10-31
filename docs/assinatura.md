@@ -6,13 +6,12 @@ Até a Moralia ter conta Apple Developer própria, o app sai sem assinatura. Qua
 
 1. Criar certificado **Developer ID Application** no portal e exportar `.p12`.
 2. Criar chave de API do App Store Connect (Issuer ID, Key ID, `.p8`) para o `notarytool`.
-3. Secrets no environment `release` do GitHub, não no repositório (é o environment que tem revisor e só aceita tag `v*`):
-   - `APPLE_CERTIFICATE` (base64 do .p12), `APPLE_CERTIFICATE_PASSWORD`
-   - `APPLE_SIGNING_IDENTITY` (ex.: `Developer ID Application: <razão social da Moralia> (TEAMID)`)
-   - `APPLE_API_ISSUER`, `APPLE_API_KEY` (o Key ID) e o conteúdo do `.p8` num secret próprio. `APPLE_API_KEY_PATH` é o caminho de um arquivo, não a chave: um passo antes do **Build** grava o `.p8` no disco do runner e exporta o caminho, e essa linha do bloco comentado deixa de ler de `secrets`.
-   - Ou `APPLE_ID`/`APPLE_PASSWORD`/`APPLE_TEAM_ID`, que não precisam de arquivo (senha de app, não a da conta).
-4. Descomentar o bloco `env` do passo **Build** em `.github/workflows/release.yml`; a CLI do Tauri assina e notariza sozinha a partir dessas variáveis.
-5. O Tauri notariza e grampeia só o `.app`; o `.dmg` sai assinado, sem ticket próprio. O Gatekeeper aceita o app de dentro, mas `xcrun stapler validate` no `.dmg` (critério da issue #37) falha até o `release.yml` ganhar, depois do **Build** e antes de **Juntar pacotes**, `xcrun notarytool submit <dmg> --wait` e `xcrun stapler staple <dmg>`.
+3. No environment `release` do GitHub, não no repositório (é o environment que tem revisor e só aceita tag `v*`):
+   - Secrets `APPLE_CERTIFICATE` (base64 do .p12), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_API_ISSUER`, `APPLE_API_KEY` (o Key ID) e `APPLE_API_KEY_P8` (o conteúdo do `.p8`).
+   - Variable `APPLE_SIGNING_IDENTITY` (ex.: `Developer ID Application: <razão social da Moralia> (TEAMID)`). É ela que liga a assinatura no `release.yml`; sem ela, o build sai como hoje.
+4. O passo **Chave de notarização** grava o `.p8` no disco do runner, porque `APPLE_API_KEY_PATH` é o caminho de um arquivo. No **Build**, a CLI do Tauri assina e notariza o `.app` a partir das variáveis `APPLE_*`.
+5. O Tauri notariza e grampeia só o `.app`; o `.dmg` sai assinado, sem ticket próprio. O passo **Notarizar o .dmg** faz `notarytool submit`, `stapler staple`, `stapler validate` e `spctl`. Qualquer falha derruba o build.
+6. O primeiro build assinado vai por `vX.Y.Z-rc.N`, porque o caminho assinado do `release.yml` só roda com a conta Apple. Conferir o `.dmg` num Mac limpo e atualizar uma instalação sem assinatura para a assinada.
 
 Sem assinatura, o Gatekeeper exige liberar o app em Ajustes → Privacidade e Segurança na primeira abertura.
 

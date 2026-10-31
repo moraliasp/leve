@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="258" viewBox="0 0 560 258" role="img" aria-label="Linux (x86_64), menor instalador de cada app: Leve 4,4 MB (.deb), MD Reader 4,8 MB (.deb), MDHero 8,4 MB (.deb), MarkText 111,0 MB (.rpm), Moji 118,5 MB (.deb), mdview 134,1 MB (AppImage)." font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif">
+  <!-- Gerado por scripts/comparativo.mjs a partir de docs/comparativo.json. Não editar. -->
+  <text x="0" y="24" font-size="22" font-weight="700" fill="#1f2328">Linux (x86_64)</text>
+  <text x="0" y="50" font-size="15" fill="#59636e">Menor instalador de cada app, última release no GitHub, 2026-10-31</text>
+  <path d="M157.5 74V252" stroke="#d1d9e0" fill="none"/>
+  <text x="0" y="93" font-size="17" font-weight="700" fill="#1f2328">Leve</text>
+  <path d="M158 80h3.6a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-3.6z" fill="#431a60"/>
+  <text x="173.6" y="93" font-size="17" font-weight="700" fill="#1f2328">4,4 MB<tspan dx="8" font-size="15" font-weight="400" fill="#59636e">.deb</tspan></text>
+  <text x="0" y="123" font-size="17" fill="#1f2328">MD Reader</text>
+  <path d="M158 110h4.3a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-4.3z" fill="#818b98"/>
+  <text x="174.3" y="123" font-size="17" fill="#1f2328">4,8 MB<tspan dx="8" font-size="15" font-weight="400" fill="#59636e">.deb</tspan></text>
+  <text x="0" y="153" font-size="17" fill="#1f2328">MDHero</text>
+  <path d="M158 140h10.6a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-10.6z" fill="#818b98"/>
+  <text x="180.6" y="153" font-size="17" fill="#1f2328">8,4 MB<tspan dx="8" font-size="15" font-weight="400" fill="#59636e">.deb</tspan></text>
+  <text x="0" y="183" font-size="17" fill="#1f2328">MarkText</text>
+  <path d="M158 170h188a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-188z" fill="#818b98"/>
+  <text x="358" y="183" font-size="17" fill="#1f2328">111,0 MB<tspan dx="8" font-size="15" font-weight="400" fill="#59636e">.rpm</tspan></text>
+  <text x="0" y="213" font-size="17" fill="#1f2328">Moji</text>
+  <path d="M158 200h200.9a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-200.9z" fill="#818b98"/>
+  <text x="370.9" y="213" font-size="17" fill="#1f2328">118,5 MB<tspan dx="8" font-size="15" font-weight="400" fill="#59636e">.deb</tspan></text>
+  <text x="0" y="243" font-size="17" fill="#1f2328">mdview</text>
+  <path d="M158 230h228a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-228z" fill="#818b98"/>
+  <text x="398" y="243" font-size="17" fill="#1f2328">134,1 MB<tspan dx="8" font-size="15" font-weight="400" fill="#59636e">AppImage</tspan></text>
+</svg>

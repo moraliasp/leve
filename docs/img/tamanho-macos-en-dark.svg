@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="348" viewBox="0 0 560 348" role="img" aria-label="macOS, smallest installer of each app: Leve 6.5 MB (.dmg), Imark 7.1 MB (.dmg), Markdown Reader 7.9 MB (.dmg), MD Reader 8.8 MB (.dmg), Markdown Preview 9.2 MB (.dmg), MDHero 11.5 MB (.dmg), mdview 119.3 MB (.dmg), MarkText 157.8 MB (.dmg), Moji 246.4 MB (.dmg)." font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif">
+  <!-- Gerado por scripts/comparativo.mjs a partir de docs/comparativo.json. Não editar. -->
+  <text x="0" y="24" font-size="22" font-weight="700" fill="#f0f6fc">macOS</text>
+  <text x="0" y="50" font-size="15" fill="#9198a1">Smallest installer of each app, latest GitHub release, 2026-10-31</text>
+  <path d="M157.5 74V342" stroke="#3d444d" fill="none"/>
+  <text x="0" y="93" font-size="17" font-weight="700" fill="#f0f6fc">Leve</text>
+  <path d="M158 80h3.1a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-3.1z" fill="#c9a6f2"/>
+  <text x="173.1" y="93" font-size="17" font-weight="700" fill="#f0f6fc">6.5 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.dmg</tspan></text>
+  <text x="0" y="123" font-size="17" fill="#f0f6fc">Imark</text>
+  <path d="M158 110h3.7a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-3.7z" fill="#737b86"/>
+  <text x="173.7" y="123" font-size="17" fill="#f0f6fc">7.1 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.dmg</tspan></text>
+  <text x="0" y="153" font-size="17" fill="#f0f6fc">Markdown Reader</text>
+  <path d="M158 140h4.6a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-4.6z" fill="#737b86"/>
+  <text x="174.6" y="153" font-size="17" fill="#f0f6fc">7.9 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.dmg</tspan></text>
+  <text x="0" y="183" font-size="17" fill="#f0f6fc">MD Reader</text>
+  <path d="M158 170h5.6a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-5.6z" fill="#737b86"/>
+  <text x="175.6" y="183" font-size="17" fill="#f0f6fc">8.8 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.dmg</tspan></text>
+  <text x="0" y="213" font-size="17" fill="#f0f6fc">Markdown Preview</text>
+  <path d="M158 200h6a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-6z" fill="#737b86"/>
+  <text x="176" y="213" font-size="17" fill="#f0f6fc">9.2 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.dmg</tspan></text>
+  <text x="0" y="243" font-size="17" fill="#f0f6fc">MDHero</text>
+  <path d="M158 230h8.5a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-8.5z" fill="#737b86"/>
+  <text x="178.5" y="243" font-size="17" fill="#f0f6fc">11.5 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.dmg</tspan></text>
+  <text x="0" y="273" font-size="17" fill="#f0f6fc">mdview</text>
+  <path d="M158 260h125.8a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-125.8z" fill="#737b86"/>
+  <text x="295.8" y="273" font-size="17" fill="#f0f6fc">119.3 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.dmg</tspan></text>
+  <text x="0" y="303" font-size="17" fill="#f0f6fc">MarkText</text>
+  <path d="M158 290h167.6a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-167.6z" fill="#737b86"/>
+  <text x="337.6" y="303" font-size="17" fill="#f0f6fc">157.8 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.dmg</tspan></text>
+  <text x="0" y="333" font-size="17" fill="#f0f6fc">Moji</text>
+  <path d="M158 320h264a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-264z" fill="#737b86"/>
+  <text x="434" y="333" font-size="17" fill="#f0f6fc">246.4 MB<tspan dx="8" font-size="15" font-weight="400" fill="#9198a1">.dmg</tspan></text>
+</svg>

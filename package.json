@@ -9,6 +9,7 @@
     "build": "tsc && vite build",
     "test": "vitest run",
     "size": "node scripts/tamanho.mjs",
+    "comparativo": "node scripts/comparativo.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "version:set": "node scripts/version.mjs",

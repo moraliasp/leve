@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="288" viewBox="0 0 500 288" role="img" aria-label="Windows, menor instalador de cada app: Leve 2,8 MB (setup.exe), Tinta 3,1 MB (.exe portátil), MD Reader 4,4 MB (.msi), MDHero 5,4 MB (setup.exe), mdview 102,6 MB (.exe), Moji 131,2 MB (setup.exe), MarkText 132,4 MB (setup.exe)." font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif">
+  <!-- Gerado por scripts/comparativo.mjs a partir de docs/comparativo.json. Não editar. -->
+  <text x="0" y="24" font-size="22" font-weight="700" fill="#1f2328">Windows</text>
+  <text x="0" y="50" font-size="15" fill="#59636e">Menor instalador de cada app, última release no GitHub, 2026-10-31</text>
+  <path d="M157.5 74V282" stroke="#d1d9e0" fill="none"/>
+  <text x="0" y="93" font-size="17" font-weight="700" fill="#1f2328">Leve</text>
+  <path d="M158 80h0a3.6 3.6 0 0 1 3.6 3.6v6.8a3.6 3.6 0 0 1 -3.6 3.6h0z" fill="#431a60"/>
+  <text x="169.6" y="93" font-size="17" font-weight="700" fill="#1f2328">2,8 MB<tspan dx="8" font-size="15" font-weight="400" fill="#59636e">setup.exe</tspan></text>
+  <text x="0" y="123" font-size="17" fill="#1f2328">Tinta</text>
+  <path d="M158 110h0a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h0z" fill="#818b98"/>
+  <text x="170" y="123" font-size="17" fill="#1f2328">3,1 MB<tspan dx="8" font-size="15" font-weight="400" fill="#59636e">.exe portátil</tspan></text>
+  <text x="0" y="153" font-size="17" fill="#1f2328">MD Reader</text>
+  <path d="M158 140h1.6a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-1.6z" fill="#818b98"/>
+  <text x="171.6" y="153" font-size="17" fill="#1f2328">4,4 MB<tspan dx="8" font-size="15" font-weight="400" fill="#59636e">.msi</tspan></text>
+  <text x="0" y="183" font-size="17" fill="#1f2328">MDHero</text>
+  <path d="M158 170h2.9a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-2.9z" fill="#818b98"/>
+  <text x="172.9" y="183" font-size="17" fill="#1f2328">5,4 MB<tspan dx="8" font-size="15" font-weight="400" fill="#59636e">setup.exe</tspan></text>
+  <text x="0" y="213" font-size="17" fill="#1f2328">mdview</text>
+  <path d="M158 200h126.1a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-126.1z" fill="#818b98"/>
+  <text x="296.1" y="213" font-size="17" fill="#1f2328">102,6 MB<tspan dx="8" font-size="15" font-weight="400" fill="#59636e">.exe</tspan></text>
+  <text x="0" y="243" font-size="17" fill="#1f2328">Moji</text>
+  <path d="M158 230h162.5a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-162.5z" fill="#818b98"/>
+  <text x="332.5" y="243" font-size="17" fill="#1f2328">131,2 MB<tspan dx="8" font-size="15" font-weight="400" fill="#59636e">setup.exe</tspan></text>
+  <text x="0" y="273" font-size="17" fill="#1f2328">MarkText</text>
+  <path d="M158 260h164a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-164z" fill="#818b98"/>
+  <text x="334" y="273" font-size="17" fill="#1f2328">132,4 MB<tspan dx="8" font-size="15" font-weight="400" fill="#59636e">setup.exe</tspan></text>
+</svg>

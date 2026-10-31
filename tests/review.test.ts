@@ -95,6 +95,16 @@ describe("captureNote", () => {
     expect(captureNote(root, r, 1)?.quote).toBe("doistres");
   });
 
+  it("seleção por cima de um bloco de código: o rótulo da linguagem não entra no texto mostrado", () => {
+    const root = doc('<p>antes</p><div class="code-wrap"><div class="code-tools">python</div><pre><code>x = 1</code></pre></div><p>depois</p>');
+    const r = document.createRange();
+    r.setStart(root.children[0].firstChild!, 0);
+    r.setEnd(root.children[2].firstChild!, 6);
+    const n = captureNote(root, r, 1)!;
+    expect(n.shown).not.toContain("python");
+    expect(n.shown).toBe(n.quote);
+  });
+
   it("Mermaid, fórmula e rótulo de código não contam: seleção só neles não anota", () => {
     const root = doc('<pre class="mermaid">graph TD</pre><span class="math">x^2</span><div class="code-tools">python</div>');
     expect(textIndex(root).raw).toBe("");

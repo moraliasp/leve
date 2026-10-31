@@ -124,6 +124,13 @@ function headingAbove(root: Element, node: Node): string {
   return tidy(found);
 }
 
+/** Texto da seleção, sem o que a citação também ignora (rótulo de código, Mermaid, fórmula). */
+function shownText(range: Range): string {
+  const copy = range.cloneContents();
+  copy.querySelectorAll(SKIP).forEach((el) => el.remove());
+  return tidy(copy.textContent ?? "");
+}
+
 /** Lê a seleção como anotação sem comentário, ou `null` se ela não pegou texto do documento. */
 export function captureNote(root: Element, range: Range, id: number): Note | null {
   const { raw, nodes, starts } = textIndex(root);
@@ -151,7 +158,7 @@ export function captureNote(root: Element, range: Range, id: number): Note | nul
     repeated: text.indexOf(quote) !== text.lastIndexOf(quote),
     before: collapse(raw.slice(Math.max(0, start - CONTEXT * 4), start)).text.slice(-CONTEXT),
     after: collapse(raw.slice(end, end + CONTEXT * 4)).text.slice(0, CONTEXT),
-    shown: tidy(range.toString()) || quote,
+    shown: shownText(range) || quote,
     heading: headingAbove(root, first),
     comment: "",
     resolved: false,

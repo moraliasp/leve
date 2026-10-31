@@ -4,6 +4,7 @@
 // src/document.css e src/doc-styles/*.css por cima). Mínimo: 4,5:1 para texto, 3:1 para
 // ícone/controle. Cor nova de texto (da interface ou de um estilo) passa por aqui antes do PR.
 import { readFileSync, readdirSync } from "node:fs";
+import { CORES } from "./comparativo.mjs";
 
 const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 const tokens = (block) => Object.fromEntries([...block.matchAll(/--([\w-]+):\s*(#[0-9a-f]{6}(?:[0-9a-f]{2})?)\b/gi)].map((m) => [m[1], m[2]]));
@@ -86,6 +87,16 @@ for (const [id, css] of styles) {
     for (const [f, b, r] of low) console.log(`  ${f} sobre ${b}: ${r.toFixed(2)}  << abaixo de 4,5`);
   }
 }
+
+// Gráficos de tamanho do README: fundo transparente, então vale para as superfícies do GitHub.
+console.log("== gráficos do README");
+for (const [tema, c] of Object.entries(CORES))
+  for (const fundo of c.superficies)
+    for (const [nome, min] of [["tinta", 4.5], ["suave", 4.5], ["marca", 3], ["barra", 3]]) {
+      const r = ratio(c[nome], fundo);
+      if (r < min) bad++;
+      console.log(`  ${tema} ${nome} sobre ${fundo}: ${r.toFixed(2)}${r < min ? `  << abaixo de ${min}` : ""}`);
+    }
 
 if (bad) {
   console.error(`${bad} combinação(ões) abaixo do mínimo`);

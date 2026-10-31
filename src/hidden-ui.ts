@@ -1,3 +1,4 @@
+import { clearBanner, showBanner } from "./banner";
 import { type CommentSink, hiddenTotal, revealHidden, scanHidden } from "./hidden";
 import { t } from "./i18n";
 
@@ -23,30 +24,23 @@ export function applyHiddenPolicy(
   banner: HTMLElement,
   opts: { reveal: boolean; comments: CommentSink | null; source?: string; onReveal?: () => void },
 ): number {
-  banner.hidden = true;
-  banner.replaceChildren();
+  clearBanner(banner);
   const scan = scanHidden(container, opts.comments, opts.source);
   const n = hiddenTotal(scan);
   if (n === 0) return 0;
-  const text = document.createElement("span");
-  banner.append(text);
   if (opts.reveal) {
     revealHidden(container, scan, opts.comments, labels());
-    text.textContent = bannerText(n, true);
-  } else {
-    text.textContent = bannerText(n, false);
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "text";
-    btn.textContent = t("hidden.show");
-    btn.addEventListener("click", () => {
-      revealHidden(container, scan, opts.comments, labels());
-      text.textContent = bannerText(n, true);
-      btn.remove();
-      opts.onReveal?.();
-    });
-    banner.append(btn);
+    showBanner(banner, bannerText(n, true));
+    return n;
   }
-  banner.hidden = false;
+  const notice = showBanner(banner, bannerText(n, false), {
+    label: t("hidden.show"),
+    run: () => {
+      revealHidden(container, scan, opts.comments, labels());
+      notice.setText(bannerText(n, true));
+      notice.removeAction();
+      opts.onReveal?.();
+    },
+  });
   return n;
 }

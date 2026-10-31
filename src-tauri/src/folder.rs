@@ -1,5 +1,5 @@
 //! Arquivo › Abrir pasta: lista os Markdown de uma pasta concedida, com limites, sem sair da raiz.
-//! A concessão em si (lista, `grants.json`, esquecer) fica em `lib.rs`; aqui só o disco.
+//! A concessão em si (lista, `grants.json`, esquecer) fica em `grants.rs`; aqui só o disco.
 //! Decisão em `docs/decisoes.md` ("Abrir pasta: concessão da raiz, só Markdown").
 
 use std::{

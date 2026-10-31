@@ -242,7 +242,14 @@ function applyReading(): void {
   localStorage.setItem(PREF_KEYS.font, readFont);
   localStorage.setItem(PREF_KEYS.style, docStyle);
   void applyDocStyle(docStyle);
-  if (IS_TAURI) void invoke("sync_view_menu", { style: docStyle, width: readWidth, font: readFont });
+  syncMenu();
+}
+
+/** O menu nativo é espelho: vai tudo de uma vez, no início e a cada troca. Salvar só vale no colado. */
+function syncMenu(): void {
+  if (!IS_TAURI) return;
+  const menu = { style: docStyle, width: readWidth, font: readFont, remote: remoteAuto, hidden: hiddenAuto, save: current !== null && isClip(current.path) };
+  void invoke("sync_menu", { menu });
 }
 const finder = new Finder(els.content, els.main, els.findCount, $("find-live"));
 
@@ -370,7 +377,7 @@ function updateNavButtons(): void {
 function showEmpty(): void {
   current = null;
   setDocNotice("", false);
-  syncSaveMenu(false);
+  syncMenu();
   showChanges([]);
   els.remoteBanner.hidden = true;
   els.hiddenBanner.hidden = true;
@@ -582,10 +589,6 @@ function applyRemote(doc: Doc): void {
   });
 }
 
-function syncRemoteMenu(): void {
-  if (IS_TAURI) void invoke("sync_remote_menu", { on: remoteAuto });
-}
-
 // ---------- conteúdo oculto: avisado ao abrir, mostrado só a pedido (src/hidden-ui.ts) ----------
 
 /** Documentos em que o leitor pediu "Mostrar" (só nesta execução). */
@@ -603,10 +606,6 @@ function applyHidden(doc: Doc, comments: CommentSink | null): void {
       els.main.focus({ preventScroll: true });
     },
   });
-}
-
-function syncHiddenMenu(): void {
-  if (IS_TAURI) void invoke("sync_hidden_menu", { on: hiddenAuto });
 }
 
 function setWindowTitle(t: string): void {
@@ -703,7 +702,7 @@ async function loadDoc(path: string, opts: LoadOpts = {}): Promise<boolean> {
   performance.measure("leve:dom", "leve:start");
   // Aviso de leitura e de modo grande ficam até o próximo documento; documento sem aviso limpa o anterior.
   setDocNotice([isClip(doc.path) ? t("clip.notSaved") : "", doc.warning, large ? t("doc.large") : ""].filter(Boolean).join(" · "), Boolean(doc.warning));
-  syncSaveMenu(isClip(doc.path));
+  syncMenu();
   applyHidden(doc, comments);
   applyRemote(doc);
   await hydrateImages(els.content, doc.dir, IS_TAURI);
@@ -843,11 +842,6 @@ async function quickOpen(): Promise<void> {
       placeholder: "quick.placeholderRecent",
       open: (p, newTab) => void loadDoc(p, { target: newTab ? "new" : undefined }),
     });
-}
-
-/** Arquivo › Salvar… só vale com o documento colado ativo; o item do menu acompanha. */
-function syncSaveMenu(on: boolean): void {
-  if (IS_TAURI) void invoke("sync_save_menu", { on });
 }
 
 /** Abrir da área de transferência e salvar o colado (src/clip-ui.ts, sob demanda). */
@@ -1144,7 +1138,7 @@ const actions: Record<string, () => void> = {
     setBoolPref(PREF_KEYS.remote, remoteAuto);
     // Desligar volta a bloquear tudo, inclusive o que foi liberado "neste documento".
     if (!remoteAuto) remoteAllowed.clear();
-    syncRemoteMenu();
+    syncMenu();
     flash(remoteAuto ? t("remote.always") : t("remote.blocked"));
     reloadCurrent();
   },
@@ -1153,7 +1147,7 @@ const actions: Record<string, () => void> = {
     hiddenAuto = !hiddenAuto;
     setBoolPref(PREF_KEYS.showHidden, hiddenAuto);
     if (!hiddenAuto) hiddenShown.clear();
-    syncHiddenMenu();
+    syncMenu();
     flash(hiddenAuto ? t("hidden.always") : t("hidden.warnOnly"));
     reloadCurrent();
   },
@@ -1804,8 +1798,6 @@ async function main(): Promise<void> {
   setTocVisible(boolPref(PREF_KEYS.toc, true));
   applyZoom();
   applyReading();
-  syncRemoteMenu();
-  syncHiddenMenu();
   wire();
   wirePreferences();
   wireExport();

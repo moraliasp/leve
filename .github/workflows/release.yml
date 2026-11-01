@@ -320,11 +320,13 @@ jobs:
     # os builds: não espera por eles e não os atrasa. Compila o próprio build debug e fica fora do environment
     # `release`: não vê segredo nem chave, então não passa `secrets`. O `publish` espera por ele.
     # `contents: read` é o teto do e2e.yml; o chamador tem de conceder o que o chamado pede.
+    # Sem cache, como o resto deste workflow: `sem_cache` desliga o actions/cache e o `cache: pnpm` do e2e.yml.
     permissions:
       contents: read # ler o código da tag
     uses: ./.github/workflows/e2e.yml
     with:
       sistemas: ambos
+      sem_cache: true
 
   publish:
     name: publish

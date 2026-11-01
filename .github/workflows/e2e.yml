@@ -93,7 +93,18 @@ jobs:
       # Dependências do teste à parte: o pnpm-lock.yaml da raiz alimenta o Flatpak (scripts/flatpak-sources.sh).
       - run: pnpm install --dir tests/e2e --ignore-workspace --frozen-lockfile
       - name: Build debug sem bundle
+        if: matrix.id == 'linux'
         run: pnpm tauri build --debug --no-bundle
+      # Windows: o WebView2 ignora a WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS que o msedgedriver usa para abrir a
+      # porta de depuração quando o app já define os próprios argumentos (o wry define sempre), e a sessão
+      # morre em "DevToolsActivePort file doesn't exist". Só neste build, os argumentos do wry mais a porta
+      # (0 = qualquer; o msedgedriver lê a escolhida em DevToolsActivePort) entram por `--config`.
+      - name: Build debug sem bundle (Windows, com a porta de depuração)
+        if: matrix.id == 'windows'
+        run: |
+          config="$(node tests/e2e/browser-args-config.mjs)"
+          echo "$config"
+          pnpm tauri build --debug --no-bundle --config "$config"
 
       # tauri-driver fixado e em cache: `cargo install` compila ~2 min.
       - name: tauri-driver (cache)
@@ -134,59 +145,11 @@ jobs:
           cat "$dir/driver.cmd"
           echo "MSEDGEDRIVER=$(cygpath -w "$dir/driver.cmd")" >> "$GITHUB_ENV"
 
-      - name: Diagnóstico do app e do WebView2 (Windows, temporário)
-        if: matrix.id == 'windows'
-        continue-on-error: true
-        run: |
-          export MSYS2_ARG_CONV_EXCL='*'
-          mkdir -p tests/e2e/artifacts
-          cmdlines() {
-            powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { \$_.Name -in 'leve.exe','msedgewebview2.exe' } | ForEach-Object { '{0} {1}: {2}' -f \$_.Name, \$_.ProcessId, \$_.CommandLine.Substring(0, [Math]::Min(420, \$_.CommandLine.Length)) }" || true
-          }
-          portas() { netstat -ano | grep -i listen | grep -E ":(9222|9515|4444|[0-9]{5}) " | head -12 || true; }
-          rodar() { # nome, args do webview (ou vazio), política (0/1)
-            echo "== variante $1"
-            if [ -n "$2" ]; then export WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="$2"; fi
-            export WEBVIEW2_USER_DATA_FOLDER="$RUNNER_TEMP/wv2-$1"
-            if [ "$3" = 1 ]; then
-              reg add "HKCU\\Software\\Policies\\Microsoft\\Edge\\WebView2\\AdditionalBrowserArguments" /v "*" /t REG_SZ /d "--remote-debugging-port=9222" /f
-            fi
-            src-tauri/target/debug/leve.exe "$PWD/docs/exemplo.md" > "tests/e2e/artifacts/app-$1.log" 2>&1 &
-            sleep 20
-            curl -s -m 5 http://127.0.0.1:9222/json/version | head -c 300 || echo "sem porta de depuração"
-            echo; cmdlines | grep -o "^[a-z0-9.]* [0-9]*: .\{0,60\}\|remote-debugging[^ ]*" | head -20
-            taskkill /F /IM leve.exe || true
-            if [ "$3" = 1 ]; then reg delete "HKCU\\Software\\Policies\\Microsoft\\Edge\\WebView2\\AdditionalBrowserArguments" /f || true; fi
-            unset WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS WEBVIEW2_USER_DATA_FOLDER
-            sleep 3
-          }
-          rodar so-env "--remote-debugging-port=9222" 0
-          rodar env-com-wry "--remote-debugging-port=9222 --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection" 0
-          rodar politica "" 1
-          echo "== msedgedriver direto: o que o app faz durante a espera"
-          EXE="$(cygpath -w "$RUNNER_TEMP/msedgedriver/msedgedriver.exe")"
-          "$EXE" --port=9515 --verbose --log-path="$(cygpath -w "$PWD/tests/e2e/artifacts/msedgedriver-direto.log")" &
-          sleep 3
-          APP="$(cygpath -w "$PWD/src-tauri/target/debug/leve.exe" | sed 's|\\|\\\\|g')"
-          curl -s -m 100 -X POST http://127.0.0.1:9515/session -H 'content-type: application/json' \
-            -d "{\"capabilities\":{\"alwaysMatch\":{\"browserName\":\"webview2\",\"ms:edgeOptions\":{\"binary\":\"$APP\",\"args\":[]}}}}" > "tests/e2e/artifacts/sessao-direta.json" &
-          sleep 20
-          cmdlines
-          portas
-          wait %3 2>/dev/null || sleep 50
-          head -c 400 tests/e2e/artifacts/sessao-direta.json || true
-          echo
-          taskkill /F /IM leve.exe || true
-          taskkill /F /IM msedgedriver.exe || true
-          sleep 2
-          echo "-- msedgedriver: linhas do lançamento"; grep -a "WEBVIEW2_ADDITIONAL\|Launching\|Failed" tests/e2e/artifacts/msedgedriver-direto.log | cut -c1-1500 || true
       - name: Roteiros (Linux, sob xvfb)
         if: matrix.id == 'linux'
         run: xvfb-run -a dbus-run-session -- pnpm --dir tests/e2e test
       - name: Roteiros (Windows)
-        if: matrix.id == 'windows' && false
-        env:
-          E2E_TESTE_SEM_PERFIL: "1"
+        if: matrix.id == 'windows'
         run: pnpm --dir tests/e2e test
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

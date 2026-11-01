@@ -2,18 +2,15 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { connect } from "node:net";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { browser } from "@wdio/globals";
 import type { Options } from "@wdio/types";
+import { BINARIO, EXEMPLO, WIN } from "./paths";
 
 // Teste de ponta a ponta do Leve com tauri-driver + WebdriverIO (docs/decisoes.md, "Teste de ponta a
 // ponta"). Roda em Windows e Linux; o tauri-driver não existe no macOS. O binário é o build debug sem
 // bundle (`pnpm tauri build --debug --no-bundle`), com o documento de exemplo pelo argv.
 
-const RAIZ = resolve(import.meta.dirname, "../..");
-const WIN = process.platform === "win32";
-const BINARIO = process.env.LEVE_BIN ?? join(RAIZ, "src-tauri", "target", "debug", WIN ? "leve.exe" : "leve");
-const EXEMPLO = join(RAIZ, "docs", "exemplo.md");
 const ARTEFATOS = join(import.meta.dirname, "artifacts");
 const PORTA = 4444;
 
@@ -33,7 +30,7 @@ function ambienteIsolado(dir: string): NodeJS.ProcessEnv {
     mkdirSync(p, { recursive: true });
     return p;
   };
-  if (WIN) return process.env.E2E_TESTE_SEM_PERFIL ? { ...process.env } : { ...process.env, APPDATA: sub("appdata"), LOCALAPPDATA: sub("localappdata") };
+  if (WIN) return { ...process.env, APPDATA: sub("appdata"), LOCALAPPDATA: sub("localappdata") };
   return {
     ...process.env,
     HOME: sub("home"),
@@ -75,7 +72,10 @@ export const config: Options.Testrunner & { capabilities: unknown[] } = {
       maxInstances: 1,
       // Sem BiDi: o WebKitWebDriver e o msedgedriver por trás do tauri-driver falam só o clássico.
       "wdio:enforceWebDriverClassic": true,
-      "tauri:options": { application: BINARIO, args: [EXEMPLO] },
+      // Linux: o exemplo vai no argv da 1ª instância. Windows: o msedgedriver trata cada argumento como
+      // opção do navegador (entrega `--d:\...\exemplo.md`, que não é caminho), então o app sobe sem
+      // arquivo e `esperarDocumento` (helpers.ts) entrega o exemplo como o SO faz, por uma 2ª instância.
+      "tauri:options": { application: BINARIO, args: WIN ? [] : [EXEMPLO] },
     },
   ],
   logLevel: "warn",

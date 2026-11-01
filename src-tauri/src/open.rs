@@ -283,11 +283,11 @@ mod tests {
         let elsewhere = Path::new("/");
         assert_eq!(
             markdown_args(&argv(&["leve", &real_s]), elsewhere),
-            [real.clone()]
+            std::slice::from_ref(&real)
         );
         assert_eq!(
             markdown_args(&argv(&["leve", "--flag", &real_s]), elsewhere),
-            [real.clone()]
+            std::slice::from_ref(&real)
         );
         assert!(
             markdown_args(&argv(&[&real_s]), elsewhere).is_empty(),

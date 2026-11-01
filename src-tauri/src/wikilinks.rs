@@ -106,7 +106,7 @@ mod tests {
         let nota = t.file("nota.md", "");
         t.file("sub/outra.markdown", "");
         let dir = &t.0;
-        let canon = |p: &Path| fs::canonicalize(p).unwrap().to_string_lossy().into_owned();
+        let canon = |p: &Path| canonical_string(p).unwrap();
         assert_eq!(
             resolve_wikilink(dir, None, &mut None, "nota"),
             Some(canon(&nota))
@@ -135,7 +135,7 @@ mod tests {
         let alvo = t.file("vault/pasta/Profunda/Nota Alvo.md", "");
         t.file("vault/.obsidian/Nota Alvo.md", "");
         t.file("vault/node_modules/Nota Alvo.md", "");
-        let canon = |p: &Path| fs::canonicalize(p).unwrap().to_string_lossy().into_owned();
+        let canon = |p: &Path| canonical_string(p).unwrap();
         assert_eq!(
             resolve_wikilink(&dir, Some(&t.0.join("vault")), &mut None, "nota alvo"),
             Some(canon(&alvo)),

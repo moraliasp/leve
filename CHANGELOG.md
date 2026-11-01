@@ -9,6 +9,12 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 - macOS downloads are now one per architecture, about half the size of the old universal build: `Leve_x.y.z_aarch64.dmg` for Apple silicon and `Leve_x.y.z_x64.dmg` for Intel, compressed with LZMA. Installed copies update themselves to the right one, including universal installs from 0.6.0 and earlier. The Homebrew cask picks the right file.
 - Smaller app on every platform: plugin commands that Leve never allows are left out of the build.
 
+### Fixed
+
+- Exported HTML, Copy as HTML and Copy as Formatted Text no longer carry paths from your disk: a missing image keeps its alt text and the path as the document wrote it, and a path written as absolute is left out. The notice in the document also shows the path as written.
+- Windows: paths no longer show the `\\?\` prefix in image notices, exported HTML or notes copied for AI. Recent files, tabs and allowed files saved with the prefix keep working.
+- The result of *Check for Updates* can now be read while Preferences or About is open, and it stays longer in the status bar.
+
 ## [0.6.0] - 2026-10-31
 
 ### Added

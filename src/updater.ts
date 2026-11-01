@@ -20,6 +20,26 @@ export interface UpdateUi {
 
 let running = false;
 
+/** Escreve o recado (vazio esconde) nas linhas `data-update-status` de `root`. */
+export function showUpdateStatus(root: ParentNode, msg: string, isError = false): void {
+  for (const el of root.querySelectorAll<HTMLElement>("[data-update-status]")) {
+    el.textContent = msg;
+    el.hidden = !msg;
+    el.classList.toggle("error", isError);
+    // Preferências rola: pedido pelo menu, a linha pode estar fora da vista.
+    if (msg) el.scrollIntoView?.({ block: "nearest" });
+  }
+}
+
+/**
+ * A barra de status fica atrás de um `<dialog>` aberto, que vai para a camada superior. Preferências
+ * e Sobre levam uma linha `data-update-status` junto do botão, e o recado aparece nela também. Só
+ * nos abertos: em diálogo fechado ele ficaria esperando a próxima abertura, já velho.
+ */
+export function showInOpenDialogs(root: ParentNode, msg: string, isError = false): void {
+  for (const dialog of root.querySelectorAll("dialog[open]")) showUpdateStatus(dialog, msg, isError);
+}
+
 /**
  * Quem atualiza esta instalação: o próprio app, o Flatpak (`flatpak update`, sem o atualizador do
  * app) ou ninguém (modo navegador). Por quê: docs/decisoes.md, "Flatpak a partir do fonte".

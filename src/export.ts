@@ -81,6 +81,12 @@ const UI_ATTRS = ["tabindex", "data-change", "data-hl", "data-rendered", "data-s
 /** Esquema explícito (`https:`, `mailto:`, `data:`…): não é caminho relativo. */
 const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
+/**
+ * Caminho de disco absoluto como o documento o escreveu (`/Users/x/a.png`, `C:\\x`, `\\\\srv\\x`,
+ * `file:`, `~/`; `//host` é remoto). Diz quem exportou e onde, e no arquivo final não abre.
+ */
+const LOCAL_ABSOLUTE = /^(?:file:|[a-z]:|\\|\/(?!\/)|~[\\/])/i;
+
 /** Caminho relativo como o app o resolve (`hydrateImages`): decodificado se der. */
 function relOf(src: string): string {
   try {
@@ -177,6 +183,34 @@ function rewriteMdLinks(root: HTMLElement, mode: MdLinkMode): void {
   }
 }
 
+/**
+ * Aviso de imagem que não carregou: o `title` é interface, e caminho absoluto não sai. Imagem com
+ * caminho absoluto que ainda não falhou (fora da tela, `loading="lazy"`) sai como o mesmo aviso, só
+ * com o `alt`.
+ */
+function dropLocalPaths(root: HTMLElement): void {
+  const doc = root.ownerDocument;
+  for (const span of root.querySelectorAll(".img-missing")) {
+    span.removeAttribute("title");
+    const code = span.querySelector("code");
+    if (code && LOCAL_ABSOLUTE.test(code.textContent ?? "")) {
+      code.previousSibling?.remove();
+      code.remove();
+    }
+  }
+  for (const img of root.querySelectorAll<HTMLImageElement>("img")) {
+    const src = img.dataset.localSrc ?? img.getAttribute("src") ?? "";
+    if (!LOCAL_ABSOLUTE.test(relOf(src))) continue;
+    const span = doc.createElement("span");
+    span.className = "img-missing";
+    const alt = doc.createElement("span");
+    alt.className = "img-missing-alt";
+    alt.textContent = img.alt || t("doc.image");
+    span.append(alt);
+    img.replaceWith(span);
+  }
+}
+
 /** Imagens locais: data URI quando couber; senão o caminho relativo original (e conta as grandes). */
 function embedImages(root: HTMLElement, images: Record<string, ImageEmbed>): number {
   let oversized = 0;
@@ -195,13 +229,15 @@ function embedImages(root: HTMLElement, images: Record<string, ImageEmbed>): num
 
 /**
  * Limpeza comum ao Exportar HTML e ao Copiar como texto formatado (`src/rich.ts`): remoto bloqueado
- * continua bloqueado, imagens locais embutidas, links `.md` reescritos, interface fora. Devolve
+ * continua bloqueado, nenhum caminho absoluto do disco, imagens locais embutidas, links `.md`
+ * reescritos, interface fora. Devolve
  * quantas imagens ficaram de fora por tamanho.
  */
 export function prepareClone(root: HTMLElement, images: Record<string, ImageEmbed>, mdLinks: MdLinkMode): number {
   // Antes de `keepRemoteBlocked`: o `data-remote-style` original volta e só então sai.
   stripHiddenMarks(root);
   keepRemoteBlocked(root);
+  dropLocalPaths(root);
   const oversized = embedImages(root, images);
   rewriteMdLinks(root, mdLinks);
   stripUi(root);

@@ -40,6 +40,11 @@ tauri-plugin-updater = "2"
 # Wayland sem XWayland: o mesmo recurso que o plugin de clipboard liga.
 arboard = { version = "3", default-features = false, features = ["wayland-data-control"] }
 
+# Atalhos com o foco no WebView2 (`accel.rs`): as mesmas versões que o Tauri já traz, sem crate novo no grafo.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.39"
+windows = { version = "0.62", features = ["Win32_UI_Input_KeyboardAndMouse"] }
+
 [profile.release]
 codegen-units = 1
 lto = true

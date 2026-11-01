@@ -8,6 +8,11 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 - macOS downloads are now one per architecture, about half the size of the old universal build: `Leve_x.y.z_aarch64.dmg` for Apple silicon and `Leve_x.y.z_x64.dmg` for Intel, compressed with LZMA. Installed copies update themselves to the right one, including universal installs from 0.6.0 and earlier. The Homebrew cask picks the right file.
 - Smaller app on every platform: plugin commands that Leve never allows are left out of the build.
+- *Copy Notes for AI* is now ⌘⇧N / Ctrl+Shift+N. The old Ctrl+Alt+C is AltGr on Windows, so in a text box it typed "©".
+
+### Fixed
+
+- Windows: the keyboard shortcuts shown in the menus now work while you read a document. Ctrl+F opens Leve's search and Ctrl+P its quick open, instead of the find bar and print screen of the embedded browser.
 
 ## [0.6.0] - 2026-10-31
 

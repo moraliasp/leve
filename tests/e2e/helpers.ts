@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { browser, $ } from "@wdio/globals";
+import { browser } from "@wdio/globals";
 import { BINARIO, EXEMPLO, WIN } from "./paths";
 
 // Os scripts vão como texto: o wdio serializa a função, e o que o esbuild injeta num callback
@@ -15,7 +15,9 @@ function abrirExemplo(): void {
 
 /**
  * Espera o documento do exemplo aparecer. O exemplo embutido também tem títulos, então a condição é o
- * arquivo do disco: `#title` guarda o caminho no `title`. Depois, `#content` visível e com título.
+ * arquivo do disco: `#title` guarda o caminho no `title`. Tudo dentro do `execute`, sem guardar elemento:
+ * trocar de aba redesenha `#content`, e um elemento pego antes disso some ("Node ... was not found" no
+ * WebKitWebDriver, que o wdio nem sempre refaz).
  */
 export async function esperarDocumento(): Promise<void> {
   abrirExemplo();
@@ -24,11 +26,11 @@ export async function esperarDocumento(): Promise<void> {
       browser.execute(
         "var c = document.getElementById('content'), t = document.getElementById('title');" +
           "var caminho = ((t && t.title) || '').replace(/\\\\/g, '/');" +
-          "return !!c && !c.hidden && c.querySelectorAll('h1, h2').length > 0 && caminho.endsWith('/docs/exemplo.md');",
+          "var h1 = c && c.querySelector('h1');" +
+          "return !!h1 && !c.hidden && h1.getClientRects().length > 0 && c.querySelectorAll('h1, h2').length > 0 && caminho.endsWith('/docs/exemplo.md');",
       ),
     { timeout: 30_000, timeoutMsg: "o exemplo do disco não apareceu em #content" },
   );
-  await $("#content h1").waitForDisplayed();
 }
 
 /**

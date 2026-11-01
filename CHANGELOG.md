@@ -9,6 +9,11 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 - macOS downloads are now one per architecture, about half the size of the old universal build: `Leve_x.y.z_aarch64.dmg` for Apple silicon and `Leve_x.y.z_x64.dmg` for Intel, compressed with LZMA. Installed copies update themselves to the right one, including universal installs from 0.6.0 and earlier. The Homebrew cask picks the right file.
 - Smaller app on every platform: plugin commands that Leve never allows are left out of the build.
 
+### Fixed
+
+- Opening several Markdown files at once now opens all of them in tabs, with the last one active, even when Leve was closed. This covers Finder, `open -a`, `leve a.md b.md` and, on Windows and Linux, the file manager. Before, only one file opened and the others were lost without notice.
+- Changing the interface language no longer reopens the last file that came from the system.
+
 ## [0.6.0] - 2026-10-31
 
 ### Added

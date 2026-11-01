@@ -1,13 +1,14 @@
 //! Abertura de arquivo pedida pelo SO: argv (Windows/Linux, 1ª instância), `single-instance`
-//! (2ª instância) e `RunEvent::Opened` (macOS). Tudo passa por `request_open`/`pending_open`, e o
-//! frontend pergunta o que chegou na abertura por `launch_open`.
+//! (2ª instância) e `RunEvent::Opened` (macOS). Tudo passa pela fila `pending_open`, e cada arquivo
+//! sai dela uma vez só: `launch_open` entrega o que chegou na abertura e `take_open` o que chegou
+//! depois, a cada aviso `open-file`.
 
 use std::{
     path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::{AppState, grants::grant, is_markdown};
 
@@ -34,15 +35,15 @@ fn launch_settled(
     has_file || ready_at.is_some_and(|r| now.saturating_duration_since(r) >= grace)
 }
 
-/// Espera a abertura assentar (ou `max`) e devolve o arquivo pedido pelo SO, se houver. Dorme
+/// Espera a abertura assentar (ou `max`) e devolve os arquivos pedidos pelo SO, em ordem. Dorme
 /// até o prazo (fim da folga ou teto) e só acorda antes por `notify_all` de `mark_ready` ou
 /// `queue_open`: sem o aviso, um arquivo tardio esperaria a folga inteira.
-fn wait_launch(state: &AppState, grace: Duration, max: Duration) -> Option<String> {
+fn wait_launch(state: &AppState, grace: Duration, max: Duration) -> Vec<String> {
     let start = Instant::now();
     let mut ready = state.ready_at.lock().unwrap();
     loop {
         let now = Instant::now();
-        let has_file = state.pending_open.lock().unwrap().is_some();
+        let has_file = !state.pending_open.lock().unwrap().is_empty();
         let cap = start + max;
         if launch_settled(*ready, now, has_file, grace) || now >= cap {
             break;
@@ -55,13 +56,26 @@ fn wait_launch(state: &AppState, grace: Duration, max: Duration) -> Option<Strin
             .0;
     }
     drop(ready);
-    state.pending_open.lock().unwrap().take()
+    take_pending(state)
 }
 
-/// Põe o arquivo pedido pelo SO na fila e acorda quem espera a abertura (`wait_launch`).
-fn queue_open(state: &AppState, path: String) {
-    *state.pending_open.lock().unwrap() = Some(path);
+fn take_pending(state: &AppState) -> Vec<String> {
+    std::mem::take(&mut *state.pending_open.lock().unwrap())
+}
+
+/// Concede o arquivo pedido pelo SO, põe na fila e acorda quem espera a abertura (`wait_launch`).
+/// Única entrada da fila: nada chega ao frontend sem concessão. `false` se a concessão recusar.
+pub fn queue_open(state: &AppState, path: &Path) -> bool {
+    let Ok(c) = grant(state, path) else {
+        return false;
+    };
+    state
+        .pending_open
+        .lock()
+        .unwrap()
+        .push(c.to_string_lossy().into_owned());
     state.launch_cv.notify_all();
+    true
 }
 
 pub fn mark_ready(state: &AppState) {
@@ -73,46 +87,51 @@ pub fn mark_ready(state: &AppState) {
     state.launch_cv.notify_all();
 }
 
-/// Arquivo que o SO pediu na abertura (argv, duplo-clique), depois de a abertura assentar.
-/// `None` quer dizer abertura direta (ícone, Dock, menu Iniciar) ou recarga da página: o
+/// Arquivos que o SO pediu na abertura (argv, duplo-clique), depois de a abertura assentar.
+/// Vazio quer dizer abertura direta (ícone, Dock, menu Iniciar) ou recarga da página: o
 /// frontend decide entre abas salvas, documento de exemplo e estado vazio. Arquivo que chegar
-/// depois disto vem pelo evento `open-file`. Espera fora da thread principal, que entrega os
-/// eventos do SO.
+/// depois disto sai por `take_open`. Espera fora da thread principal, que entrega os eventos
+/// do SO.
 #[tauri::command]
-pub async fn launch_open(app: AppHandle) -> Option<String> {
+pub async fn launch_open(app: AppHandle) -> Vec<String> {
     tauri::async_runtime::spawn_blocking(move || {
         wait_launch(&app.state::<AppState>(), LAUNCH_GRACE, LAUNCH_WAIT_MAX)
     })
     .await
-    .ok()
-    .flatten()
+    .unwrap_or_default()
 }
 
-/// Abertura vinda do SO (duplo-clique, argv, segunda instância): concede e avisa o frontend.
+/// Arquivos que chegaram desde a última entrega, em ordem. O frontend chama ao receber o aviso
+/// `open-file`, que não leva caminho: quem entrega é a fila.
+#[tauri::command]
+pub fn take_open(state: State<AppState>) -> Vec<String> {
+    take_pending(&state)
+}
+
+/// Abertura vinda do SO (duplo-clique, segunda instância): concede e avisa o frontend.
 pub fn request_open(app: &AppHandle, path: PathBuf) {
     let Some(state) = app.try_state::<AppState>() else {
         return;
     };
-    let Ok(c) = grant(&state, &path) else {
+    if !queue_open(&state, &path) {
         return;
-    };
-    let s = c.to_string_lossy().into_owned();
-    queue_open(&state, s.clone());
-    let _ = app.emit("open-file", s);
+    }
+    let _ = app.emit("open-file", ());
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.set_focus();
     }
 }
 
-/// Primeiro argumento que é `.md` existente. Relativo vale a partir de `cwd`, a pasta de quem
+/// Argumentos que são `.md` existente, na ordem. Relativo vale a partir de `cwd`, a pasta de quem
 /// chamou (`leve README.md` no terminal): na 1ª instância é a do próprio processo; na 2ª vem do
 /// plugin single-instance, porque a instância que já está aberta tem outra pasta atual (`/`
 /// quando aberta pelo Finder).
-pub fn first_markdown_arg(argv: &[String], cwd: &Path) -> Option<PathBuf> {
+pub fn markdown_args(argv: &[String], cwd: &Path) -> Vec<PathBuf> {
     argv.iter()
         .skip(1)
         .map(|a| cwd.join(a))
-        .find(|p| is_markdown(p) && p.exists())
+        .filter(|p| is_markdown(p) && p.exists())
+        .collect()
 }
 
 #[cfg(test)]
@@ -149,26 +168,75 @@ mod tests {
         // Opened depois do Ready (ordem que o AppKit não proíbe): a espera devolve o arquivo.
         // Folga longa (5 s) de propósito: só o `notify_all` de `queue_open` (o caminho de
         // `request_open`) acorda a espera antes dela; sem o aviso, o teste estoura o tempo.
+        let t = TempDir::new("tarde");
+        let doc = t.file("tarde.md", "# oi");
+        let esperado = fs::canonicalize(&doc).unwrap();
         let state = std::sync::Arc::new(AppState::default());
         mark_ready(&state);
         let s2 = state.clone();
         let late = std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(80));
-            queue_open(&s2, "/x/tarde.md".into());
+            assert!(queue_open(&s2, &doc));
         });
-        let t = Instant::now();
+        let t0 = Instant::now();
         let got = wait_launch(&state, Duration::from_secs(5), Duration::from_secs(10));
-        let waited = t.elapsed();
+        let waited = t0.elapsed();
         late.join().unwrap();
-        assert_eq!(got.as_deref(), Some("/x/tarde.md"));
+        assert_eq!(got, [esperado.to_string_lossy()]);
         assert!(
             waited < Duration::from_secs(1),
             "acordou pelo aviso, não pelo prazo: {waited:?}"
         );
-        assert!(
-            state.pending_open.lock().unwrap().is_none(),
-            "entregue uma vez só"
-        );
+        assert!(take_pending(&state).is_empty(), "entregue uma vez só");
+    }
+
+    #[test]
+    fn varios_arquivos_na_abertura_chegam_todos_e_na_ordem() {
+        // `open -a Leve a.md b.md`: cada `RunEvent::Opened` chega antes de o frontend perguntar.
+        let t = TempDir::new("fila");
+        let docs: Vec<_> = ["a.md", "b.md", "c.md"]
+            .map(|n| t.file(n, "# oi"))
+            .into_iter()
+            .collect();
+        let state = AppState::default();
+        for d in &docs {
+            assert!(queue_open(&state, d));
+        }
+        mark_ready(&state);
+        let esperado: Vec<_> = docs
+            .iter()
+            .map(|d| fs::canonicalize(d).unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(wait_launch(&state, GRACE, Duration::from_secs(2)), esperado);
+        // Recarga da página pergunta de novo: nada volta.
+        assert!(wait_launch(&state, Duration::ZERO, Duration::from_secs(2)).is_empty());
+    }
+
+    #[test]
+    fn arquivo_depois_da_abertura_sai_uma_vez_e_nao_volta_na_recarga() {
+        let t = TempDir::new("depois");
+        let a = t.file("a.md", "# oi");
+        let b = t.file("b.md", "# oi");
+        let state = AppState::default();
+        assert!(queue_open(&state, &a));
+        assert!(queue_open(&state, &b));
+        assert_eq!(take_pending(&state).len(), 2);
+        assert!(take_pending(&state).is_empty());
+        mark_ready(&state);
+        assert!(wait_launch(&state, Duration::ZERO, Duration::from_secs(2)).is_empty());
+    }
+
+    #[test]
+    fn so_entra_na_fila_o_que_foi_concedido() {
+        let t = TempDir::new("concessao");
+        let doc = t.file("doc.md", "# oi");
+        let state = AppState::default();
+        assert!(!queue_open(&state, &t.0.join("nao-existe.md")));
+        assert!(take_pending(&state).is_empty());
+        assert!(queue_open(&state, &doc));
+        for p in take_pending(&state) {
+            assert!(granted(&state, &p).is_ok());
+        }
     }
 
     #[test]
@@ -176,17 +244,11 @@ mod tests {
         let state = AppState::default();
         mark_ready(&state);
         let t = Instant::now();
-        assert_eq!(
-            wait_launch(&state, Duration::from_millis(60), Duration::from_secs(2)),
-            None
-        );
+        assert!(wait_launch(&state, Duration::from_millis(60), Duration::from_secs(2)).is_empty());
         assert!(t.elapsed() >= Duration::from_millis(60));
         let sem_ready = AppState::default();
         let t = Instant::now();
-        assert_eq!(
-            wait_launch(&sem_ready, GRACE, Duration::from_millis(80)),
-            None
-        );
+        assert!(wait_launch(&sem_ready, GRACE, Duration::from_millis(80)).is_empty());
         assert!(t.elapsed() < Duration::from_millis(400), "teto respeitado");
     }
 
@@ -213,34 +275,41 @@ mod tests {
     }
 
     #[test]
-    fn first_markdown_arg_pula_binario_e_exige_arquivo_existente() {
+    fn markdown_args_pula_binario_e_exige_arquivo_existente() {
         let t = TempDir::new("argv");
         let real = t.file("doc.md", "# oi");
         let argv = |xs: &[&str]| xs.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let real_s = real.to_string_lossy().into_owned();
         let elsewhere = Path::new("/");
         assert_eq!(
-            first_markdown_arg(&argv(&["leve", &real_s]), elsewhere),
-            Some(real.clone())
+            markdown_args(&argv(&["leve", &real_s]), elsewhere),
+            [real.clone()]
         );
         assert_eq!(
-            first_markdown_arg(&argv(&["leve", "--flag", &real_s]), elsewhere),
-            Some(real.clone())
+            markdown_args(&argv(&["leve", "--flag", &real_s]), elsewhere),
+            [real.clone()]
         );
-        assert_eq!(
-            first_markdown_arg(&argv(&[&real_s]), elsewhere),
-            None,
+        assert!(
+            markdown_args(&argv(&[&real_s]), elsewhere).is_empty(),
             "argv[0] é o binário"
         );
-        assert_eq!(
-            first_markdown_arg(&argv(&["leve", "/nao/existe.md"]), elsewhere),
-            None
-        );
+        assert!(markdown_args(&argv(&["leve", "/nao/existe.md"]), elsewhere).is_empty());
         let txt = t.file("x.txt", "");
-        assert_eq!(
-            first_markdown_arg(&argv(&["leve", &txt.to_string_lossy()]), elsewhere),
-            None
-        );
+        assert!(markdown_args(&argv(&["leve", &txt.to_string_lossy()]), elsewhere).is_empty());
+    }
+
+    #[test]
+    fn markdown_args_pega_todos_na_ordem() {
+        // `.desktop` com `%F` e `leve a.md b.md` mandam tudo num argv só.
+        let t = TempDir::new("argv-varios");
+        let a = t.file("a.md", "# a");
+        let b = t.file("b.md", "# b");
+        let txt = t.file("x.txt", "");
+        let argv: Vec<String> = ["leve".as_ref(), b.as_path(), txt.as_path(), a.as_path()]
+            .iter()
+            .map(|p: &&Path| p.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(markdown_args(&argv, Path::new("/")), [b, a]);
     }
 
     #[test]
@@ -252,25 +321,20 @@ mod tests {
         t.file("outra/x.md", "");
         let argv = |xs: &[&str]| xs.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let proj = t.0.join("proj");
-        let got = first_markdown_arg(&argv(&["leve", "doc.md"]), &proj).unwrap();
+        let got = markdown_args(&argv(&["leve", "doc.md"]), &proj).remove(0);
         assert_eq!(
             fs::canonicalize(got).unwrap(),
             fs::canonicalize(&doc).unwrap()
         );
-        let up = first_markdown_arg(&argv(&["leve", "../outra/x.md"]), &proj).unwrap();
+        let up = markdown_args(&argv(&["leve", "../outra/x.md"]), &proj).remove(0);
         assert!(up.ends_with("proj/../outra/x.md") && up.is_file());
-        assert_eq!(
-            first_markdown_arg(&argv(&["leve", "doc.md"]), &t.0),
-            None,
+        assert!(
+            markdown_args(&argv(&["leve", "doc.md"]), &t.0).is_empty(),
             "na pasta errada, não acha"
         );
         // O caminho resolvido é concedido como qualquer abertura vinda do SO.
         let state = AppState::default();
-        let c = grant(
-            &state,
-            &first_markdown_arg(&argv(&["leve", "doc.md"]), &proj).unwrap(),
-        )
-        .unwrap();
+        let c = grant(&state, &markdown_args(&argv(&["leve", "doc.md"]), &proj)[0]).unwrap();
         assert!(granted(&state, &doc.to_string_lossy()).is_ok());
         assert_eq!(c, fs::canonicalize(&doc).unwrap());
     }

@@ -139,10 +139,10 @@ jobs:
           cd "$dir"
           "$HOME/.cargo/bin/msedgedriver-tool.exe"
           ls -l "$dir"
-          # Temporário: wrapper que liga o log verboso do msedgedriver.
-          mkdir -p "$PWD/tests/e2e/artifacts"
-          printf '@echo off\r\n"%s" --verbose --log-path="%s" %%*\r\n' "$(cygpath -w "$dir/msedgedriver.exe")" "$(cygpath -w "$PWD/tests/e2e/artifacts/msedgedriver.log")" > "$dir/driver.cmd"
-          cat "$dir/driver.cmd"
+          # Wrapper que liga o log verboso do msedgedriver; vai no artefato da falha com o resto.
+          log="$GITHUB_WORKSPACE/tests/e2e/artifacts/msedgedriver.log"
+          mkdir -p "$(dirname "$log")"
+          printf '@echo off\r\n"%s" --verbose --log-path="%s" %%*\r\n' "$(cygpath -w "$dir/msedgedriver.exe")" "$(cygpath -w "$log")" > "$dir/driver.cmd"
           echo "MSEDGEDRIVER=$(cygpath -w "$dir/driver.cmd")" >> "$GITHUB_ENV"
 
       - name: Roteiros (Linux, sob xvfb)
@@ -153,7 +153,7 @@ jobs:
         run: pnpm --dir tests/e2e test
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+        if: failure()
         with:
           name: e2e-artefatos-${{ matrix.id }}
           path: tests/e2e/artifacts/

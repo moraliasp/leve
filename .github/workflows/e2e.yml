@@ -21,10 +21,12 @@ on:
   push:
     branches: ["leve/e2e/**"]
 permissions: {}
-# Chamado pelo release.yml, `github.ref` é o ref da tag: o evento entra no grupo para um run a pedido na mesma
-# tag (workflow_dispatch) não cancelar o da release, e na tag nada cancela (como o grupo do release.yml).
+# Chamado pelo release.yml, `github.ref` é o ref da tag e `github.workflow` é o nome do chamador ("release"),
+# não "e2e": com o workflow no grupo, um run a pedido ou por push no mesmo ref não cancela o da release (nem o
+# contrário), e na tag nada cancela (como o grupo do release.yml). Medido: só com o ref, o chamado e o `push`
+# direto da mesma branch dividiam o grupo e um cancelava o outro.
 concurrency:
-  group: e2e-${{ github.event_name }}-${{ github.ref }}
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 jobs:
   matriz:

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, isOn, migrateLegacyKeys, resetPrefs, savedAnchor, savedTabs, setBoolPref, setOn } from "../src/prefs";
+import { FOLDER_KEY, PREF_KEYS, TABS_KEY, TIP_KEY, TOP, boolPref, isOn, migrateLegacyKeys, migrateVerbatimPaths, resetPrefs, savedAnchor, savedTabs, setBoolPref, setOn } from "../src/prefs";
 import { RECENT_KEY, SCROLL_KEY } from "../src/recent";
 
 describe("preferências", () => {
@@ -98,6 +98,37 @@ describe("preferências", () => {
       expect(localStorage.getItem("mdview.zoom")).toBeNull();
       expect(localStorage.getItem("outro.x")).toBe("1");
     });
+  });
+});
+
+describe("caminhos com \\\\?\\ salvos até a 0.6.0", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("saem dos Recentes, das abas, da pasta e dos pontos de leitura", () => {
+    const disk = String.raw`\\?\C:\docs\a.md`;
+    const unc = String.raw`\\?\UNC\srv\share\b.md`;
+    localStorage.setItem(RECENT_KEY, JSON.stringify([disk, unc, "/c.md", String.raw`\\?\Volume{1}\d.md`]));
+    localStorage.setItem(TABS_KEY, JSON.stringify({ paths: [disk], active: 0 }));
+    localStorage.setItem(FOLDER_KEY, JSON.stringify({ root: "\\\\?\\C:\\docs\\", expanded: ["sub"] }));
+    localStorage.setItem(SCROLL_KEY, JSON.stringify({ [unc]: { i: 1 } }));
+    migrateVerbatimPaths();
+    expect(JSON.parse(localStorage.getItem(RECENT_KEY) ?? "")).toEqual([
+      String.raw`C:\docs\a.md`,
+      String.raw`\\srv\share\b.md`,
+      "/c.md",
+      String.raw`\\?\Volume{1}\d.md`,
+    ]);
+    expect(JSON.parse(localStorage.getItem(TABS_KEY) ?? "").paths).toEqual([String.raw`C:\docs\a.md`]);
+    expect(JSON.parse(localStorage.getItem(FOLDER_KEY) ?? "").root).toBe("C:\\docs\\");
+    expect(Object.keys(JSON.parse(localStorage.getItem(SCROLL_KEY) ?? ""))).toEqual([String.raw`\\srv\share\b.md`]);
+  });
+
+  it("sem prefixo, nada muda", () => {
+    // Nome de arquivo de verdade no Unix: o prefixo só vale no começo do caminho.
+    const raw = JSON.stringify(["/a?.md", String.raw`C:\a.md`, String.raw`/home/u/\\?\C:\x.md`]);
+    localStorage.setItem(RECENT_KEY, raw);
+    migrateVerbatimPaths();
+    expect(localStorage.getItem(RECENT_KEY)).toBe(raw);
   });
 });
 

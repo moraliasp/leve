@@ -336,6 +336,6 @@ mod tests {
         let state = AppState::default();
         let c = grant(&state, &markdown_args(&argv(&["leve", "doc.md"]), &proj)[0]).unwrap();
         assert!(granted(&state, &doc.to_string_lossy()).is_ok());
-        assert_eq!(c, fs::canonicalize(&doc).unwrap());
+        assert_eq!(c, crate::grants::canonical(&doc.to_string_lossy()).unwrap());
     }
 }

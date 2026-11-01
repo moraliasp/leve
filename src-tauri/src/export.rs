@@ -215,7 +215,7 @@ mod tests {
     }
 
     fn fs_canon(p: &Path) -> PathBuf {
-        std::fs::canonicalize(p).unwrap()
+        crate::grants::canonical(&p.to_string_lossy()).unwrap()
     }
 
     #[test]

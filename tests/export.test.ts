@@ -1,5 +1,6 @@
-import { beforeAll, describe, expect, it } from "vitest";
-import { render } from "../src/render";
+import { invoke } from "@tauri-apps/api/core";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { hydrateImages, render } from "../src/render";
 import { decorateCodeBlocks } from "../src/code";
 import { makeTabbable } from "../src/a11y";
 import {
@@ -13,7 +14,11 @@ import {
   pageTitle,
   type ExportInput,
 } from "../src/export";
+import { toRichHtml } from "../src/rich";
 import { loadYaml } from "../src/yaml";
+import fixture from "./fixtures/imagem-ausente.md?raw";
+
+vi.mock("@tauri-apps/api/core", async (orig) => ({ ...(await orig<object>()), invoke: vi.fn() }));
 
 // Front matter e dados de nó do Mermaid leem o `yaml`, que o app carrega sob demanda (src/yaml.ts).
 beforeAll(() => loadYaml());
@@ -216,5 +221,67 @@ describe("fontes do KaTeX embutidas", () => {
   it("fonte que não carregou sai da regra (o KaTeX cai na fonte do sistema)", async () => {
     const out = await inlineFontFaces(css, () => true, async () => null);
     expect(out).toBe(".a{}.b{}");
+  });
+});
+
+describe("imagem que não carregou", () => {
+  const DIR = "/Users/fulano/Documentos/notas";
+
+  /** `#content` como o app deixa depois do `error` nas imagens da tela; as `longe` ainda não falharam. */
+  async function broken(viaAsset: boolean): Promise<HTMLElement> {
+    vi.mocked(invoke).mockImplementation(async (_cmd, args) => {
+      const { rels } = args as { rels: string[] };
+      return Object.fromEntries(rels.map((r) => [r, null]));
+    });
+    const el = document.createElement("div");
+    el.innerHTML = render(fixture);
+    await hydrateImages(el, DIR, viaAsset);
+    for (const img of el.querySelectorAll("img")) if (!img.alt.startsWith("longe")) img.dispatchEvent(new Event("error"));
+    return el;
+  }
+
+  const SEGREDOS = /fulano|Documentos|asset:|\?\\/;
+
+  it.each([
+    ["no app", true],
+    ["no modo navegador", false],
+  ])("%s, o aviso mostra o caminho como o documento escreveu", async (_, viaAsset) => {
+    const el = await broken(viaAsset);
+    const codes = [...el.querySelectorAll(".img-missing code")].map((c) => c.textContent);
+    expect(codes).toContain("img/nao-existe.png");
+    expect(codes).toContain("../assets/minha foto.png");
+    expect(el.querySelector(".img-missing")?.getAttribute("title")).toBe("Imagem não encontrada: img/nao-existe.png");
+    for (const span of el.querySelectorAll(".img-missing")) expect(span.outerHTML).not.toContain(DIR);
+  });
+
+  it.each([
+    ["no app", true],
+    ["no modo navegador", false],
+  ])("%s, o HTML exportado não leva nada do disco de quem exportou", async (_, viaAsset) => {
+    const { html } = buildExportHtml(cloneContent(await broken(viaAsset)), base);
+    expect(html).not.toMatch(SEGREDOS);
+    expect(html).not.toMatch(/\btitle="/);
+    const page = new DOMParser().parseFromString(html, "text/html");
+    expect([...page.querySelectorAll(".img-missing code")].map((c) => c.textContent)).toEqual(["img/nao-existe.png", "../assets/minha foto.png"]);
+    // Toda imagem continua no lugar: as de caminho absoluto só com o alt.
+    const alts = [...page.querySelectorAll(".img-missing-alt")].map((a) => a.textContent);
+    expect(alts).toEqual(["relativa", "com espaço", "unix", "unc", "casa", "longe, ainda sem erro"]);
+    // `C:\…` e `file:` não passam nem do sanitize; a relativa fora da tela fica como foi escrita.
+    expect([...page.querySelectorAll("img[src]")].map((i) => i.getAttribute("src"))).toEqual(["img/fora-da-tela.png"]);
+  });
+
+  it("Copiar formatado também não leva", async () => {
+    const { html, text } = toRichHtml(cloneContent(await broken(true)));
+    expect(html).not.toMatch(SEGREDOS);
+    expect(text).not.toMatch(SEGREDOS);
+    expect(html).toContain("img/nao-existe.png");
+  });
+
+  it("`file:` que chegue ao DOM sai só com o alt; `//host` carregado a pedido é remoto, não disco", () => {
+    const el = document.createElement("div");
+    el.innerHTML = '<p><img alt="x" src="//cdn.exemplo.com/a.png"><img alt="y" src="file:///Users/fulano/a.png"></p>';
+    const { html } = buildExportHtml(cloneContent(el), base);
+    expect(html).toContain('src="//cdn.exemplo.com/a.png"');
+    expect(html).not.toMatch(SEGREDOS);
   });
 });

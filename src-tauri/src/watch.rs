@@ -9,7 +9,11 @@ use std::{
 use notify_debouncer_mini::{DebouncedEvent, new_debouncer, notify::RecursiveMode};
 use tauri::{AppHandle, Emitter, State};
 
-use crate::{AppState, grants::granted, i18n};
+use crate::{
+    AppState,
+    grants::{granted, os_path},
+    i18n,
+};
 
 /// Debounce do watcher por tamanho do arquivo (como o `throttle_at_last` do peek.nvim): documento
 /// grande re-renderiza inteiro a cada salvamento, e um editor com autosave salvaria mais rápido do
@@ -61,7 +65,9 @@ fn watch_decision(
 #[tauri::command]
 pub fn watch_file(app: AppHandle, state: State<AppState>, path: String) -> Result<(), String> {
     let target = granted(&state, &path)?;
-    let dir = target
+    // O `notify` chama o Win32 direto: caminho longo só abre na forma com `\\?\`.
+    let os_target = os_path(&target)?;
+    let dir = os_target
         .parent()
         .map(Path::to_path_buf)
         .ok_or_else(|| i18n::s().no_parent.to_string())?;
@@ -73,7 +79,7 @@ pub fn watch_file(app: AppHandle, state: State<AppState>, path: String) -> Resul
         WatchDecision::Replace { renotify } => renotify,
     };
     let emit_path = target.to_string_lossy().into_owned();
-    let t2 = target.clone();
+    let t2 = os_target;
     let app2 = app.clone();
     let mut debouncer = new_debouncer(
         debounce,

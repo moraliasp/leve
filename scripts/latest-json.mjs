@@ -3,7 +3,7 @@
 // pacotes e assinaturas que o release.yml juntou numa pasta:
 //   node scripts/latest-json.mjs <pasta> <tag>   → grava <pasta>/latest.json
 // macOS: um `.app.tar.gz` por arquitetura; o app escolhe pela arquitetura em que está rodando, então
-// quem instalou um universal (até a 0.6.0) recebe o da sua. Windows: o `-setup.exe` (NSIS) é o
+// quem instalou um universal (até a 0.5.0) recebe o da sua. Windows: o `-setup.exe` (NSIS) é o
 // padrão; o `.msi` entra como `windows-x86_64-msi` para quem instalou por ele. Linux: o `.AppImage`
 // é o padrão (`linux-x86_64`, o próprio arquivo assinado, sem .tar.gz); o `.deb` entra como
 // `linux-x86_64-deb` e o `.rpm` como `linux-x86_64-rpm`, que o atualizador procura antes do padrão

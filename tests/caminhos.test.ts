@@ -17,7 +17,7 @@ describe("forma canônica dos caminhos", () => {
     expect(usos.map(([arq]) => arq.split("/").pop()).sort()).toEqual(["grants.rs", "watch.rs"]);
   });
 
-  it("`grants.json` da 0.6.0 passa por `saved_paths` ao ler", () => {
+  it("`grants.json` da 0.5.0 passa por `saved_paths` ao ler", () => {
     expect(fontes["../src-tauri/src/grants.rs"]).toMatch(/fn load_grant_lists[\s\S]{0,240}let all = saved_paths\(&json\);/);
   });
 });

@@ -22,7 +22,7 @@ O app é o mesmo da release, com o mesmo aviso na primeira abertura (abaixo). No
 
 ## macOS
 
-1. Baixe o `.dmg`: `Leve_x.y.z_universal.dmg` até a 0.6.0; nas versões seguintes, o do seu Mac, `Leve_x.y.z_aarch64.dmg` para Apple silicon (chip Apple M…, no menu Apple > Sobre Este Mac) ou `Leve_x.y.z_x64.dmg` para Intel. Abra e arraste **Leve** para **Aplicativos**.
+1. Baixe o `.dmg`: `Leve_x.y.z_universal.dmg` até a 0.5.0; nas versões seguintes, o do seu Mac, `Leve_x.y.z_aarch64.dmg` para Apple silicon (chip Apple M…, no menu Apple > Sobre Este Mac) ou `Leve_x.y.z_x64.dmg` para Intel. Abra e arraste **Leve** para **Aplicativos**.
 2. Dê duplo-clique em Leve. Vai aparecer "Não foi possível verificar se 'Leve' está livre de malware". Clique em **OK** (ou **Concluído**).
 3. Abra **Ajustes do Sistema › Privacidade e Segurança**, role até o fim: "Leve foi bloqueado para proteger o Mac". Clique em **Abrir Mesmo Assim** e confirme com a senha ou Touch ID.
 4. Da segunda vez em diante abre normalmente. Para abrir um `.md` com duplo-clique, use **Abrir com › Leve** uma vez (ou "Sempre abrir com", em Obter Informações › Abrir com › Alterar Tudo).

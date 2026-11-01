@@ -85,7 +85,7 @@ export function migrateLegacyKeys(): void {
 const PATH_KEYS = ["leve.recent", TABS_KEY, FOLDER_KEY, SCROLL_KEY];
 
 /**
- * Até a 0.6.0 o Windows entregava caminhos com `\\\\?\\` (`canonical` em `grants.rs`), que ficaram
+ * Até a 0.5.0 (e no 0.6.0-rc.1) o Windows entregava caminhos com `\\\\?\\` (`canonical` em `grants.rs`), que ficaram
  * nos Recentes, nas abas, na pasta e nos pontos de leitura. Sem isto, nada disso bateria com o
  * caminho novo do mesmo arquivo. Troca no JSON, onde cada `\` aparece dobrado.
  */

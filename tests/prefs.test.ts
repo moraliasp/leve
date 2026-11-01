@@ -101,7 +101,7 @@ describe("preferências", () => {
   });
 });
 
-describe("caminhos com \\\\?\\ salvos até a 0.6.0", () => {
+describe("caminhos com \\\\?\\ salvos até a 0.5.0", () => {
   beforeEach(() => localStorage.clear());
 
   it("saem dos Recentes, das abas, da pasta e dos pontos de leitura", () => {

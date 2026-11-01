@@ -1,0 +1,161 @@
+name: e2e
+# Teste de ponta a ponta do app em Windows e Linux: tauri-driver + WebdriverIO (tests/e2e). O macOS fica de
+# fora porque o tauri-driver não roda nele. Por quê e o que não cobre: docs/decisoes.md, "Teste de ponta a ponta".
+#   gh workflow run e2e.yml -f sistemas=ambos     (a pedido; só vale com o arquivo já na main)
+#   push em leve/e2e/**                           (prova na própria branch, onde o dispatch ainda não existe)
+#   workflow_call                                 (o release.yml chama na #101)
+on:
+  workflow_dispatch:
+    inputs:
+      sistemas:
+        description: "Sistemas: ambos, windows ou linux"
+        type: choice
+        options: [ambos, windows, linux]
+        default: ambos
+  workflow_call:
+    inputs:
+      sistemas:
+        description: "Sistemas: ambos, windows ou linux"
+        type: string
+        default: ambos
+  push:
+    branches: ["leve/e2e/**"]
+permissions: {}
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  matriz:
+    # `matrix` não existe no `if` do job, então a escolha de sistemas vira a lista da matriz aqui.
+    permissions: {}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      lista: ${{ steps.lista.outputs.lista }}
+    steps:
+      - id: lista
+        env:
+          SISTEMAS: ${{ inputs.sistemas }}
+        run: |
+          linux='{"id":"linux","os":"ubuntu-22.04"}'
+          windows='{"id":"windows","os":"windows-latest"}'
+          case "${SISTEMAS:-ambos}" in
+            linux) lista="[$linux]" ;;
+            windows) lista="[$windows]" ;;
+            ambos) lista="[$linux,$windows]" ;;
+            *) echo "::error::sistemas inválido: $SISTEMAS"; exit 1 ;;
+          esac
+          echo "lista=$lista" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    name: e2e (${{ matrix.id }})
+    needs: matriz
+    permissions:
+      contents: read # ler o código
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.matriz.outputs.lista) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Mesmas bibliotecas do ci.yml (o binário linka contra elas) mais o que o teste precisa: o
+      # WebKitWebDriver (webkit2gtk-driver) e uma tela virtual (xvfb) com barramento de sessão.
+      - name: WebKitGTK, WebKitWebDriver e xvfb
+        if: matrix.id == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev libssl-dev webkit2gtk-driver xvfb xauth dbus-x11
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            tests/e2e/pnpm-lock.yaml
+      - run: rustup toolchain install stable --profile minimal && rustup default stable
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-e2e-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-e2e-
+      - run: pnpm install --frozen-lockfile
+      # Dependências do teste à parte: o pnpm-lock.yaml da raiz alimenta o Flatpak (scripts/flatpak-sources.sh).
+      - run: pnpm install --dir tests/e2e --ignore-workspace --frozen-lockfile
+      - name: Build debug sem bundle
+        if: matrix.id == 'linux'
+        run: pnpm tauri build --debug --no-bundle
+      # Windows: o WebView2 ignora a WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS que o msedgedriver usa para abrir a
+      # porta de depuração quando o app já define os próprios argumentos (o wry define sempre), e a sessão
+      # morre em "DevToolsActivePort file doesn't exist". Só neste build, os argumentos do wry mais a porta
+      # (0 = qualquer; o msedgedriver lê a escolhida em DevToolsActivePort) entram por `--config`.
+      - name: Build debug sem bundle (Windows, com a porta de depuração)
+        if: matrix.id == 'windows'
+        run: |
+          config="$(node tests/e2e/browser-args-config.mjs)"
+          echo "$config"
+          pnpm tauri build --debug --no-bundle --config "$config"
+
+      # tauri-driver fixado e em cache: `cargo install` compila ~2 min.
+      - name: tauri-driver (cache)
+        id: cache-driver
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin/tauri-driver
+            ~/.cargo/bin/tauri-driver.exe
+          key: ${{ runner.os }}-tauri-driver-2.1.0
+      - name: tauri-driver
+        if: steps.cache-driver.outputs.cache-hit != 'true'
+        run: cargo install tauri-driver --version 2.1.0 --locked
+
+      # Windows: o msedgedriver tem de ser o da versão do WebView2 do runner, que muda com o runner.
+      # A ferramenta lê a versão instalada e baixa o driver dela, então só ela vai para o cache.
+      - name: msedgedriver-tool (cache)
+        if: matrix.id == 'windows'
+        id: cache-edge
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo/bin/msedgedriver-tool.exe
+          key: ${{ runner.os }}-msedgedriver-tool-8c4b34f
+      - name: msedgedriver-tool
+        if: matrix.id == 'windows' && steps.cache-edge.outputs.cache-hit != 'true'
+        run: cargo install --git https://github.com/chippers/msedgedriver-tool --rev 8c4b34f51b45f5cf08013366d703de464ab871d1 --locked
+      - name: msedgedriver na versão do WebView2
+        if: matrix.id == 'windows'
+        run: |
+          dir="$RUNNER_TEMP/msedgedriver"
+          mkdir -p "$dir"
+          cd "$dir"
+          "$HOME/.cargo/bin/msedgedriver-tool.exe"
+          ls -l "$dir"
+          # Wrapper que liga o log verboso do msedgedriver; vai no artefato da falha com o resto.
+          log="$GITHUB_WORKSPACE/tests/e2e/artifacts/msedgedriver.log"
+          mkdir -p "$(dirname "$log")"
+          printf '@echo off\r\n"%s" --verbose --log-path="%s" %%*\r\n' "$(cygpath -w "$dir/msedgedriver.exe")" "$(cygpath -w "$log")" > "$dir/driver.cmd"
+          echo "MSEDGEDRIVER=$(cygpath -w "$dir/driver.cmd")" >> "$GITHUB_ENV"
+
+      - name: Roteiros (Linux, sob xvfb)
+        if: matrix.id == 'linux'
+        run: xvfb-run -a dbus-run-session -- pnpm --dir tests/e2e test
+      - name: Roteiros (Windows)
+        if: matrix.id == 'windows'
+        run: pnpm --dir tests/e2e test
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: e2e-artefatos-${{ matrix.id }}
+          path: tests/e2e/artifacts/
+          if-no-files-found: warn
+          retention-days: 7

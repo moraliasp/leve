@@ -36,3 +36,6 @@ packaging/flatpak/*-sources.json
 flatpak-build
 flatpak-repo
 *.flatpak
+
+# Teste de ponta a ponta (tests/e2e): capturas e HTML da falha
+tests/e2e/artifacts

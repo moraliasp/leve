@@ -8,6 +8,13 @@ updates:
     groups:
       npm:
         patterns: ["*"]
+  - package-ecosystem: npm
+    directory: /tests/e2e
+    schedule:
+      interval: monthly
+    groups:
+      npm-e2e:
+        patterns: ["*"]
   - package-ecosystem: cargo
     directory: /src-tauri
     schedule:

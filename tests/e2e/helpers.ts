@@ -228,20 +228,6 @@ export async function concederPasta(raiz: string): Promise<void> {
   writeFileSync(arquivo, JSON.stringify(lista));
 }
 
-/** Guarda em `window.__erros` o que a página deixaria passar (rejeição sem tratamento, erro de script), para o diagnóstico. */
-export async function vigiarErrosDaPagina(): Promise<void> {
-  await browser.execute(
-    "window.__erros = [];" +
-      "window.addEventListener('unhandledrejection', function (e) { window.__erros.push('rejeicao: ' + String(e.reason)); });" +
-      "window.addEventListener('error', function (e) { window.__erros.push('erro: ' + e.message); });" +
-      // Rastro dos comandos que o app chama, na ordem, com o arquivo quando há.
-      "var invoke = window.__TAURI_INTERNALS__.invoke;" +
-      "window.__TAURI_INTERNALS__.invoke = function (cmd, args) {" +
-      "if (!/^plugin:/.test(cmd)) window.__erros.push('invoke ' + cmd + ' ' + String((args && (args.path || args.rel)) || ''));" +
-      "return invoke.apply(this, arguments); };",
-  );
-}
-
 /** Retrato da página para diagnóstico: quantos `loadDoc` começaram e terminaram, o que a barra diz, o que ficou na tela. */
 export async function estadoDaPagina(): Promise<string> {
   return String(
@@ -252,8 +238,7 @@ export async function estadoDaPagina(): Promise<string> {
         "fins: performance.getEntriesByName('leve:layout').length," +
         "barra: document.getElementById('status').textContent," +
         "h1: h ? h.textContent : null," +
-        "titulo: document.getElementById('title').title," +
-        "erros: window.__erros || null });",
+        "titulo: document.getElementById('title').title });",
     ),
   );
 }

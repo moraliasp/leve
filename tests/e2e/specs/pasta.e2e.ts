@@ -8,19 +8,16 @@ import {
   copiarFixture,
   criarTemporario,
   esperarAtivo,
-  abas,
   esperarDocumento,
-  estadoDaPagina,
   fecharAbasExtras,
   removerTemporario,
-  vigiarErrosDaPagina,
 } from "../helpers";
 import { WIN } from "../paths";
 
 // Pasta aberta: árvore lateral e abertura de arquivo por ela (`open_in_folder`). A concessão da pasta só
 // nasce do diálogo nativo (`pick_folder`), que o WebDriver não alcança; o roteiro faz o que o diálogo
 // deixaria como dado do perfil: a raiz em `grants.json` (o Rust lê ao iniciar, então a sessão recomeça) e
-// `leve.folder` no localStorage (a página recarrega, e `main` abre a pasta salva). Nada no app muda.
+// `leve.folder` no localStorage (na partida, `main` abre a pasta salva). Nada no app muda.
 describe("pasta", () => {
   let dir: string | undefined;
 
@@ -58,10 +55,6 @@ describe("pasta", () => {
     }
     await $("#tree").waitForExist({ timeoutMsg: "a pasta concedida não abriu a árvore" });
     await esperarAtivo("exemplo.md");
-    await vigiarErrosDaPagina();
-    console.log("pasta, partida:", await estadoDaPagina(), JSON.stringify(await abas()));
-    await browser.pause(2000);
-    console.log("pasta, 2 s depois:", await estadoDaPagina(), JSON.stringify(await abas()));
   });
 
   after(async () => {
@@ -83,12 +76,7 @@ describe("pasta", () => {
     await $("#tree li[data-path='raiz.md']").click();
     await esperarAtivo("raiz.md");
     await expect($("#content h1")).toHaveText("Raiz da pasta");
-    try {
-      await expect($("#tree li[data-path='raiz.md']")).toHaveAttribute("aria-current", "page");
-    } catch (e) {
-      const rastro = await browser.execute("return JSON.stringify(window.__erros);");
-      throw new Error(`${String(e)}; ativo ${await caminhoAtivo()}; rastro ${String(rastro)}`);
-    }
+    await expect($("#tree li[data-path='raiz.md']")).toHaveAttribute("aria-current", "page");
   });
 
   it("expandir a subpasta mostra o arquivo dela, e clicar o abre", async () => {

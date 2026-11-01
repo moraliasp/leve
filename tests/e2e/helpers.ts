@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { browser, $, $$ } from "@wdio/globals";
+import { browser, $$ } from "@wdio/globals";
 import { BINARIO, EXEMPLO, WIN } from "./paths";
 
 // Os scripts vão como texto: o wdio serializa a função, e o que o esbuild injeta num callback

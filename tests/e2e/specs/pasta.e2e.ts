@@ -11,6 +11,7 @@ import {
   esperarDocumento,
   fecharAbasExtras,
   removerTemporario,
+  vigiarErrosDaPagina,
 } from "../helpers";
 
 // Pasta aberta: árvore lateral e abertura de arquivo por ela (`open_in_folder`). A concessão da pasta só
@@ -40,6 +41,8 @@ describe("pasta", () => {
     await browser.execute("localStorage.setItem(arguments[0], arguments[1]);", "leve.folder", JSON.stringify({ root: nativo, expanded: [] }));
     await browser.refresh();
     await $("#tree").waitForExist({ timeoutMsg: "a pasta concedida não abriu a árvore" });
+    await esperarAtivo("exemplo.md");
+    await vigiarErrosDaPagina();
   });
 
   after(async () => {

@@ -103,8 +103,9 @@ export async function esperarAtivo(nome: string): Promise<void> {
   } catch {
     // A mensagem diz o que a página mostrava, que é o que falta para entender a falha.
     const h1 = await browser.execute("var h = document.querySelector('#content h1'); return h ? h.textContent : '(sem h1)';");
+    const erros = await browser.execute("return JSON.stringify({ erros: window.__erros || null, barra: document.getElementById('status').textContent });");
     throw new Error(
-      `o documento ativo não virou ${nome}: era ${await caminhoAtivo()}, h1 "${String(h1)}", abas ${JSON.stringify(await abas())}`,
+      `o documento ativo não virou ${nome}: era ${await caminhoAtivo()}, h1 "${String(h1)}", abas ${JSON.stringify(await abas())}, ${String(erros)}`,
     );
   }
 }
@@ -135,8 +136,9 @@ export async function esperarAbas(nomes: string[], ativa?: string): Promise<void
     });
   } catch (e) {
     const doc = await caminhoAtivo().catch(() => "?");
+    const salvo = await browser.execute("return localStorage.getItem('leve.tabs');").catch(() => "?");
     throw new Error(
-      `abas esperadas ${JSON.stringify(nomes)} (ativa ${ativa ?? "qualquer"}), vistas ${JSON.stringify(ultima)}; documento ativo ${doc}; ${String(e)}`,
+      `abas esperadas ${JSON.stringify(nomes)} (ativa ${ativa ?? "qualquer"}), vistas ${JSON.stringify(ultima)}; documento ativo ${doc}; leve.tabs ${String(salvo)}; ${String(e)}`,
     );
   }
 }
@@ -224,4 +226,13 @@ export async function concederPasta(raiz: string): Promise<void> {
   }
   if (!lista.includes(raiz)) lista.push(raiz);
   writeFileSync(arquivo, JSON.stringify(lista));
+}
+
+/** Guarda em `window.__erros` o que a página deixaria passar (rejeição sem tratamento, erro de script), para o diagnóstico. */
+export async function vigiarErrosDaPagina(): Promise<void> {
+  await browser.execute(
+    "window.__erros = [];" +
+      "window.addEventListener('unhandledrejection', function (e) { window.__erros.push('rejeicao: ' + String(e.reason)); });" +
+      "window.addEventListener('error', function (e) { window.__erros.push('erro: ' + e.message); });",
+  );
 }

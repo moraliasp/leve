@@ -71,6 +71,7 @@ describe("abas", () => {
     await browser.pause(WIN ? 8000 : 3000);
     await browser.reloadSession();
     await esperarDocumento();
+    await browser.pause(1000);
 
     await esperarAbas(["exemplo.md", "aba-dois.md"]);
     // A aba restaurada abre de verdade: o arquivo segue concedido (`grants.json`).

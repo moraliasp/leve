@@ -1231,7 +1231,7 @@ function wire(): void {
 
 async function wireTauri(): Promise<void> {
   await listen<string>("menu", ({ payload }) => runAction(payload));
-  await listen<string>("open-file", ({ payload }) => void openFromSystem(payload));
+  await listen("open-file", () => drainOpens());
   await listen<string>("file-changed", ({ payload }) => {
     if (current && payload === current.path) {
       reloadCurrent();
@@ -1272,6 +1272,20 @@ async function openFromSystem(path: string): Promise<void> {
   if (ok && replace && active !== replace) void closeTab(replace);
 }
 
+/** `openAtLaunch` terminou: as abas salvas e o exemplo já vieram, a fila do SO pode andar. */
+let launched = false;
+
+/**
+ * Esvazia a fila do Rust (`take_open`) a cada aviso `open-file`, um arquivo de cada vez e em
+ * ordem, para o último ficar ativo. Aviso durante a abertura não faz nada: `main` chama isto no
+ * fim dela, e o que chegou até ali abre depois das abas salvas (docs/decisoes.md).
+ */
+const drainOpens = latestWins(() => (launched ? openPending() : null));
+
+async function openPending(): Promise<void> {
+  for (const path of await invoke<string[]>("take_open")) await openFromSystem(path);
+}
+
 /** sessionStorage com tolerância a falha (modo privado, armazenamento bloqueado). */
 const session = {
   get(k: string): string | null {
@@ -1292,7 +1306,7 @@ const session = {
 };
 
 /**
- * Abertura: arquivo pedido pelo SO (ou `?file=`), abas salvas e, sem nenhum dos dois, o exemplo
+ * Abertura: arquivos pedidos pelo SO (ou `?file=`), abas salvas e, sem nenhum dos dois, o exemplo
  * (`sampleOnLaunch`). No app, `launch_open` só responde depois de a abertura assentar no Rust:
  * no macOS o duplo-clique pode chegar depois de a página carregar (docs/decisoes.md).
  */
@@ -1301,15 +1315,15 @@ async function openAtLaunch(): Promise<void> {
   session.set(SESSION_KEY, "1");
   const sampleBefore = session.get(SAMPLE_SESSION_KEY);
   session.set(SAMPLE_SESSION_KEY, null);
-  const file = IS_TAURI
-    ? await invoke<string | null>("launch_open")
-    : new URLSearchParams(location.search).get("file");
+  const files = IS_TAURI
+    ? await invoke<string[]>("launch_open")
+    : new URLSearchParams(location.search).getAll("file");
   const restored = restoreTabs();
   renderTabs();
-  if (file) await loadDoc(file, { target: "new" });
-  else if (restored) await activateTab(restored);
+  for (const file of files) await loadDoc(file, { target: "new" });
+  if (!active && restored) await activateTab(restored);
   const showSample = sampleOnLaunch({
-    fileArrived: Boolean(file),
+    fileArrived: files.length > 0,
     restoredTabs: tabs.length > 0,
     prefOn: isOn("sample"),
     reload,
@@ -1324,7 +1338,6 @@ async function openAtLaunch(): Promise<void> {
     return;
   }
   await loadDoc(path, { target: "new" });
-  // Pela identidade, não por `active`: um arquivo que chegue durante o `await` vira a ativa.
   if (!reload) sampleAuto = tabs.find((t) => t.path === path) ?? null;
 }
 
@@ -1369,6 +1382,8 @@ async function main(): Promise<void> {
   }
   await openAtLaunch();
   if (!active) showEmpty();
+  launched = true;
+  if (IS_TAURI) drainOpens();
   // Pasta da sessão anterior volta como as abas; no navegador, `?folder=/docs`.
   const folderRoot = IS_TAURI ? savedFolderRoot() : new URLSearchParams(location.search).get("folder");
   if (folderRoot) await openFolder(folderRoot, true);

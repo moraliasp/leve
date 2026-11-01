@@ -16,6 +16,8 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ### Fixed
 
+- Opening several Markdown files at once now opens all of them in tabs, with the last one active, even when Leve was closed. This covers Finder, `open -a`, `leve a.md b.md` and, on Windows and Linux, the file manager. Before, only one file opened and the others were lost without notice.
+- Changing the interface language no longer reopens the last file that came from the system.
 - Exported HTML, Copy as HTML and Copy as Formatted Text no longer carry paths from your disk: a missing image keeps its alt text and the path as the document wrote it, and a path written as absolute is left out. The notice in the document also shows the path as written.
 - Windows: paths no longer show the `\\?\` prefix in image notices, exported HTML or notes copied for AI. Recent files, tabs and allowed files saved with the prefix keep working.
 - The result of *Check for Updates* can now be read while Preferences or About is open, and it stays longer in the status bar.

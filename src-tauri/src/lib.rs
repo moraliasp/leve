@@ -33,7 +33,7 @@ use doc::{MAX_DOC_BYTES, too_big};
 use export::write_picked;
 use grants::{attach_grants_file, grant, grant_folder, granted, granted_folder};
 use menu::build_menu;
-use open::{first_markdown_arg, mark_ready, request_open};
+use open::{mark_ready, markdown_args, queue_open, request_open};
 
 const REPO_URL: &str = "https://github.com/moraliasp/leve";
 
@@ -89,8 +89,9 @@ fn fill(template: &str, vars: &[(&str, &str)]) -> String {
 
 #[derive(Default)]
 struct AppState {
-    /// Arquivo pedido pelo SO (duplo-clique / argv) antes do frontend estar pronto.
-    pending_open: Mutex<Option<String>>,
+    /// Fila dos arquivos pedidos pelo SO (duplo-clique / argv), já concedidos, até o frontend
+    /// pegar: `launch_open` na abertura, `take_open` depois.
+    pending_open: Mutex<Vec<String>>,
     /// Instante do `RunEvent::Ready`; `launch_open` espera a abertura assentar a partir dele.
     ready_at: Mutex<Option<Instant>>,
     /// Acorda `launch_open` quando chega o `Ready` ou um arquivo (`request_open`).
@@ -394,10 +395,14 @@ pub fn run() {
     #[cfg(desktop)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
-            if let Some(p) = first_markdown_arg(&argv, Path::new(&cwd)) {
-                request_open(app, p);
-            } else if let Some(w) = app.get_webview_window("main") {
+            let paths = markdown_args(&argv, Path::new(&cwd));
+            if paths.is_empty()
+                && let Some(w) = app.get_webview_window("main")
+            {
                 let _ = w.set_focus();
+            }
+            for p in paths {
+                request_open(app, p);
             }
         }));
     }
@@ -419,6 +424,7 @@ pub fn run() {
             doc::read_markdown,
             watch::watch_file,
             open::launch_open,
+            open::take_open,
             grants::resolve_path,
             pick_markdown,
             read_clipboard,
@@ -458,10 +464,8 @@ pub fn run() {
             // Windows/Linux: arquivo chega por argv na primeira instância.
             let argv: Vec<String> = std::env::args().collect();
             let cwd = std::env::current_dir().unwrap_or_default();
-            if let Some(p) = first_markdown_arg(&argv, &cwd)
-                && let Ok(c) = grant(&state, &p)
-            {
-                *state.pending_open.lock().unwrap() = Some(c.to_string_lossy().into_owned());
+            for p in markdown_args(&argv, &cwd) {
+                queue_open(&state, &p);
             }
             // Drop na janela: o SO entrega os caminhos aqui antes do evento chegar ao JS.
             if let Some(w) = app.get_webview_window("main") {

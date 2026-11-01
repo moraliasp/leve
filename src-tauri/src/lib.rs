@@ -15,6 +15,8 @@ use tauri_plugin_opener::OpenerExt;
 
 #[cfg(windows)]
 mod accel;
+#[cfg(target_os = "linux")]
+mod accel_gtk;
 mod bench;
 #[cfg(target_os = "macos")]
 mod cli;
@@ -454,6 +456,8 @@ pub fn run() {
             app.on_menu_event(|app, event| menu::on_menu(app, event.id().0.clone()));
             #[cfg(windows)]
             accel::install(app.handle());
+            #[cfg(target_os = "linux")]
+            accel_gtk::install(app.handle());
             // Concessões persistidas (Recentes): só arquivos que ainda existem. No macOS o
             // duplo-clique (RunEvent::Opened) pode chegar antes deste setup e já ter concedido
             // o arquivo em memória: juntar, nunca sobrescrever.

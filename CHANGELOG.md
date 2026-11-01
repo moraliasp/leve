@@ -7,6 +7,7 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 ### Fixed
 
 - Linux: the document no longer reloads in a loop after the first reload.
+- Linux: Ctrl+Shift+] and Ctrl+Shift+[ now switch to the next and previous tab. The menu showed them, but GTK never matched the keys because Shift turns `]` into `}`.
 
 ## [0.6.0] - 2026-10-31
 

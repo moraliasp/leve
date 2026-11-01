@@ -80,7 +80,7 @@ Desde a #101, o `release.yml` chama o `e2e.yml` (`sistemas: ambos`) em paralelo 
 |---|---|
 | App de verdade (build debug sem bundle, janela real, WebView2 e WebKitGTK) abre `docs/exemplo.md` | `tests/e2e/` |
 | Sumário, busca (abrir, próximo, fechar) e o que mais os roteiros `*.e2e.ts` fizerem | `tests/e2e/` |
-| Teclado do sistema (`teclado.e2e.ts`) | atalhos do menu com tecla mandada por `SendInput`/`xdotool` (Ctrl+F, Ctrl+P, Ctrl+Shift+L/N/A, Ctrl+[ e ], Ctrl+W; Ctrl+Shift+] e [ só no Windows, #106), e no layout ABNT2 AltGr+Q/W e as teclas de `[ ] /` |
+| Teclado do sistema (`teclado.e2e.ts`) | atalhos do menu com tecla mandada por `SendInput`/`xdotool` (Ctrl+F, Ctrl+P, Ctrl+Shift+L/N/A, Ctrl+Shift+] e [, Ctrl+[ e ], Ctrl+W, nos dois sistemas; no Linux o Shift sobre `[` e `]` passa por `accel_gtk.rs`, #106), e no layout ABNT2 AltGr+Q/W e as teclas de `[ ] /` |
 | Fluxos (#99) | abas (abrir pelo SO, alternar, fechar, restaurar: entre processos só no Linux, no Windows por recarga da página), Abrir rápido, pasta com a concessão semeada no perfil (árvore e `open_in_folder`; não prova o diálogo `pick_folder`), recarga com um salvamento e sem laço, imagem remota bloqueada e liberada, export (`copy-html`) sem caminho do disco |
 | Build, `audit`, versão da tag igual à dos arquivos, binário e pacotes Linux (`scripts/check-linux-packages.sh`), `.flatpak` | `release.yml` |
 

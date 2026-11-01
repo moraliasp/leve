@@ -45,6 +45,10 @@ arboard = { version = "3", default-features = false, features = ["wayland-data-c
 webview2-com = "0.39"
 windows = { version = "0.62", features = ["Win32_UI_Input_KeyboardAndMouse"] }
 
+# Atalho com Shift sobre pontuação no GTK (`accel_gtk.rs`): a mesma versão que o Tauri já traz, sem crate novo no grafo.
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"
+
 [profile.release]
 codegen-units = 1
 lto = true

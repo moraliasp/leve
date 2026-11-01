@@ -100,7 +100,9 @@ describe("atalhos pelo teclado do sistema", () => {
       await browser.waitUntil(async () => (await abaAtiva()) === 1, { timeoutMsg: "a aba do exemplo não ficou ativa" });
     });
 
-    // Nos dois sistemas: no Windows pelo `accel.rs` (VK), no Linux pelos aceleradores do GTK (#106).
+    // Nos dois sistemas: no Windows pelo `accel.rs` (VK), no Linux pelo `accel_gtk.rs`. O GTK compara o keyval
+    // já traduzido pelo Shift (`braceright`), e o `muda` registra `bracketright` no menu: sem o grupo do
+    // `accel_gtk.rs` a página recebe `}` com Ctrl e Shift e nenhum evento `menu` chega (#106).
     it("Ctrl+Shift+] e Ctrl+Shift+[ alternam as abas", async () => {
       await limparEventos();
       teclas("ctrl+shift+]");

@@ -4,6 +4,10 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Fixed
+
+- Linux: after the first reload, Leve no longer reloads the document over and over (about every 200 ms), which also reset your scroll position. Only a change to the file, including a save by rename, reloads it now; reading it does not.
+
 ## [0.6.0] - 2026-10-31
 
 ### Added

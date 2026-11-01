@@ -3,7 +3,7 @@
 
 use std::{
     path::{Path, PathBuf},
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 use notify_debouncer_mini::{DebouncedEvent, new_debouncer, notify::RecursiveMode};
@@ -58,6 +58,27 @@ fn watch_decision(
     }
 }
 
+/// Impressão digital do arquivo: (mtime, tamanho). `None` = o arquivo não está lá.
+type Fingerprint = Option<(SystemTime, u64)>;
+
+/// No Linux o `notify` assina `OPEN` e entrega `Access(Open)`, e o `notify-debouncer-mini` joga fora o
+/// tipo do evento: ler o arquivo (a própria recarga) parecia mudança e virava um laço de recarga a cada
+/// ~200 ms (#107). Só o Linux filtra: no macOS e no Windows não há evento de abertura, e num disco de
+/// mtime grosso (FAT, 2 s) filtrar poderia perder um salvamento de mesmo tamanho.
+const FILTER_READS: bool = cfg!(target_os = "linux");
+
+fn fingerprint(path: &Path) -> Fingerprint {
+    let m = std::fs::metadata(path).ok()?;
+    Some((m.modified().unwrap_or(SystemTime::UNIX_EPOCH), m.len()))
+}
+
+/// Decide se o evento do alvo vira `file-changed`. Com o filtro ligado, só se a impressão digital
+/// mudou desde a última vez; arquivo que some (`None`) e que volta contam como mudança, então salvar
+/// por rename (o arquivo some e reaparece ou é trocado por outro) continua avisando.
+fn should_notify(filter: bool, last: &Fingerprint, now: &Fingerprint) -> bool {
+    !filter || last != now
+}
+
 /// Observa a pasta do arquivo (não o arquivo: editores salvam via rename) e emite
 /// `file-changed` quando o alvo muda. A espera depende do tamanho do arquivo no momento
 /// (`debounce_for`); como cada recarga chama `watch_file` de novo, ela acompanha o arquivo
@@ -81,13 +102,20 @@ pub fn watch_file(app: AppHandle, state: State<AppState>, path: String) -> Resul
     let emit_path = target.to_string_lossy().into_owned();
     let t2 = os_target;
     let app2 = app.clone();
+    // A impressão inicial é a do momento em que o vigia nasce.
+    let mut last = fingerprint(&t2);
     let mut debouncer = new_debouncer(
         debounce,
         move |res: Result<Vec<DebouncedEvent>, notify::Error>| {
             if let Ok(events) = res
                 && events.iter().any(|e| e.path == t2)
             {
-                let _ = app2.emit("file-changed", emit_path.clone());
+                let now = fingerprint(&t2);
+                let notify = should_notify(FILTER_READS, &last, &now);
+                last = now;
+                if notify {
+                    let _ = app2.emit("file-changed", emit_path.clone());
+                }
             }
         },
     )
@@ -107,6 +135,10 @@ pub fn watch_file(app: AppHandle, state: State<AppState>, path: String) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn at(secs: u64) -> SystemTime {
+        SystemTime::UNIX_EPOCH + Duration::from_secs(secs)
+    }
 
     #[test]
     fn debounce_cresce_com_o_tamanho_do_arquivo() {
@@ -145,5 +177,56 @@ mod tests {
             WatchDecision::Replace { renotify: false },
             "outro documento: troca sem avisar"
         );
+    }
+
+    #[test]
+    fn leitura_sem_mudanca_nao_avisa_no_linux() {
+        let f = Some((at(10), 100));
+        assert!(!should_notify(true, &f, &f), "OPEN da própria recarga");
+        assert!(!should_notify(true, &None, &None), "ainda ausente");
+    }
+
+    #[test]
+    fn mudanca_de_tamanho_ou_de_mtime_avisa() {
+        let antes = Some((at(10), 100));
+        assert!(should_notify(true, &antes, &Some((at(10), 101))), "tamanho");
+        assert!(
+            should_notify(true, &antes, &Some((at(11), 100))),
+            "mtime com tamanho igual"
+        );
+    }
+
+    #[test]
+    fn arquivo_que_some_e_que_volta_avisa() {
+        let f = Some((at(10), 100));
+        assert!(should_notify(true, &f, &None), "sumiu");
+        assert!(should_notify(true, &None, &f), "voltou");
+        assert!(
+            should_notify(true, &None, &Some((at(10), 100))),
+            "voltou igual ao que era"
+        );
+    }
+
+    #[test]
+    fn fora_do_linux_todo_evento_avisa() {
+        let f = Some((at(10), 100));
+        assert!(should_notify(false, &f, &f));
+        assert!(should_notify(false, &None, &None));
+    }
+
+    #[test]
+    fn impressao_digital_le_o_disco() {
+        let dir = std::env::temp_dir().join(format!("leve-watch-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("a.md");
+        assert_eq!(fingerprint(&p), None);
+        std::fs::write(&p, "um").unwrap();
+        let um = fingerprint(&p);
+        assert_eq!(um.map(|(_, n)| n), Some(2));
+        std::fs::write(&p, "três").unwrap();
+        assert_ne!(fingerprint(&p), um, "tamanho novo");
+        std::fs::remove_file(&p).unwrap();
+        assert_eq!(fingerprint(&p), None);
+        std::fs::remove_dir(&dir).unwrap();
     }
 }

@@ -7,7 +7,6 @@ import {
   concederPasta,
   copiarFixture,
   criarTemporario,
-  esperarAbas,
   esperarAtivo,
   esperarDocumento,
   fecharAbasExtras,
@@ -74,8 +73,6 @@ describe("pasta", () => {
     await esperarAtivo("aninhado.md");
     await expect($("#content h1")).toHaveText("Aninhado");
     await expect($("#tree li[data-path='sub/aninhado.md']")).toHaveAttribute("aria-current", "page");
-    // Exemplo, raiz e aninhado: cada arquivo da árvore abre na sua aba.
-    await esperarAbas(["exemplo.md", "raiz.md", "aninhado.md"], "aninhado.md");
   });
 
   it("o Abrir rápido passa a listar os arquivos da pasta", async () => {

@@ -98,9 +98,15 @@ export async function caminhoAtivo(): Promise<string> {
 
 /** Espera o documento ativo ter este nome de arquivo (o caminho canônico pode diferir do pedido). */
 export async function esperarAtivo(nome: string): Promise<void> {
-  await browser.waitUntil(async () => (await caminhoAtivo()).endsWith(`/${nome}`), {
-    timeoutMsg: `o documento ativo não virou ${nome}`,
-  });
+  try {
+    await browser.waitUntil(async () => (await caminhoAtivo()).endsWith(`/${nome}`));
+  } catch {
+    // A mensagem diz o que a página mostrava, que é o que falta para entender a falha.
+    const h1 = await browser.execute("var h = document.querySelector('#content h1'); return h ? h.textContent : '(sem h1)';");
+    throw new Error(
+      `o documento ativo não virou ${nome}: era ${await caminhoAtivo()}, h1 "${String(h1)}", abas ${JSON.stringify(await abas())}`,
+    );
+  }
 }
 
 export interface Aba {
@@ -121,20 +127,41 @@ export async function abas(): Promise<Aba[]> {
 /** Espera a lista de abas (por nome de arquivo, em ordem) e, se dada, qual está ativa. */
 export async function esperarAbas(nomes: string[], ativa?: string): Promise<void> {
   let ultima: Aba[] = [];
-  await browser.waitUntil(
-    async () => {
+  try {
+    await browser.waitUntil(async () => {
       ultima = await abas();
       if (JSON.stringify(ultima.map((a) => a.nome)) !== JSON.stringify(nomes)) return false;
       return ativa === undefined || ultima.find((a) => a.ativa)?.nome === ativa;
+    });
+  } catch (e) {
+    const doc = await caminhoAtivo().catch(() => "?");
+    throw new Error(
+      `abas esperadas ${JSON.stringify(nomes)} (ativa ${ativa ?? "qualquer"}), vistas ${JSON.stringify(ultima)}; documento ativo ${doc}; ${String(e)}`,
+    );
+  }
+}
+
+/**
+ * Clica no nome da aba `i` (não no botão de fechar). A barra é refeita a cada mudança de aba, então o
+ * elemento pode envelhecer entre achar e clicar: tenta de novo.
+ */
+async function clicarNomeDaAba(i: number): Promise<void> {
+  await browser.waitUntil(
+    async () => {
+      try {
+        await (await $$("#tabs [role=tab]"))[i].$(".tab-name").click();
+        return true;
+      } catch {
+        return false;
+      }
     },
-    { timeoutMsg: `abas esperadas ${JSON.stringify(nomes)} (ativa ${ativa ?? "qualquer"}), vistas ${JSON.stringify(ultima)}` },
+    { timeoutMsg: `não consegui clicar na aba ${i}` },
   );
 }
 
-/** Clica na aba de índice `i` (no nome dela, não no botão de fechar) e espera ela ficar ativa. */
+/** Clica na aba de índice `i` e espera ela ficar ativa. */
 export async function ativarAba(i: number): Promise<void> {
-  const nome = (await $$("#tabs [role=tab]"))[i].$(".tab-name");
-  await nome.click();
+  await clicarNomeDaAba(i);
   await browser.waitUntil(async () => (await abas())[i]?.ativa === true, { timeoutMsg: `a aba ${i} não ficou ativa` });
 }
 
@@ -159,7 +186,7 @@ export async function fecharAbasExtras(): Promise<void> {
 }
 
 async function ativarAbaOuSumir(i: number, total: number): Promise<void> {
-  await (await $$("#tabs [role=tab]"))[i].$(".tab-name").click();
+  await clicarNomeDaAba(i);
   await browser.waitUntil(async () => {
     const l = await abas();
     return l.length < total || l[i]?.ativa === true;

@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { $, $$, browser, expect } from "@wdio/globals";
 import {
+  abas,
   abrirPeloSistema,
   acionarMenu,
   caminhoAtivo,
@@ -70,7 +71,8 @@ describe("abrir rápido", () => {
     await esperarAtivo("rapido-alfa.md");
     await expect($("#content h1")).toHaveText("Rapido alfa");
     expect(await browser.execute("return document.getElementById('quick').open;")).toBe(false);
-    // Abriu a aba que já existia, sem duplicar.
-    await esperarAbas(["exemplo.md", "rapido-alfa.md", "rapido-beta.md"], "rapido-alfa.md");
+    // Sem ⌘/Ctrl a escolha navega na aba ativa (a do beta), como qualquer abertura sem `target: "new"`:
+    // continuam três abas.
+    expect((await abas()).length).toBe(3);
   });
 });

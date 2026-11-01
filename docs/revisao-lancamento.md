@@ -80,7 +80,8 @@ Desde a #101, o `release.yml` chama o `e2e.yml` (`sistemas: ambos`) em paralelo 
 |---|---|
 | App de verdade (build debug sem bundle, janela real, WebView2 e WebKitGTK) abre `docs/exemplo.md` | `tests/e2e/` |
 | Sumário, busca (abrir, próximo, fechar) e o que mais os roteiros `*.e2e.ts` fizerem | `tests/e2e/` |
-| Fluxos adicionais e teclado | a #99 e a #100 acrescentam roteiros; o que entrar lá passa a valer aqui sem mudar o `release.yml` |
+| Teclado do sistema (`teclado.e2e.ts`) | atalhos do menu com tecla mandada por `SendInput`/`xdotool` (Ctrl+F, Ctrl+P, Ctrl+Shift+L/N/A, Ctrl+[ e ], Ctrl+W; Ctrl+Shift+] e [ só no Windows, #106), e no layout ABNT2 AltGr+Q/W e as teclas de `[ ] /` |
+| Fluxos adicionais | a #99 acrescenta roteiros; o que entrar lá passa a valer aqui sem mudar o `release.yml` |
 | Build, `audit`, versão da tag igual à dos arquivos, binário e pacotes Linux (`scripts/check-linux-packages.sh`), `.flatpak` | `release.yml` |
 
 O e2e roda sobre o build debug, não sobre os pacotes da release: ele não prova que o instalador instala.
@@ -90,7 +91,7 @@ O e2e roda sobre o build debug, não sobre os pacotes da release: ele não prova
 | Conferir à mão | Por quê |
 |---|---|
 | macOS inteiro (abrir, menu nativo, atalhos, atualização) | O `tauri-driver` não roda no macOS (o WKWebView não tem driver). |
-| Teclado físico, AltGr e layouts (ABNT2, US-Internacional) | O WebDriver não passa pelo teclado do sistema nem pelo menu nativo; o que depende da tecla chegar ao app (`accel.rs`, aceleradores do GTK) só se vê com tecla de verdade, salvo o que a #100 cobrir. |
+| Teclado físico, AltGr e layouts além do ABNT2 | O e2e simula a tecla depois do driver do teclado. AltGr físico, US-Internacional, Ctrl+[ no ABNT2 e o comportamento em cada desktop Linux (GNOME, KDE, Wayland, IBus) só se veem com tecla de verdade. |
 | Aparência em cada desktop (GNOME, KDE, Windows 10 e 11, claro e escuro, escala de tela) | O teste confere comportamento por id e atributo, não o que o leitor vê. |
 | Instalar o pacote da release (`-setup.exe`, `.msi`, `.dmg`, AppImage, `.deb`, `.rpm`, `.flatpak`): associação de `.md`, abrir por duplo clique, Gatekeeper e SmartScreen | O e2e roda o build debug do runner, não o instalador. |
 | Atualizar de uma versão para a seguinte pelo atualizador | Precisa da release publicada e do perfil de quem atualiza (roteiros abaixo). |

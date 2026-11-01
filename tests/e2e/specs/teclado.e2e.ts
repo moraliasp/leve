@@ -104,7 +104,7 @@ describe("atalhos pelo teclado do sistema", () => {
     // Medido no Linux (GTK, xvfb, layout us): Ctrl+Shift+] chega à página como `}` com Ctrl e Shift e
     // nenhum acelerador casa. O `muda` registra `<Shift><Control>bracketright`, e o GTK compara o nível
     // da tecla (Shift+] é o nível 1, `braceright`), então o atalho com Shift sobre pontuação não dispara
-    // no GTK. Não é o teste: é o app, e a correção é do app, fora desta fatia. No Windows (VK, accel.rs)
+    // no GTK (hipótese). Não é o teste: é o app, #106. No Windows (VK, accel.rs)
     // casa. Pendente em vez de verde falso (docs/decisoes.md, "Teste de ponta a ponta").
     it("Ctrl+Shift+] e Ctrl+Shift+[ alternam as abas", async function () {
       if (!WIN) this.skip();

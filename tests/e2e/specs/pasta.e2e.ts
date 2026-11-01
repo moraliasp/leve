@@ -64,7 +64,12 @@ describe("pasta", () => {
     await $("#tree li[data-path='raiz.md']").click();
     await esperarAtivo("raiz.md");
     await expect($("#content h1")).toHaveText("Raiz da pasta");
-    await expect($("#tree li[data-path='raiz.md']")).toHaveAttribute("aria-current", "page");
+    try {
+      await expect($("#tree li[data-path='raiz.md']")).toHaveAttribute("aria-current", "page");
+    } catch (e) {
+      const rastro = await browser.execute("return JSON.stringify(window.__erros);");
+      throw new Error(`${String(e)}; ativo ${await caminhoAtivo()}; rastro ${String(rastro)}`);
+    }
   });
 
   it("expandir a subpasta mostra o arquivo dela, e clicar o abre", async () => {

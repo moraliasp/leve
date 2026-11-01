@@ -233,6 +233,11 @@ export async function vigiarErrosDaPagina(): Promise<void> {
   await browser.execute(
     "window.__erros = [];" +
       "window.addEventListener('unhandledrejection', function (e) { window.__erros.push('rejeicao: ' + String(e.reason)); });" +
-      "window.addEventListener('error', function (e) { window.__erros.push('erro: ' + e.message); });",
+      "window.addEventListener('error', function (e) { window.__erros.push('erro: ' + e.message); });" +
+      // Rastro dos comandos que o app chama, na ordem, com o arquivo quando há.
+      "var invoke = window.__TAURI_INTERNALS__.invoke;" +
+      "window.__TAURI_INTERNALS__.invoke = function (cmd, args) {" +
+      "if (!/^plugin:/.test(cmd)) window.__erros.push('invoke ' + cmd + ' ' + String((args && (args.path || args.rel)) || ''));" +
+      "return invoke.apply(this, arguments); };",
   );
 }

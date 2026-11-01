@@ -65,7 +65,7 @@ describe("abas", () => {
     await expect($("#content h1")).toHaveText("Aba dois");
   });
 
-  it("reabre as abas na partida seguinte", async () => {
+  it("reabre as abas na partida seguinte (no Windows, ao recarregar a página)", async () => {
     if (WIN) {
       // WebView2: o localStorage não sobrevive ao app morto pelo driver (medido: depois de `reloadSession` o
       // `leve.tabs` volta só com o exemplo, mesmo esperando mais que os 5 s do lote do Chromium). Aqui a

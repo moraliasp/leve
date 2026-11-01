@@ -33,18 +33,22 @@ describe("recarga ao salvar", () => {
     await esperarAbas(["exemplo.md", "recarga.md"], "recarga.md");
     await expect($("#content")).toHaveText(expect.stringContaining("ANTES"));
 
-    // O vigia só existe depois de o `loadDoc` terminar, e o `notify` leva um instante para armar: salva
-    // de novo a cada volta até a tela mudar, em vez de adivinhar uma espera.
-    let volta = 0;
-    await browser.waitUntil(
-      async () => {
-        volta++;
-        writeFileSync(arquivo, `# Recarga\n\nVersao DEPOIS do salvamento, volta ${volta}.\n`);
-        await browser.pause(800);
-        return String(await $("#content").getText()).includes("DEPOIS");
-      },
-      { timeout: 30_000, interval: 200, timeoutMsg: "#content não mudou depois de reescrever o arquivo aberto" },
+    // O vigia nasce no fim do `loadDoc` e o `notify` leva um instante para armar: uma pausa curta e UM
+    // salvamento, como quem salva no editor. Depois, silêncio: nenhum `file-changed` a mais (o laço da #107).
+    await browser.pause(1_500);
+    await browser.execute(
+      "window.__fileChanged = []; var I = window.__TAURI_INTERNALS__;" +
+        "I.invoke('plugin:event|listen', { event: 'file-changed', target: { kind: 'Any' }," +
+        " handler: I.transformCallback(function (e) { window.__fileChanged.push(e.payload); }) });",
     );
+    writeFileSync(arquivo, "# Recarga\n\nVersao DEPOIS do salvamento.\n");
+    await browser.waitUntil(async () => String(await $("#content").getText()).includes("DEPOIS"), {
+      timeout: 10_000,
+      timeoutMsg: "#content não mudou depois de um salvamento do arquivo aberto",
+    });
+    await browser.execute("window.__fileChanged.length = 0;");
+    await browser.pause(2_500);
+    expect(await browser.execute("return window.__fileChanged.slice();")).toEqual([]);
     const texto = String(await $("#content").getText());
     expect(texto).not.toContain("ANTES");
     // Continua a mesma aba, no mesmo documento.

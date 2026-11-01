@@ -4,6 +4,10 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Fixed
+
+- Linux: the document no longer reloads in a loop after the first reload.
+
 ## [0.6.0] - 2026-10-31
 
 ### Added

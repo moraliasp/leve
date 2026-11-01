@@ -151,6 +151,9 @@ jobs:
             sleep 25
             curl -s -m 5 http://127.0.0.1:9222/json/version || echo "sem porta de depuração"
             tasklist | grep -i "leve\|msedgewebview2" | head -5 || true
+            powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='msedgewebview2.exe'\" | ForEach-Object { '{0}: {1}' -f \$_.ProcessId, \$_.CommandLine.Substring(0, [Math]::Min(700, \$_.CommandLine.Length)) }" || true
+            netstat -ano | grep -i listen | head -30 || true
+            env | grep -i "webview2\|appdata" || true
             taskkill //F //IM leve.exe || true
             sleep 3
             echo "-- log do app"; cat "tests/e2e/artifacts/app-$variante.log"

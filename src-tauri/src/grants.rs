@@ -35,7 +35,7 @@ fn persist_grants(file: &Path, granted: &[PathBuf], folders: &[PathBuf]) {
     }
 }
 
-/// Caminhos de `grants.json` na forma de `canonical`: até a 0.6.0 o Windows gravava com `\\\\?\\`,
+/// Caminhos de `grants.json` na forma de `canonical`: até a 0.5.0 (e no 0.6.0-rc.1) o Windows gravava com `\\\\?\\`,
 /// e uma entrada antiga não bateria mais com o caminho pedido.
 fn saved_paths(json: &str) -> Vec<PathBuf> {
     serde_json::from_str::<Vec<String>>(json)
@@ -876,7 +876,7 @@ mod tests {
         let so_ele = [p.clone()];
         assert!(dir_in_grants(&so_ele, &sub).is_ok());
 
-        // `grants.json` da 0.6.0, com o prefixo: continua valendo.
+        // `grants.json` da 0.5.0, com o prefixo: continua valendo.
         let antigo = t.join("antigo.json");
         std::fs::write(&antigo, serde_json::to_string(&[&cru_s]).unwrap()).unwrap();
         let state2 = AppState::default();

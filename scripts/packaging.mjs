@@ -15,7 +15,7 @@ export const WINGET_ID = "Moralia.Leve";
 export const WINGET_SCHEMA = "1.12.0";
 export const EXTENSIONS = ["md", "markdown", "mdown", "mkd"];
 
-/** Nomes dos pacotes da release, como o release.yml os grava. O dmg universal vale até a 0.6.0. */
+/** Nomes dos pacotes da release, como o release.yml os grava. O dmg universal vale até a 0.5.0 (e o 0.6.0-rc.1). */
 export const assetNames = (version) => ({
   dmgArm: `Leve_${version}_aarch64.dmg`,
   dmgIntel: `Leve_${version}_x64.dmg`,
@@ -120,7 +120,7 @@ export function buildPackaging({ version, sums, releaseDate }) {
     `ReleaseNotesUrl: ${notes}\n` +
     tail("locale");
 
-  // A release dita o formato: a 0.6.0 e anteriores têm um dmg só, e o cask delas ainda sai daqui.
+  // A release dita o formato: a 0.5.0 e anteriores (e o 0.6.0-rc.1) têm um dmg só, e o cask delas ainda sai daqui.
   const caskUrl = (arch) => `https://github.com/${REPO}/releases/download/v#{version}/Leve_#{version}_${arch}.dmg`;
   const caskSource = sums.has(names.dmgUniversal)
     ? `  sha256 "${hash(names.dmgUniversal)}"

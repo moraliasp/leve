@@ -88,7 +88,7 @@ describe("pacotes winget e Homebrew", () => {
     expect(parse(files[`${dir}/Moralia.Leve.yaml`])).toMatchObject({ DefaultLocale: "en-US", ManifestType: "version" });
   });
 
-  it("cask: release universal (até a 0.6.0) segue com um sha256 só; a URL usa #{version}", () => {
+  it("cask: release universal (até a 0.5.0) segue com um sha256 só; a URL usa #{version}", () => {
     const cask = gen()["packaging/homebrew/Casks/leve.rb"];
     expect(cask).toContain('version "0.2.0"');
     expect(cask).toContain('sha256 "f3b9d08363e18522cb755a9ffed9f955541eea5e701ee0818d5cba49bcc7a4de"');

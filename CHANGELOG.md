@@ -4,32 +4,25 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-31
+
+### Added
+
+- Review for AI: select text and choose *Annotate* (⌘⇧A / Ctrl+Shift+A, or the button beside the selection) to write what should change. *Edit › Copy Notes for AI* (⌘⇧N / Ctrl+Shift+N), or the button in the notes panel, copies the notes as Markdown with the file path, the section, the quoted text and your comment, ready to paste into an AI tool. When the AI changes the file, Leve reloads it, marks what changed, and a note whose text is gone shows as resolved. Notes stay in memory: Leve writes nothing to your file or disk and sends nothing anywhere. Closing a tab with notes asks first.
+
 ### Changed
 
-- macOS downloads are now one per architecture, about half the size of the old universal build: `Leve_x.y.z_aarch64.dmg` for Apple silicon and `Leve_x.y.z_x64.dmg` for Intel, compressed with LZMA. Installed copies update themselves to the right one, including universal installs from 0.6.0 and earlier. The Homebrew cask picks the right file.
+- macOS downloads are now one per architecture, about half the size of the old universal build: `Leve_x.y.z_aarch64.dmg` for Apple silicon and `Leve_x.y.z_x64.dmg` for Intel, compressed with LZMA. Installed copies update themselves to the right one, including universal installs from 0.5.0 and earlier. The Homebrew cask picks the right file.
 - Smaller app on every platform: plugin commands that Leve never allows are left out of the build.
-- *Copy Notes for AI* is now ⌘⇧N / Ctrl+Shift+N. The old Ctrl+Alt+C is AltGr on Windows, so in a text box it typed "©".
 
 ### Fixed
 
 - Windows: the keyboard shortcuts shown in the menus now work while you read a document. Ctrl+F opens Leve's search and Ctrl+P its quick open, instead of the find bar and print screen of the embedded browser.
-
-### Fixed
-
 - Opening several Markdown files at once now opens all of them in tabs, with the last one active, even when Leve was closed. This covers Finder, `open -a`, `leve a.md b.md` and, on Windows and Linux, the file manager. Before, only one file opened and the others were lost without notice.
 - Changing the interface language no longer reopens the last file that came from the system.
 - Exported HTML, Copy as HTML and Copy as Formatted Text no longer carry paths from your disk: a missing image keeps its alt text and the path as the document wrote it, and a path written as absolute is left out. The notice in the document also shows the path as written.
 - Windows: paths no longer show the `\\?\` prefix in image notices, exported HTML or notes copied for AI. Recent files, tabs and allowed files saved with the prefix keep working.
 - The result of *Check for Updates* can now be read while Preferences or About is open, and it stays longer in the status bar.
-
-## [0.6.0] - 2026-10-31
-
-### Added
-
-- Review for AI: select text and choose *Annotate* (⌘⇧A / Ctrl+Shift+A, or the button beside the selection) to write what should change. *Edit › Copy Notes for AI* (⌘⌥C / Ctrl+Alt+C), or the button in the notes panel, copies the notes as Markdown with the file path, the section, the quoted text and your comment, ready to paste into an AI tool. When the AI changes the file, Leve reloads it, marks what changed, and a note whose text is gone shows as resolved. Notes stay in memory: Leve writes nothing to your file or disk and sends nothing anywhere. Closing a tab with notes asks first.
-
-### Fixed
-
 - `brew install --cask moraliasp/tap/leve` no longer fails when Leve is already in `/Applications`: it keeps that app, which goes on updating itself.
 - The install and build commands in the READMEs can be pasted as they are. Their trailing `#` notes broke them in zsh, the default macOS shell, and in the Windows Command Prompt.
 

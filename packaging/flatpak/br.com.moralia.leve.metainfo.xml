@@ -94,6 +94,9 @@
         <ul>
           <li>Review for AI: annotate selected text and copy your notes as Markdown to paste into an AI tool, with nothing written to your file or disk</li>
           <li>Reloads show a note as resolved when its text is gone</li>
+          <li>Opening several Markdown files at once opens all of them in tabs</li>
+          <li>Exported HTML and copied HTML no longer carry paths from your disk</li>
+          <li>Smaller app: plugin commands Leve never allows are left out of the build</li>
           <li>Updated the ZIP library behind the updater</li>
         </ul>
       </description>

@@ -5,7 +5,7 @@ Passo a passo do dono para levar uma release estável do Leve ao tap `moraliasp/
 Os arquivos de uma versão saem de `scripts/packaging.mjs` a partir do `SHA256SUMS.txt` da release:
 
 - `packaging/winget/<versão>/Moralia.Leve*.yaml`: manifesto multi-arquivo (versão, instalador NSIS, en-US, pt-BR), schema 1.12.0.
-- `packaging/homebrew/Casks/leve.rb`: cask com um dmg por arquitetura (`on_arm`/`on_intel`). Release até a 0.6.0 sai com o dmg universal: o gerador segue o `SHA256SUMS.txt`.
+- `packaging/homebrew/Casks/leve.rb`: cask com um dmg por arquitetura (`on_arm`/`on_intel`). Release até a 0.5.0 (e o 0.6.0-rc.1) sai com o dmg universal: o gerador segue o `SHA256SUMS.txt`.
 
 Os de 0.2.0 já estão neste repositório.
 

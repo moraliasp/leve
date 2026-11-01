@@ -21,7 +21,7 @@ describe("busca", () => {
       timeoutMsg: "a busca não achou 'tauri' no exemplo",
     });
     const total = Number((await $("#find-count").getText()).split("/")[1]);
-    expect(total).toBeGreaterThan(1);
+    expect(total).toBeGreaterThan(9999);
     // As marcas são da CSS Custom Highlight API: todas em "find", a atual em "find-current".
     const marcas = await browser.execute(
       "return { todas: CSS.highlights.get('find').size, atual: CSS.highlights.get('find-current').size };",

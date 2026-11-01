@@ -1,5 +1,8 @@
 import { spawn } from "node:child_process";
-import { browser, $ } from "@wdio/globals";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { browser, $, $$ } from "@wdio/globals";
 import { BINARIO, EXEMPLO, WIN } from "./paths";
 
 // Os scripts vão como texto: o wdio serializa a função, e o que o esbuild injeta num callback
@@ -42,4 +45,156 @@ export async function acionarMenu(id: string): Promise<void> {
     "window.__TAURI_INTERNALS__.invoke('plugin:event|emit', { event: 'menu', payload: arguments[0] });",
     id,
   );
+}
+
+// ---------- fluxos (#99): arquivos de teste, 2ª instância, abas e concessões ----------
+
+/** Documentos de teste dos roteiros; cada um é copiado para um diretório temporário antes de abrir. */
+export const FIXTURES = join(import.meta.dirname, "fixtures");
+
+/** Prefixo dos diretórios temporários: o roteiro do export procura por ele no HTML gerado. */
+export const PREFIXO_TEMP = "leve-e2e-fx-";
+
+export function criarTemporario(): string {
+  return mkdtempSync(join(tmpdir(), PREFIXO_TEMP));
+}
+
+export function removerTemporario(dir: string | undefined): void {
+  if (dir) rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+}
+
+/**
+ * Copia uma fixture (arquivo ou pasta) para `dir` e devolve o caminho da cópia. `trocas` substitui
+ * `{{chave}}` no texto, para o que só se sabe na hora (o caminho do diretório temporário).
+ */
+export function copiarFixture(nome: string, dir: string, trocas: Record<string, string> = {}): string {
+  const destino = join(dir, nome);
+  mkdirSync(join(destino, ".."), { recursive: true });
+  cpSync(join(FIXTURES, nome), destino, { recursive: true });
+  if (Object.keys(trocas).length > 0) {
+    let texto = readFileSync(destino, "utf8");
+    for (const [chave, valor] of Object.entries(trocas)) texto = texto.replaceAll(`{{${chave}}}`, valor);
+    writeFileSync(destino, texto);
+  }
+  return destino;
+}
+
+/**
+ * Arquivo pedido pelo SO com o app aberto: uma 2ª instância com o caminho no argv, que o
+ * `single-instance` repassa à 1ª (`request_open`, que concede o arquivo, e `loadDoc` em aba nova). É o
+ * caminho do duplo-clique no Finder/Explorer, nos dois sistemas.
+ */
+export function abrirPeloSistema(caminho: string): void {
+  const filho = spawn(BINARIO, [caminho], { stdio: "ignore", detached: true });
+  filho.once("error", (e) => console.error("2ª instância:", e));
+  filho.unref();
+}
+
+/** Caminho do documento ativo (`#title` guarda o caminho no `title`), com `/` nos dois sistemas. */
+export async function caminhoAtivo(): Promise<string> {
+  const t = await browser.execute("var t = document.getElementById('title'); return t ? t.title : '';");
+  return String(t).replace(/\\/g, "/");
+}
+
+/** Espera o documento ativo ter este nome de arquivo (o caminho canônico pode diferir do pedido). */
+export async function esperarAtivo(nome: string): Promise<void> {
+  await browser.waitUntil(async () => (await caminhoAtivo()).endsWith(`/${nome}`), {
+    timeoutMsg: `o documento ativo não virou ${nome}`,
+  });
+}
+
+export interface Aba {
+  nome: string;
+  ativa: boolean;
+}
+
+/** Abas na ordem da barra: nome do arquivo (do `title`, que é o caminho) e se é a selecionada. */
+export async function abas(): Promise<Aba[]> {
+  return (await browser.execute(
+    "return Array.from(document.querySelectorAll('#tabs [role=tab]')).map(function (t) {" +
+      "var p = (t.title || '').replace(/\\\\/g, '/');" +
+      "return { nome: p.split('/').pop(), ativa: t.getAttribute('aria-selected') === 'true' };" +
+      "});",
+  )) as Aba[];
+}
+
+/** Espera a lista de abas (por nome de arquivo, em ordem) e, se dada, qual está ativa. */
+export async function esperarAbas(nomes: string[], ativa?: string): Promise<void> {
+  let ultima: Aba[] = [];
+  await browser.waitUntil(
+    async () => {
+      ultima = await abas();
+      if (JSON.stringify(ultima.map((a) => a.nome)) !== JSON.stringify(nomes)) return false;
+      return ativa === undefined || ultima.find((a) => a.ativa)?.nome === ativa;
+    },
+    { timeoutMsg: `abas esperadas ${JSON.stringify(nomes)} (ativa ${ativa ?? "qualquer"}), vistas ${JSON.stringify(ultima)}` },
+  );
+}
+
+/** Clica na aba de índice `i` (no nome dela, não no botão de fechar) e espera ela ficar ativa. */
+export async function ativarAba(i: number): Promise<void> {
+  const nome = (await $$("#tabs [role=tab]"))[i].$(".tab-name");
+  await nome.click();
+  await browser.waitUntil(async () => (await abas())[i]?.ativa === true, { timeoutMsg: `a aba ${i} não ficou ativa` });
+}
+
+/**
+ * Deixa só a aba do exemplo: as sessões dos roteiros compartilham o perfil, e as abas que um deixa
+ * (`leve.tabs`) voltariam no seguinte. Aba de arquivo que já não existe se fecha sozinha ao ativar.
+ */
+export async function fecharAbasExtras(): Promise<void> {
+  for (let volta = 0; volta < 10; volta++) {
+    const lista = await abas();
+    const i = lista.findIndex((a) => a.nome !== "exemplo.md");
+    if (i < 0) break;
+    await ativarAbaOuSumir(i, lista.length);
+    if ((await abas()).length === lista.length) {
+      await acionarMenu("close-tab");
+      await browser.waitUntil(async () => (await abas()).length < lista.length, { timeoutMsg: "a aba não fechou" });
+    }
+  }
+  const lista = await abas();
+  const i = lista.findIndex((a) => a.nome === "exemplo.md");
+  if (i >= 0 && !lista[i].ativa) await ativarAba(i);
+}
+
+async function ativarAbaOuSumir(i: number, total: number): Promise<void> {
+  await (await $$("#tabs [role=tab]"))[i].$(".tab-name").click();
+  await browser.waitUntil(async () => {
+    const l = await abas();
+    return l.length < total || l[i]?.ativa === true;
+  });
+}
+
+/** Pasta de dados do app (`app_local_data_dir`), onde fica o `grants.json`, pela API de caminhos do Tauri. */
+export async function pastaDadosDoApp(): Promise<string> {
+  const r = (await browser.executeAsyncScript(
+    "var feito = arguments[arguments.length - 1];" +
+      // 15 = BaseDirectory.AppLocalData. `core:default` já permite `resolve_directory`.
+      "window.__TAURI_INTERNALS__.invoke('plugin:path|resolve_directory', { directory: 15 })" +
+      ".then(feito, function (e) { feito({ erro: String(e) }); });",
+    [],
+  )) as string | { erro: string };
+  if (typeof r !== "string") throw new Error(`resolve_directory: ${r.erro}`);
+  return r;
+}
+
+/**
+ * Concede uma pasta como dado do perfil de teste: acrescenta a raiz (forma canônica, a que o Rust
+ * devolve) ao `grants.json`. O Rust lê o arquivo só ao iniciar, então vale na próxima sessão
+ * (`browser.reloadSession()`). É o que o diálogo `pick_folder` grava; o WebDriver não alcança o diálogo.
+ */
+export async function concederPasta(raiz: string): Promise<void> {
+  const dados = await pastaDadosDoApp();
+  mkdirSync(dados, { recursive: true });
+  const arquivo = join(dados, "grants.json");
+  let lista: string[] = [];
+  try {
+    const lido: unknown = JSON.parse(readFileSync(arquivo, "utf8"));
+    if (Array.isArray(lido)) lista = lido.filter((p): p is string => typeof p === "string");
+  } catch {
+    // sem arquivo ainda
+  }
+  if (!lista.includes(raiz)) lista.push(raiz);
+  writeFileSync(arquivo, JSON.stringify(lista));
 }

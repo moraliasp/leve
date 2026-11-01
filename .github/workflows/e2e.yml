@@ -140,23 +140,46 @@ jobs:
         run: |
           export MSYS2_ARG_CONV_EXCL='*'
           mkdir -p tests/e2e/artifacts
-          echo "== políticas do Edge/WebView2 no registro"
-          reg query "HKLM\\SOFTWARE\\Policies\\Microsoft\\Edge" /s || echo "sem política HKLM Edge"
-          reg query "HKLM\\SOFTWARE\\Policies\\Microsoft\\Edge\\WebView2" /s || echo "sem política HKLM WebView2"
-          reg query "HKCU\\Software\\Policies\\Microsoft\\Edge" /s || echo "sem política HKCU Edge"
-          echo "== msedgedriver direto, sessão webview2 com log verboso"
+          cmdlines() {
+            powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { \$_.Name -in 'leve.exe','msedgewebview2.exe' } | ForEach-Object { '{0} {1}: {2}' -f \$_.Name, \$_.ProcessId, \$_.CommandLine.Substring(0, [Math]::Min(420, \$_.CommandLine.Length)) }" || true
+          }
+          portas() { netstat -ano | grep -i listen | grep -E ":(9222|9515|4444|[0-9]{5}) " | head -12 || true; }
+          rodar() { # nome, args do webview (ou vazio), política (0/1)
+            echo "== variante $1"
+            if [ -n "$2" ]; then export WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="$2"; fi
+            export WEBVIEW2_USER_DATA_FOLDER="$RUNNER_TEMP/wv2-$1"
+            if [ "$3" = 1 ]; then
+              reg add "HKCU\\Software\\Policies\\Microsoft\\Edge\\WebView2\\AdditionalBrowserArguments" /v "*" /t REG_SZ /d "--remote-debugging-port=9222" /f
+            fi
+            src-tauri/target/debug/leve.exe "$PWD/docs/exemplo.md" > "tests/e2e/artifacts/app-$1.log" 2>&1 &
+            sleep 20
+            curl -s -m 5 http://127.0.0.1:9222/json/version | head -c 300 || echo "sem porta de depuração"
+            echo; cmdlines | grep -o "^[a-z0-9.]* [0-9]*: .\{0,60\}\|remote-debugging[^ ]*" | head -20
+            taskkill /F /IM leve.exe || true
+            if [ "$3" = 1 ]; then reg delete "HKCU\\Software\\Policies\\Microsoft\\Edge\\WebView2\\AdditionalBrowserArguments" /f || true; fi
+            unset WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS WEBVIEW2_USER_DATA_FOLDER
+            sleep 3
+          }
+          rodar so-env "--remote-debugging-port=9222" 0
+          rodar env-com-wry "--remote-debugging-port=9222 --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection" 0
+          rodar politica "" 1
+          echo "== msedgedriver direto: o que o app faz durante a espera"
           EXE="$(cygpath -w "$RUNNER_TEMP/msedgedriver/msedgedriver.exe")"
           "$EXE" --port=9515 --verbose --log-path="$(cygpath -w "$PWD/tests/e2e/artifacts/msedgedriver-direto.log")" &
           sleep 3
           APP="$(cygpath -w "$PWD/src-tauri/target/debug/leve.exe" | sed 's|\\|\\\\|g')"
-          DOC="$(cygpath -w "$PWD/docs/exemplo.md" | sed 's|\\|\\\\|g')"
           curl -s -m 100 -X POST http://127.0.0.1:9515/session -H 'content-type: application/json' \
-            -d "{\"capabilities\":{\"alwaysMatch\":{\"browserName\":\"webview2\",\"ms:edgeOptions\":{\"binary\":\"$APP\",\"args\":[\"$DOC\"]}}}}" || echo "curl falhou"
+            -d "{\"capabilities\":{\"alwaysMatch\":{\"browserName\":\"webview2\",\"ms:edgeOptions\":{\"binary\":\"$APP\",\"args\":[]}}}}" > "tests/e2e/artifacts/sessao-direta.json" &
+          sleep 20
+          cmdlines
+          portas
+          wait %3 2>/dev/null || sleep 50
+          head -c 400 tests/e2e/artifacts/sessao-direta.json || true
           echo
           taskkill /F /IM leve.exe || true
           taskkill /F /IM msedgedriver.exe || true
           sleep 2
-          echo "-- log do msedgedriver"; cut -c1-500 tests/e2e/artifacts/msedgedriver-direto.log || true
+          echo "-- msedgedriver: linhas do lançamento"; grep -a "WEBVIEW2_ADDITIONAL\|Launching\|Failed" tests/e2e/artifacts/msedgedriver-direto.log | cut -c1-1500 || true
       - name: Roteiros (Linux, sob xvfb)
         if: matrix.id == 'linux'
         run: xvfb-run -a dbus-run-session -- pnpm --dir tests/e2e test

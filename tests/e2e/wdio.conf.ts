@@ -33,7 +33,7 @@ function ambienteIsolado(dir: string): NodeJS.ProcessEnv {
     mkdirSync(p, { recursive: true });
     return p;
   };
-  if (WIN) return { ...process.env, APPDATA: sub("appdata"), LOCALAPPDATA: sub("localappdata") };
+  if (WIN) return process.env.E2E_TESTE_SEM_PERFIL ? { ...process.env } : { ...process.env, APPDATA: sub("appdata"), LOCALAPPDATA: sub("localappdata") };
   return {
     ...process.env,
     HOME: sub("home"),
@@ -83,7 +83,8 @@ export const config: Options.Testrunner & { capabilities: unknown[] } = {
   framework: "mocha",
   mochaOpts: { ui: "bdd", timeout: 90_000 },
   waitforTimeout: 15_000,
-  connectionRetryCount: 1,
+  connectionRetryCount: 0,
+  connectionRetryTimeout: 45_000,
 
   async onPrepare() {
     perfil = mkdtempSync(join(tmpdir(), "leve-e2e-"));

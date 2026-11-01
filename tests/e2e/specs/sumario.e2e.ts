@@ -19,24 +19,19 @@ describe("sumário", () => {
   });
 
   it("clicar num item rola até o título", async () => {
-    const posicao = "return document.getElementById('main').scrollTop;";
-    expect(await browser.execute(posicao)).toBeLessThan(5);
+    // Distância do título ao topo do painel de rolagem (#main), no mesmo referencial antes e depois.
+    const distancia =
+      "return document.getElementById('tabelas').getBoundingClientRect().top - document.getElementById('main').getBoundingClientRect().top;";
+    // O título fica bem abaixo da primeira tela (o exemplo é longo); a rolagem inicial não é zero
+    // em todo sistema, então o ponto de partida é a distância, não o `scrollTop`.
+    expect(Number(await browser.execute(distancia))).toBeGreaterThan(400);
 
     await $("#toc a[href='#tabelas']").click();
 
-    await browser.waitUntil(async () => Number(await browser.execute(posicao)) > 100, {
-      timeoutMsg: "o documento não rolou depois do clique no sumário",
+    // `scrollToAnchor` deixa o título a 16 px do topo; o item vira o atual (`aria-current`).
+    await browser.waitUntil(async () => Math.abs(Number(await browser.execute(distancia))) < 60, {
+      timeoutMsg: "o título #tabelas não chegou ao topo do painel depois do clique no sumário",
     });
-    // O título fica perto do topo do painel (`scrollToAnchor` deixa 16 px) e o item vira o atual.
-    await browser.waitUntil(
-      async () =>
-        Number(
-          await browser.execute(
-            "return document.getElementById('tabelas').getBoundingClientRect().top - document.getElementById('main').getBoundingClientRect().top;",
-          ),
-        ) < 60,
-      { timeoutMsg: "o título #tabelas não chegou ao topo do painel" },
-    );
     await expect($("#toc a[href='#tabelas']")).toHaveAttribute("aria-current", "location");
   });
 });

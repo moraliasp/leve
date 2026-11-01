@@ -163,4 +163,14 @@ describe("ABNT2: AltGr e as teclas da pontuação", () => {
     await browser.waitUntil(async () => (await campo()) === "[]/", { timeoutMsg: `esperava "[]/" e o campo tem "${await campo()}"` });
     await esperarSemEventos();
   });
+
+  // SONDA TEMPORÁRIA (#106): mede, sem afirmar, o que Ctrl+[, Ctrl+] e Ctrl+Shift+[/] disparam no ABNT2.
+  it("SONDA ABNT2: o que as teclas de [ e ] com Ctrl disparam", async () => {
+    for (const acorde of ["ctrl+[", "ctrl+]", "ctrl+shift+[", "ctrl+shift+]"]) {
+      await limparEventos();
+      teclas(acorde);
+      await browser.pause(1500);
+      console.log(`SONDA ${acorde} => eventos ${JSON.stringify(await eventosMenu())} teclas ${JSON.stringify(await browser.execute("return window.__teclas.slice(-4);"))}`);
+    }
+  });
 });

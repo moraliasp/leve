@@ -103,7 +103,7 @@ export async function esperarAtivo(nome: string): Promise<void> {
   } catch {
     // A mensagem diz o que a página mostrava, que é o que falta para entender a falha.
     const h1 = await browser.execute("var h = document.querySelector('#content h1'); return h ? h.textContent : '(sem h1)';");
-    const erros = await browser.execute("return JSON.stringify({ erros: window.__erros || null, barra: document.getElementById('status').textContent });");
+    const erros = await estadoDaPagina();
     throw new Error(
       `o documento ativo não virou ${nome}: era ${await caminhoAtivo()}, h1 "${String(h1)}", abas ${JSON.stringify(await abas())}, ${String(erros)}`,
     );
@@ -239,5 +239,21 @@ export async function vigiarErrosDaPagina(): Promise<void> {
       "window.__TAURI_INTERNALS__.invoke = function (cmd, args) {" +
       "if (!/^plugin:/.test(cmd)) window.__erros.push('invoke ' + cmd + ' ' + String((args && (args.path || args.rel)) || ''));" +
       "return invoke.apply(this, arguments); };",
+  );
+}
+
+/** Retrato da página para diagnóstico: quantos `loadDoc` começaram e terminaram, o que a barra diz, o que ficou na tela. */
+export async function estadoDaPagina(): Promise<string> {
+  return String(
+    await browser.execute(
+      "var h = document.querySelector('#content h1');" +
+        "return JSON.stringify({" +
+        "inicios: performance.getEntriesByName('leve:start').length," +
+        "fins: performance.getEntriesByName('leve:layout').length," +
+        "barra: document.getElementById('status').textContent," +
+        "h1: h ? h.textContent : null," +
+        "titulo: document.getElementById('title').title," +
+        "erros: window.__erros || null });",
+    ),
   );
 }

@@ -8,7 +8,9 @@ import {
   copiarFixture,
   criarTemporario,
   esperarAtivo,
+  abas,
   esperarDocumento,
+  estadoDaPagina,
   fecharAbasExtras,
   removerTemporario,
   vigiarErrosDaPagina,
@@ -43,6 +45,9 @@ describe("pasta", () => {
     await $("#tree").waitForExist({ timeoutMsg: "a pasta concedida não abriu a árvore" });
     await esperarAtivo("exemplo.md");
     await vigiarErrosDaPagina();
+    console.log("pasta, partida:", await estadoDaPagina(), JSON.stringify(await abas()));
+    await browser.pause(2000);
+    console.log("pasta, 2 s depois:", await estadoDaPagina(), JSON.stringify(await abas()));
   });
 
   after(async () => {

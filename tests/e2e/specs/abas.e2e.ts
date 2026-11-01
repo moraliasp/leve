@@ -65,13 +65,19 @@ describe("abas", () => {
     await expect($("#content h1")).toHaveText("Aba dois");
   });
 
-  it("uma nova sessão no mesmo perfil reabre as abas", async () => {
-    // `leve.tabs` é gravado a cada mudança de aba; o WebView grava o localStorage em disco em segundo
-    // plano (o Chromium do WebView2, em lote a cada 5 s), então dá tempo antes de matar o app.
-    await browser.pause(WIN ? 8000 : 3000);
-    await browser.reloadSession();
+  it("reabre as abas na partida seguinte", async () => {
+    if (WIN) {
+      // WebView2: o localStorage não sobrevive ao app morto pelo driver (medido: depois de `reloadSession` o
+      // `leve.tabs` volta só com o exemplo, mesmo esperando mais que os 5 s do lote do Chromium). Aqui a
+      // partida seguinte é a recarga da página, que também passa por `openAtLaunch` e `restoreTabs`.
+      await browser.refresh();
+    } else {
+      // WebKitGTK: sessão nova no mesmo perfil. `leve.tabs` é gravado a cada mudança de aba, mas o WebView
+      // só o leva ao disco em segundo plano, então dá tempo antes de matar o app.
+      await browser.pause(3000);
+      await browser.reloadSession();
+    }
     await esperarDocumento();
-    await browser.pause(1000);
 
     await esperarAbas(["exemplo.md", "aba-dois.md"]);
     // A aba restaurada abre de verdade: o arquivo segue concedido (`grants.json`).

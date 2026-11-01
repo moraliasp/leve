@@ -15,6 +15,7 @@ import {
   removerTemporario,
   vigiarErrosDaPagina,
 } from "../helpers";
+import { WIN } from "../paths";
 
 // Pasta aberta: árvore lateral e abertura de arquivo por ela (`open_in_folder`). A concessão da pasta só
 // nasce do diálogo nativo (`pick_folder`), que o WebDriver não alcança; o roteiro faz o que o diálogo
@@ -35,13 +36,26 @@ describe("pasta", () => {
     await esperarAtivo("raiz.md");
     const arquivo = await caminhoAtivo();
     const canonica = arquivo.slice(0, arquivo.lastIndexOf("/"));
-    const nativo = process.platform === "win32" ? canonica.replace(/\//g, "\\") : canonica;
+    const nativo = WIN ? canonica.replace(/\//g, "\\") : canonica;
+    // A aba da raiz não precisa voltar na próxima partida: o resto do roteiro a abre pela árvore.
+    await fecharAbasExtras();
     await concederPasta(nativo);
 
+    // `grants.json` só é lido na partida do app, então a sessão recomeça. `leve.folder` é o que `main` lê para
+    // abrir a pasta salva: o WebKitGTK o leva ao disco, e a sessão nova já o encontra; o WebView2 não guarda o
+    // localStorage de um app morto pelo driver (ver abas.e2e.ts), então ali a página recarrega depois.
+    const salva = JSON.stringify({ root: nativo, expanded: [] });
+    const guardar = "localStorage.setItem(arguments[0], arguments[1]);";
+    if (!WIN) {
+      await browser.execute(guardar, "leve.folder", salva);
+      await browser.pause(3000);
+    }
     await browser.reloadSession();
     await esperarDocumento();
-    await browser.execute("localStorage.setItem(arguments[0], arguments[1]);", "leve.folder", JSON.stringify({ root: nativo, expanded: [] }));
-    await browser.refresh();
+    if (WIN) {
+      await browser.execute(guardar, "leve.folder", salva);
+      await browser.refresh();
+    }
     await $("#tree").waitForExist({ timeoutMsg: "a pasta concedida não abriu a árvore" });
     await esperarAtivo("exemplo.md");
     await vigiarErrosDaPagina();

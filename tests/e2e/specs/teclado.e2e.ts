@@ -1,6 +1,5 @@
 import { $, browser, expect } from "@wdio/globals";
 import { acionarMenu, esperarDocumento } from "../helpers";
-import { WIN } from "../paths";
 import {
   escutarMenu,
   esperarEventos,
@@ -101,13 +100,8 @@ describe("atalhos pelo teclado do sistema", () => {
       await browser.waitUntil(async () => (await abaAtiva()) === 1, { timeoutMsg: "a aba do exemplo não ficou ativa" });
     });
 
-    // Medido no Linux (GTK, xvfb, layout us): Ctrl+Shift+] chega à página como `}` com Ctrl e Shift e
-    // nenhum acelerador casa. O `muda` registra `<Shift><Control>bracketright`, e o GTK compara o nível
-    // da tecla (Shift+] é o nível 1, `braceright`), então o atalho com Shift sobre pontuação não dispara
-    // no GTK (hipótese). Não é o teste: é o app, #106. No Windows (VK, accel.rs)
-    // casa. Pendente em vez de verde falso (docs/decisoes.md, "Teste de ponta a ponta").
-    it("Ctrl+Shift+] e Ctrl+Shift+[ alternam as abas", async function () {
-      if (!WIN) this.skip();
+    // Nos dois sistemas: no Windows pelo `accel.rs` (VK), no Linux pelos aceleradores do GTK (#106).
+    it("Ctrl+Shift+] e Ctrl+Shift+[ alternam as abas", async () => {
       await limparEventos();
       teclas("ctrl+shift+]");
       await esperarEventos(["next-tab"]);

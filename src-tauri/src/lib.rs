@@ -13,6 +13,8 @@ use tauri::{
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
+#[cfg(windows)]
+mod accel;
 mod bench;
 #[cfg(target_os = "macos")]
 mod cli;
@@ -450,6 +452,8 @@ pub fn run() {
             i18n::set(i18n::system());
             build_menu(app.handle())?;
             app.on_menu_event(|app, event| menu::on_menu(app, event.id().0.clone()));
+            #[cfg(windows)]
+            accel::install(app.handle());
             // Concessões persistidas (Recentes): só arquivos que ainda existem. No macOS o
             // duplo-clique (RunEvent::Opened) pode chegar antes deste setup e já ter concedido
             // o arquivo em memória: juntar, nunca sobrescrever.

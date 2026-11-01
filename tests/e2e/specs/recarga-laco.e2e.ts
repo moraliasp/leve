@@ -1,4 +1,4 @@
-import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { browser } from "@wdio/globals";
 import { acionarMenu, esperarDocumento } from "../helpers";
 import { EXEMPLO } from "../paths";
@@ -27,6 +27,13 @@ async function assinarFileChanged(): Promise<void> {
 
 const eventos = (): Promise<string[]> => browser.execute("return window.__fileChanged.slice();") as Promise<string[]>;
 
+/** Zera os eventos e exige silêncio por `ESPERA_SILENCIO`: a recarga que acabou de rodar não pode pedir outra. */
+async function silencio(): Promise<void> {
+  await browser.execute("window.__fileChanged.length = 0;");
+  await browser.pause(ESPERA_SILENCIO);
+  expect(await eventos()).toEqual([]);
+}
+
 const contem = (texto: string) => (): Promise<boolean> =>
   browser.execute("return document.getElementById('content').textContent.indexOf(arguments[0]) >= 0;", texto) as Promise<boolean>;
 
@@ -42,25 +49,38 @@ describe("recarga sem laço", () => {
       () => browser.execute("return !document.querySelector('#content h1[data-e2e-marca]');") as Promise<boolean>,
       { timeoutMsg: "o documento não foi recarregado" },
     );
-    await browser.pause(ESPERA_SILENCIO);
-    expect(await eventos()).toEqual([]);
+    await silencio();
   });
 
-  it("escrever no arquivo gera file-changed e recarrega, por escrita e por rename", async () => {
+  // Três salvamentos de mesmo tamanho e mesmo mtime (fixado em `MTIME`): o que os diferencia para o vigia é
+  // só a identidade do arquivo (inode e ctime). Depois de cada um, o `OPEN` da recarga não pode acender o
+  // laço de novo: o spec fica vermelho se o vigia deixar de guardar o estado que viu.
+  it("salvar (escrita direta, rename e regravação) recarrega uma vez e não vira laço", async () => {
     const original = readFileSync(EXEMPLO);
-    try {
-      writeFileSync(EXEMPLO, `${original.toString("utf8")}\n\n## Recarga e2e por escrita\n`);
-      await browser.waitUntil(contem("Recarga e2e por escrita"), { timeoutMsg: "a escrita não recarregou o documento" });
+    const texto = (marca: string): string => `${original.toString("utf8")}\n\n## Recarga e2e ${marca}\n`;
+    const MTIME = Math.floor(statSync(EXEMPLO).mtimeMs / 1000);
+    const salvar = async (marca: string, como: "direto" | "rename"): Promise<void> => {
+      if (como === "direto") {
+        writeFileSync(EXEMPLO, texto(marca));
+        utimesSync(EXEMPLO, MTIME, MTIME);
+      } else {
+        // Editor que salva por rename: escreve ao lado e troca. O vigia observa a pasta, não o arquivo.
+        const lateral = `${EXEMPLO}.e2e-novo`;
+        writeFileSync(lateral, texto(marca));
+        utimesSync(lateral, MTIME, MTIME);
+        renameSync(lateral, EXEMPLO);
+      }
+      await browser.waitUntil(contem(`Recarga e2e ${marca}`), { timeoutMsg: `salvar ${marca} (${como}) não recarregou o documento` });
       expect((await eventos()).length).toBeGreaterThanOrEqual(1);
-
-      // Editor que salva por rename: escreve ao lado e troca. O vigia observa a pasta, não o arquivo.
-      const lateral = `${EXEMPLO}.e2e-novo`;
-      writeFileSync(lateral, `${original.toString("utf8")}\n\n## Recarga e2e por rename\n`);
-      renameSync(lateral, EXEMPLO);
-      await browser.waitUntil(contem("Recarga e2e por rename"), { timeoutMsg: "o rename não recarregou o documento" });
+      await silencio();
+    };
+    try {
+      await salvar("A1", "direto");
+      await salvar("B2", "rename");
+      await salvar("C3", "direto");
     } finally {
       writeFileSync(EXEMPLO, original);
     }
-    await browser.waitUntil(async () => !(await contem("Recarga e2e por")()), { timeoutMsg: "o documento não voltou ao original" });
+    await browser.waitUntil(async () => !(await contem("Recarga e2e ")()), { timeoutMsg: "o documento não voltou ao original" });
   });
 });

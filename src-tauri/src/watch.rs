@@ -117,7 +117,7 @@ impl ChangeFilter {
 
     fn observe(&mut self, now: Fingerprint) -> bool {
         let changed = self.last != now;
-        // MUTACAO TEMPORARIA: sem guardar o estado visto
+        self.last = now;
         !self.enabled || changed
     }
 }

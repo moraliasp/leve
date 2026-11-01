@@ -227,7 +227,10 @@ export function renderErrorBlock(origin: string, message: string, source?: strin
   return box;
 }
 
-/** Imagem que não carregou vira um aviso discreto com o `alt` e o caminho tentado. */
+/**
+ * Imagem que não carregou vira um aviso discreto com o `alt` e o caminho como o documento o
+ * escreveu, nunca o absoluto: o aviso faz parte do documento e vai junto no Exportar HTML.
+ */
 export function markBrokenImage(img: HTMLImageElement, shown: string): void {
   const span = document.createElement("span");
   span.className = "img-missing";
@@ -244,7 +247,7 @@ export function markBrokenImage(img: HTMLImageElement, shown: string): void {
 /**
  * Reaponta imagens relativas para a pasta do arquivo. No Tauri, pede ao backend que libere
  * cada imagem no asset protocol (arquivo por arquivo, nunca a pasta); imagem recusada ou
- * ausente dispara `error` e vira o aviso com o caminho tentado.
+ * ausente dispara `error` e vira o aviso com o caminho do documento.
  */
 export async function hydrateImages(container: HTMLElement, dir: string, viaAsset = true): Promise<void> {
   const pending: { img: HTMLImageElement; rel: string }[] = [];
@@ -269,7 +272,7 @@ export async function hydrateImages(container: HTMLElement, dir: string, viaAsse
   if (!viaAsset) {
     for (const { img, rel } of pending) {
       const abs = joinPath(dir, rel);
-      img.addEventListener("error", () => markBrokenImage(img, abs), { once: true });
+      img.addEventListener("error", () => markBrokenImage(img, rel), { once: true });
       img.src = abs;
     }
     return;
@@ -283,7 +286,7 @@ export async function hydrateImages(container: HTMLElement, dir: string, viaAsse
   }
   for (const { img, rel } of pending) {
     const abs = allowed[rel];
-    img.addEventListener("error", () => markBrokenImage(img, abs ?? joinPath(dir, rel)), { once: true });
+    img.addEventListener("error", () => markBrokenImage(img, rel), { once: true });
     if (abs) img.src = convertFileSrc(abs);
     else img.src = "asset://localhost/recusado/" + encodeURIComponent(rel);
   }

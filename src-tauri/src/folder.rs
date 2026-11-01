@@ -9,7 +9,7 @@ use std::{
 
 use serde::Serialize;
 
-use crate::is_markdown;
+use crate::{grants::canonical, is_markdown};
 
 /// Níveis abaixo da raiz que a listagem visita (a raiz é o nível 0).
 pub const DEPTH_MAX: usize = 12;
@@ -40,7 +40,7 @@ pub struct Listing {
 /// de estar dentro da raiz e ser Markdown; pasta por link simbólico não é visitada (evita ciclo e
 /// duplicata, e o que ela aponta dentro da raiz já aparece pelo caminho de verdade).
 pub fn list_markdown(root: &Path) -> Result<Listing, String> {
-    let root = std::fs::canonicalize(root).map_err(|e| format!("{}: {e}", root.display()))?;
+    let root = canonical(&root.to_string_lossy())?;
     let mut files = Vec::new();
     let mut truncated = false;
     let mut seen = 0usize;
@@ -96,7 +96,7 @@ pub fn list_markdown(root: &Path) -> Result<Listing, String> {
 /// Alvo canônico de `path` se for arquivo Markdown dentro de `root` (canônica); `None` se não
 /// existe, sai da raiz (inclusive por link simbólico ou `..`) ou não é Markdown.
 pub fn inside(root: &Path, path: &Path) -> Option<PathBuf> {
-    let c = std::fs::canonicalize(path).ok()?;
+    let c = canonical(&path.to_string_lossy()).ok()?;
     (c.starts_with(root) && c.is_file() && is_markdown(&c)).then_some(c)
 }
 
@@ -126,6 +126,10 @@ pub fn find_by_name(listing: &Listing, name: &str) -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn canon(p: impl AsRef<Path>) -> PathBuf {
+        canonical(&p.as_ref().to_string_lossy()).unwrap()
+    }
     use std::fs;
 
     struct TempDir(PathBuf);
@@ -167,7 +171,7 @@ mod tests {
             vec!["A.markdown", "b.md", "sub/c.md", "sub/fundo/d.mdown"]
         );
         assert!(!l.truncated);
-        assert_eq!(l.root, fs::canonicalize(&t.0).unwrap());
+        assert_eq!(l.root, canon(&t.0));
     }
 
     #[cfg(unix)]
@@ -189,12 +193,12 @@ mod tests {
             vec!["alias.md", "dentro.md"],
             "link para fora (arquivo ou pasta) fica de fora; link para dentro vale; sem ciclo"
         );
-        let root = fs::canonicalize(&raiz).unwrap();
+        let root = canon(&raiz);
         assert_eq!(inside(&root, &raiz.join("atalho.md")), None);
         assert_eq!(inside(&root, &raiz.join("pasta-fora/outro.md")), None);
         assert_eq!(
             inside(&root, &raiz.join("alias.md")),
-            Some(fs::canonicalize(raiz.join("dentro.md")).unwrap())
+            Some(canon(raiz.join("dentro.md")))
         );
     }
 
@@ -205,7 +209,7 @@ mod tests {
         t.file("raiz/a.md");
         t.file("raiz/sub/b.md");
         t.file("raiz/c.txt");
-        let root = fs::canonicalize(t.0.join("raiz")).unwrap();
+        let root = canon(t.0.join("raiz"));
         assert!(inside(&root, &root.join("../vizinho.md")).is_none());
         assert!(
             inside(&root, &root.join("sub/../a.md")).is_some(),
@@ -248,10 +252,7 @@ mod tests {
         t.file("a/fundo/x.md");
         t.file(".obsidian/Nota.md");
         let l = list_markdown(&t.0).unwrap();
-        assert_eq!(
-            find_by_name(&l, "x.md"),
-            Some(fs::canonicalize(raso).unwrap())
-        );
+        assert_eq!(find_by_name(&l, "x.md"), Some(canon(raso)));
         assert_eq!(find_by_name(&l, "nota.md"), None);
     }
 }

@@ -272,6 +272,6 @@ mod tests {
         )
         .unwrap();
         assert!(granted(&state, &doc.to_string_lossy()).is_ok());
-        assert_eq!(c, fs::canonicalize(&doc).unwrap());
+        assert_eq!(c, crate::grants::canonical(&doc.to_string_lossy()).unwrap());
     }
 }

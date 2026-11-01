@@ -26,7 +26,7 @@ import { SCROLL_KEY, addRecent, folderEntry, isFolderEntry, readRecent } from ".
 import { FOLDER_KEY, PREF_KEYS, TABS_KEY, TIP_KEY, TOP, isOn, readJson, savedAnchor, savedFolderRoot, savedTabs, setOn } from "./prefs";
 import type { FolderPanel } from "./folder-ui";
 import { applyI18n, lang, t, type Key } from "./i18n";
-import { checkForUpdates, maybeDailyCheck, updateSource, type UpdateUi } from "./updater";
+import { checkForUpdates, maybeDailyCheck, showInOpenDialogs, showUpdateStatus, updateSource, type UpdateUi } from "./updater";
 import { type Tab, canGoBack, canGoForward, commitDoc, cycleTarget, findTab, insertTab, removeTab, restoreSaved, serializeTabs, stepHistory, tabFactory } from "./tabs";
 import { SAMPLE_SESSION_KEY, SESSION_KEY, isSample, sampleOnLaunch, samplePath, sampleText, sampleToReplace } from "./sample";
 import { clipName, clipText, dropClip, inMemory, isClip } from "./clip";
@@ -298,13 +298,13 @@ function applyPending(): void {
 let flashTimer: number | undefined;
 /** Aviso do documento atual (leitura, modo grande): fica na barra até o próximo documento. */
 let docNotice = { msg: "", isError: false };
-/** Erro fica até a próxima mensagem; o resto some em 2,5 s, salvo `sticky`. */
-function flash(msg: string, isError = false, sticky = isError): void {
+/** Erro fica até a próxima mensagem; o resto some em `ms` (2,5 s), salvo `sticky`. */
+function flash(msg: string, isError = false, sticky = isError, ms = 2500): void {
   els.status.textContent = msg;
   els.status.classList.toggle("error", isError);
   window.clearTimeout(flashTimer);
   // Mensagem passageira some e devolve a barra ao aviso do documento, se houver.
-  if (msg && !sticky) flashTimer = window.setTimeout(() => flash(docNotice.msg, docNotice.isError, true), 2500);
+  if (msg && !sticky) flashTimer = window.setTimeout(() => flash(docNotice.msg, docNotice.isError, true), ms);
 }
 
 /** Erro inesperado: passageiro (a barra volta ao aviso do documento). Antes de `els`, escreve direto. */
@@ -941,16 +941,22 @@ async function loadAppInfo(): Promise<void> {
   }
 }
 
-const updateUi: UpdateUi = { flash, confirm: confirmDialog };
+/** Resultado que o leitor pediu e precisa ler: mais tempo na barra e, com diálogo aberto, dentro dele. */
+function updateNotice(msg: string, isError = false, sticky = isError): void {
+  flash(msg, isError, sticky, 8000);
+  showInOpenDialogs(document, msg, isError);
+}
+
+const updateUi: UpdateUi = { flash: updateNotice, confirm: confirmDialog };
 
 function checkUpdatesNow(): void {
   const source = updateSource(IS_TAURI, appInfo.flatpak);
   if (source === "none") {
-    flash(t("update.browser"), true);
+    updateNotice(t("update.browser"), true);
     return;
   }
   if (source === "flatpak") {
-    flash(t("update.flatpak"));
+    updateNotice(t("update.flatpak"));
     return;
   }
   void checkForUpdates(updateUi, true, appInfo.version);
@@ -1091,6 +1097,8 @@ function wire(): void {
   $("tip-close").addEventListener("click", () => ($("tip").hidden = true));
   // O link do Sobre fica fora de #content: abre no navegador do sistema, nunca na janela.
   $("about-update").addEventListener("click", checkUpdatesNow);
+  // Quem reabre o diálogo não vê o recado da vez anterior.
+  for (const id of ["about", "prefs"]) $(id).addEventListener("close", (ev) => showUpdateStatus(ev.currentTarget as HTMLElement, ""));
   $("about-repo").addEventListener("click", (ev) => {
     ev.preventDefault();
     const href = (ev.currentTarget as HTMLAnchorElement).href;

@@ -110,6 +110,10 @@ Mac Apple Silicon, macOS 26.6 (Darwin 25.6.0). Pacotes da release pública, endp
 
 **Estado devolvido.** O Leve 0.3.0 que estava em `/Applications` voltou (`diff -r` contra a cópia de segurança: idêntico), e o perfil real voltou com o `stat` de todos os arquivos igual ao de antes.
 
+## Windows: primeira prova real (v0.6.0-rc.1)
+
+Windows 11 x64, pt-BR, teclado US-Internacional, instalador `-setup.exe` conferido com o `SHA256SUMS.txt`, em 31/10/2026. Passaram abrir pelo menu Iniciar e por duplo clique, render (sumário, tabelas, Mermaid, fórmula), busca, recarga ao salvar com marcas do que mudou, abrir pasta, tema e estilo persistentes, abas de volta ao reabrir, Exportar HTML e Verificar atualizações. Achados em #90 (atalhos do menu) e #91 (caminho absoluto no HTML exportado, prefixo `\\?\`, aviso de atualização). O roteiro de atualização abaixo continua pendente.
+
 ## Windows: pendente
 
 Precisa de máquina Windows real ou VM. Roteiro para repetir, uma vez com o `-setup.exe` e outra com o `.msi`, cada uma num perfil limpo:

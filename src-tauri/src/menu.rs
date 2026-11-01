@@ -61,69 +61,136 @@ pub fn sync_menu(state: State<AppState>, menu: MenuState) {
     }
 }
 
+/// Atalho de cada item do menu: a lista que `build_menu` registra e que o Windows consulta quando
+/// o foco está no WebView (`accel.rs`). A tela Atalhos espelha esta lista (`src/shortcuts.ts`).
+const ACCELERATORS: &[(&str, &str)] = &[
+    ("open", "CmdOrCtrl+O"),
+    ("open-folder", "CmdOrCtrl+Shift+O"),
+    ("quick-open", "CmdOrCtrl+P"),
+    ("open-clipboard", "CmdOrCtrl+Shift+V"),
+    ("save", "CmdOrCtrl+S"),
+    ("reload", "CmdOrCtrl+R"),
+    ("reveal", "CmdOrCtrl+Shift+R"),
+    ("open-in-editor", "CmdOrCtrl+E"),
+    ("print", "CmdOrCtrl+Shift+P"),
+    ("copy-rich", "CmdOrCtrl+Shift+C"),
+    ("annotate", "CmdOrCtrl+Shift+A"),
+    ("copy-review", "CmdOrCtrl+Shift+N"),
+    ("find", "CmdOrCtrl+F"),
+    ("toggle-toc", "CmdOrCtrl+B"),
+    ("toggle-tree", "CmdOrCtrl+Shift+E"),
+    ("next-change", "CmdOrCtrl+Shift+Down"),
+    ("prev-change", "CmdOrCtrl+Shift+Up"),
+    ("cycle-theme", "CmdOrCtrl+Shift+L"),
+    ("zoom-in", "CmdOrCtrl+="),
+    ("zoom-out", "CmdOrCtrl+-"),
+    ("zoom-reset", "CmdOrCtrl+0"),
+    ("back", "CmdOrCtrl+["),
+    ("forward", "CmdOrCtrl+]"),
+    ("close-tab", "CmdOrCtrl+W"),
+    ("close-window", "CmdOrCtrl+Shift+W"),
+    ("next-tab", "CmdOrCtrl+Shift+]"),
+    ("prev-tab", "CmdOrCtrl+Shift+["),
+    ("shortcuts", "CmdOrCtrl+/"),
+    ("preferences", "CmdOrCtrl+,"),
+];
+
+fn accelerator(id: &str) -> Option<&'static str> {
+    ACCELERATORS.iter().find(|(i, _)| *i == id).map(|(_, a)| *a)
+}
+
+/// (tecla virtual do Windows, Ctrl, Shift, Alt) de um atalho de `ACCELERATORS`.
+#[cfg(any(windows, test))]
+fn parse_accelerator(accel: &str) -> Option<(u32, bool, bool, bool)> {
+    let (mut ctrl, mut shift, mut alt, mut key) = (false, false, false, None);
+    for part in accel.split('+') {
+        match part {
+            "CmdOrCtrl" => ctrl = true,
+            "Shift" => shift = true,
+            "Alt" => alt = true,
+            "=" => key = Some(0xBB), // VK_OEM_PLUS
+            "-" => key = Some(0xBD), // VK_OEM_MINUS
+            "," => key = Some(0xBC), // VK_OEM_COMMA
+            "/" => key = Some(0xBF), // VK_OEM_2
+            "[" => key = Some(0xDB), // VK_OEM_4
+            "]" => key = Some(0xDD), // VK_OEM_6
+            "Up" => key = Some(0x26),
+            "Down" => key = Some(0x28),
+            k if k.len() == 1 && k.as_bytes()[0].is_ascii_alphanumeric() => {
+                key = Some(u32::from(k.as_bytes()[0].to_ascii_uppercase()));
+            }
+            _ => return None,
+        }
+    }
+    key.map(|k| (k, ctrl, shift, alt))
+}
+
+/// Id do item de menu dessa combinação de teclas, se houver.
+#[cfg(any(windows, test))]
+pub fn shortcut_for(vk: u32, ctrl: bool, shift: bool, alt: bool) -> Option<&'static str> {
+    ACCELERATORS
+        .iter()
+        .find(|(_, a)| parse_accelerator(a) == Some((vk, ctrl, shift, alt)))
+        .map(|(id, _)| *id)
+}
+
 /// Menu nativo no idioma atual (`i18n`). Chamado no `setup` e de novo por `set_locale`; o
 /// tratamento dos cliques (`on_menu_event`) é registrado uma vez só, no `setup`.
 pub fn build_menu(app: &AppHandle) -> tauri::Result<()> {
     let s = i18n::s();
-    let item = |id: &str, label: &str, accel: Option<&str>| {
+    let item = |id: &str, label: &str| {
         let b = MenuItemBuilder::with_id(id, label);
-        match accel {
+        match accelerator(id) {
             Some(a) => b.accelerator(a),
             None => b,
         }
         .build(app)
     };
-    let open = item("open", s.open, Some("CmdOrCtrl+O"))?;
-    let open_folder = item("open-folder", s.open_folder, Some("CmdOrCtrl+Shift+O"))?;
-    let close_folder = item("close-folder", s.close_folder, None)?;
+    let open = item("open", s.open)?;
+    let open_folder = item("open-folder", s.open_folder)?;
+    let close_folder = item("close-folder", s.close_folder)?;
     // Mod+P é o abrir rápido, como nos editores; Imprimir foi para Mod+Shift+P (docs/decisoes.md).
-    let quick_open = item("quick-open", s.quick_open, Some("CmdOrCtrl+P"))?;
-    let open_clipboard = item(
-        "open-clipboard",
-        s.open_clipboard,
-        Some("CmdOrCtrl+Shift+V"),
-    )?;
+    let quick_open = item("quick-open", s.quick_open)?;
+    let open_clipboard = item("open-clipboard", s.open_clipboard)?;
     // Desligado até o frontend dizer que o ativo é o documento colado (`sync_menu`).
-    let save = MenuItemBuilder::with_id("save", s.save)
-        .accelerator("CmdOrCtrl+S")
-        .enabled(false)
-        .build(app)?;
+    let save = item("save", s.save)?;
+    save.set_enabled(false)?;
     *app.state::<AppState>().save_item.lock().unwrap() = Some(save.clone());
-    let reload = item("reload", s.reload, Some("CmdOrCtrl+R"))?;
-    let reveal = item("reveal", s.reveal, Some("CmdOrCtrl+Shift+R"))?;
-    let open_in_editor = item("open-in-editor", s.open_in_editor, Some("CmdOrCtrl+E"))?;
-    let clear_recent = item("clear-recent", s.clear_recent, None)?;
-    let print = item("print", s.print, Some("CmdOrCtrl+Shift+P"))?;
-    let export_html = item("export-html", s.export_html, None)?;
-    let copy_html = item("copy-html", s.copy_html, None)?;
-    let copy_rich = item("copy-rich", s.copy_rich, Some("CmdOrCtrl+Shift+C"))?;
-    let annotate = item("annotate", s.annotate, Some("CmdOrCtrl+Shift+A"))?;
-    let copy_review = item("copy-review", s.copy_review, Some("CmdOrCtrl+Alt+C"))?;
-    let find = item("find", s.find, Some("CmdOrCtrl+F"))?;
-    let toc = item("toggle-toc", s.toc, Some("CmdOrCtrl+B"))?;
-    let tree = item("toggle-tree", s.tree, Some("CmdOrCtrl+Shift+E"))?;
-    let next_change = item("next-change", s.next_change, Some("CmdOrCtrl+Shift+Down"))?;
-    let prev_change = item("prev-change", s.prev_change, Some("CmdOrCtrl+Shift+Up"))?;
-    let clear_changes = item("clear-changes", s.clear_changes, None)?;
-    let theme = item("cycle-theme", s.theme, Some("CmdOrCtrl+Shift+L"))?;
-    let zoom_in = item("zoom-in", s.zoom_in, Some("CmdOrCtrl+="))?;
-    let zoom_out = item("zoom-out", s.zoom_out, Some("CmdOrCtrl+-"))?;
-    let zoom_reset = item("zoom-reset", s.zoom_reset, Some("CmdOrCtrl+0"))?;
-    let back = item("back", s.back, Some("CmdOrCtrl+["))?;
-    let forward = item("forward", s.forward, Some("CmdOrCtrl+]"))?;
-    let close_tab = item("close-tab", s.close_tab, Some("CmdOrCtrl+W"))?;
-    let close_window = item("close-window", s.close_window, Some("CmdOrCtrl+Shift+W"))?;
-    let next_tab = item("next-tab", s.next_tab, Some("CmdOrCtrl+Shift+]"))?;
-    let prev_tab = item("prev-tab", s.prev_tab, Some("CmdOrCtrl+Shift+["))?;
-    let shortcuts = item("shortcuts", s.shortcuts, Some("CmdOrCtrl+/"))?;
-    let sample = item("sample", s.sample, None)?;
+    let reload = item("reload", s.reload)?;
+    let reveal = item("reveal", s.reveal)?;
+    let open_in_editor = item("open-in-editor", s.open_in_editor)?;
+    let clear_recent = item("clear-recent", s.clear_recent)?;
+    let print = item("print", s.print)?;
+    let export_html = item("export-html", s.export_html)?;
+    let copy_html = item("copy-html", s.copy_html)?;
+    let copy_rich = item("copy-rich", s.copy_rich)?;
+    let annotate = item("annotate", s.annotate)?;
+    let copy_review = item("copy-review", s.copy_review)?;
+    let find = item("find", s.find)?;
+    let toc = item("toggle-toc", s.toc)?;
+    let tree = item("toggle-tree", s.tree)?;
+    let next_change = item("next-change", s.next_change)?;
+    let prev_change = item("prev-change", s.prev_change)?;
+    let clear_changes = item("clear-changes", s.clear_changes)?;
+    let theme = item("cycle-theme", s.theme)?;
+    let zoom_in = item("zoom-in", s.zoom_in)?;
+    let zoom_out = item("zoom-out", s.zoom_out)?;
+    let zoom_reset = item("zoom-reset", s.zoom_reset)?;
+    let back = item("back", s.back)?;
+    let forward = item("forward", s.forward)?;
+    let close_tab = item("close-tab", s.close_tab)?;
+    let close_window = item("close-window", s.close_window)?;
+    let next_tab = item("next-tab", s.next_tab)?;
+    let prev_tab = item("prev-tab", s.prev_tab)?;
+    let shortcuts = item("shortcuts", s.shortcuts)?;
+    let sample = item("sample", s.sample)?;
     // Sobre e Verificar atualizações são telas do app, iguais nos dois sistemas: no macOS ficam no
     // menu do app, como manda a convenção; nos outros, em Ajuda.
-    let about = item("about", s.about, None)?;
-    let check_updates = item("check-updates", s.check_updates, None)?;
+    let about = item("about", s.about)?;
+    let check_updates = item("check-updates", s.check_updates)?;
     // Preferências é tela do app (`#prefs` em index.html): no macOS fica no menu do app, acima
     // de Serviços, como manda a convenção; no Windows e no Linux, em Editar.
-    let preferences = item("preferences", s.preferences, Some("CmdOrCtrl+,"))?;
+    let preferences = item("preferences", s.preferences)?;
 
     let file = SubmenuBuilder::new(app, s.file)
         .item(&open)
@@ -238,7 +305,7 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<()> {
             .item(&check_updates)
             .separator()
             .item(&preferences)
-            .item(&item("install-cli", s.install_cli, None)?)
+            .item(&item("install-cli", s.install_cli)?)
             .separator()
             .services_with_text(s.services)
             .separator()
@@ -261,6 +328,28 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<()> {
         .build()?;
     app.set_menu(menu)?;
     Ok(())
+}
+
+/// Atalho de passo: segurar a tecla continua andando.
+#[cfg(any(windows, test))]
+pub fn repeats(id: &str) -> bool {
+    matches!(id, "zoom-in" | "zoom-out" | "next-change" | "prev-change")
+}
+
+/// Atalho vindo do WebView (`accel.rs`): item desligado não dispara, como no acelerador nativo.
+#[cfg(windows)]
+pub fn on_shortcut(app: &AppHandle, id: &str) {
+    if id == "save" {
+        let state = app.state::<AppState>();
+        let item = state.save_item.lock().unwrap();
+        if !item
+            .as_ref()
+            .is_some_and(|i| i.is_enabled().unwrap_or(false))
+        {
+            return;
+        }
+    }
+    on_menu(app, id.to_string());
 }
 
 pub fn on_menu(app: &AppHandle, id: String) {
@@ -289,6 +378,49 @@ mod tests {
             remote: true,
             hidden: false,
             save: false,
+        }
+    }
+
+    #[test]
+    fn todo_atalho_vira_tecla_e_sem_repetir() {
+        for (id, accel) in ACCELERATORS {
+            let (vk, ctrl, shift, alt) =
+                parse_accelerator(accel).unwrap_or_else(|| panic!("{id}: {accel}"));
+            assert!(ctrl, "{id}: atalho sem Ctrl seria digitação");
+            assert!(!alt, "{id}: Ctrl+Alt é o AltGr no Windows");
+            assert_eq!(shortcut_for(vk, ctrl, shift, alt), Some(*id), "{accel}");
+        }
+    }
+
+    #[test]
+    fn tecla_do_windows_acha_o_item_certo() {
+        assert_eq!(shortcut_for(0x4C, true, true, false), Some("cycle-theme"));
+        assert_eq!(shortcut_for(0x4F, true, false, false), Some("open"));
+        assert_eq!(shortcut_for(0x4F, true, true, false), Some("open-folder"));
+        assert_eq!(shortcut_for(0xBB, true, false, false), Some("zoom-in"));
+        assert_eq!(shortcut_for(0xDD, true, true, false), Some("next-tab"));
+        assert_eq!(shortcut_for(0x28, true, true, false), Some("next-change"));
+        // Sem Ctrl é digitação; Ctrl+A, Ctrl+C e Ctrl+V ficam com a caixa de texto; AltGr não casa.
+        assert_eq!(shortcut_for(0x4F, false, false, false), None);
+        assert_eq!(shortcut_for(0x41, true, false, false), None);
+        assert_eq!(shortcut_for(0x43, true, false, false), None);
+        assert_eq!(shortcut_for(0x56, true, false, false), None);
+        assert_eq!(shortcut_for(0x4F, true, false, true), None);
+    }
+
+    #[test]
+    fn so_atalho_de_passo_repete_com_a_tecla_presa() {
+        for id in ["zoom-in", "zoom-out", "next-change", "prev-change"] {
+            assert!(accelerator(id).is_some() && repeats(id), "{id}");
+        }
+        for id in [
+            "close-tab",
+            "close-window",
+            "open",
+            "quick-open",
+            "cycle-theme",
+        ] {
+            assert!(!repeats(id), "{id}");
         }
     }
 

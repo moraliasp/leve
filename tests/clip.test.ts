@@ -190,8 +190,9 @@ describe("salvar o colado", () => {
 
 describe("menu, permissões e estado vazio", () => {
   it("Arquivo › Abrir da área de transferência (Mod+Shift+V) e Salvar… (Mod+S), no menu e no mapa", () => {
-    expect(menu).toMatch(/item\(\s*"open-clipboard",\s*s\.open_clipboard,\s*Some\("CmdOrCtrl\+Shift\+V"\),?\s*\)/);
-    expect(menu).toMatch(/MenuItemBuilder::with_id\("save", s\.save\)\s*\.accelerator\("CmdOrCtrl\+S"\)\s*\.enabled\(false\)/);
+    expect(menu).toContain('("open-clipboard", "CmdOrCtrl+Shift+V")');
+    expect(menu).toContain('("save", "CmdOrCtrl+S")');
+    expect(menu).toMatch(/item\("save", s\.save\)\?;\s*save\.set_enabled\(false\)\?;/);
     expect(keysFor("open-clipboard", "windows")).toBe("Ctrl+Shift+V");
     expect(keysFor("save", "mac")).toBe("⌘S");
     expect(shortcutRows("mac").find(([w]) => w === "Abrir da área de transferência")?.[1]).toBe("⌘⇧V");

@@ -1,6 +1,6 @@
 # Terceiros
 
-Gerado por `node scripts/third-party.mjs` em 2026-10-30. Textos completos das licenças com obrigação de aviso (Lucide, DOMPurify, crates MPL-2.0, webpki-root-certs) em `THIRD_PARTY_NOTICES.md`.
+Gerado por `node scripts/third-party.mjs` em 2026-11-01. Textos completos das licenças com obrigação de aviso (Lucide, DOMPurify, crates MPL-2.0, webpki-root-certs) em `THIRD_PARTY_NOTICES.md`.
 
 ## Licenças com obrigação de aviso (EPL/MPL/CDLA)
 
@@ -177,5 +177,7 @@ Fora do bundle (dependência instalada, não distribuída no app):
 | [tauri-plugin-single-instance](https://github.com/tauri-apps/plugins-workspace) | 2.5.4 | Apache-2.0 OR MIT |
 | [tauri-plugin-updater](https://github.com/tauri-apps/plugins-workspace) | 2.14.1 | Apache-2.0 OR MIT |
 | [tauri-plugin-window-state](https://github.com/tauri-apps/plugins-workspace) | 2.5.0 | Apache-2.0 OR MIT |
+| [webview2-com](https://github.com/wravery/webview2-rs) | 0.39.1 | MIT |
+| [windows](https://github.com/microsoft/windows-rs) | 0.62.2 | MIT OR Apache-2.0 |
 
 Licenças no grafo completo do Rust: MIT OR Apache-2.0 (248), MIT (133), Apache-2.0 OR MIT (53), MIT/Apache-2.0 (19), Zlib OR Apache-2.0 OR MIT (18), Unicode-3.0 (18), Unlicense OR MIT (9), MPL-2.0 (5), ISC (5), Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT (5), Apache-2.0 (4), BSD-3-Clause (3), Apache-2.0/MIT (3), Zlib (3), Apache-2.0 OR ISC OR MIT (3), BSL-1.0 (2), MIT OR Zlib OR Apache-2.0 (2), BSD-3-Clause OR MIT OR Apache-2.0 (2), MIT OR Apache-2.0 OR LGPL-2.1-or-later (2), MIT OR Apache-2.0 OR Zlib (2), Unlicense/MIT (2), 0BSD OR MIT OR Apache-2.0 (1), BSD-3-Clause AND MIT (1), BSD-3-Clause/MIT (1), Apache-2.0 AND MIT (1), CC0-1.0 OR MIT-0 OR Apache-2.0 (1), Apache-2.0 / MIT (1), CC0-1.0 (1), Apache-2.0 AND ISC (1), Apache-2.0 WITH LLVM-exception (1), (MIT OR Apache-2.0) AND Unicode-3.0 (1), CDLA-Permissive-2.0 (1).

@@ -46,6 +46,18 @@ public static class Win {
   [DllImport("user32.dll")] public static extern IntPtr GetKeyboardLayout(uint tid);
   [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint msg, IntPtr w, IntPtr l);
   [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+
+  // Monta o INPUT em C#: no PowerShell, `$i.u.ki.wScan = x` altera uma cópia da struct e o evento sai zerado.
+  public static uint Key(ushort scan, bool ext, bool up) {
+    INPUT[] a = new INPUT[1];
+    a[0].type = 1; // INPUT_KEYBOARD
+    a[0].u.ki.wScan = scan;
+    // KEYEVENTF_SCANCODE (0x8): o sistema acha a tecla virtual pelo layout ativo; 0x1 estendida, 0x2 soltar.
+    a[0].u.ki.dwFlags = (uint)(0x8 | (ext ? 0x1 : 0) | (up ? 0x2 : 0));
+    uint n = SendInput(1, a, Marshal.SizeOf(typeof(INPUT)));
+    if (n != 1) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+    return n;
+  }
 }
 '@
 
@@ -113,16 +125,7 @@ function Clicar([IntPtr]$h) {
 }
 
 function Tecla([int]$scan, [bool]$ext, [bool]$up) {
-  $i = New-Object Win+INPUT
-  $i.type = 1 # INPUT_KEYBOARD
-  $i.u.ki.wVk = 0
-  $i.u.ki.wScan = [uint16]$scan
-  $f = 0x0008 # KEYEVENTF_SCANCODE: o sistema acha a tecla virtual pelo layout ativo
-  if ($ext) { $f = $f -bor 0x0001 }
-  if ($up) { $f = $f -bor 0x0002 }
-  $i.u.ki.dwFlags = [uint32]$f
-  $n = [Win]::SendInput(1, @($i), [System.Runtime.InteropServices.Marshal]::SizeOf([type][Win+INPUT]))
-  if ($n -ne 1) { throw "SendInput falhou (erro $([System.Runtime.InteropServices.Marshal]::GetLastWin32Error()))" }
+  [void][Win]::Key([uint16]$scan, $ext, $up)
   Start-Sleep -Milliseconds 40
 }
 
@@ -167,16 +170,16 @@ switch ($Acao) {
     [void][Win]::GetGUIThreadInfo($tid, [ref]$info)
     $alvos = @($info.hwndFocus, $info.hwndActive, $fg, $h) | Where-Object { $_ -ne [IntPtr]::Zero } | Select-Object -Unique
     foreach ($a in $alvos) { [void][Win]::PostMessage($a, 0x0050, [IntPtr]::Zero, $hkl) } # WM_INPUTLANGCHANGEREQUEST
+    # Quem traduz a tecla é o thread do foco (o WebView2): é o layout dele que vale, não o da janela.
+    $thFoco = if ($info.hwndFocus -ne [IntPtr]::Zero) { ThreadDe $info.hwndFocus } else { $tid }
     $esperado = $LANGID[$Arg]
     $ok = $false
     for ($i = 0; $i -lt 30 -and -not $ok; $i++) {
       Start-Sleep -Milliseconds 100
-      $atual = [Win]::GetKeyboardLayout($tid).ToInt64()
-      $ok = (($atual -band 0xFFFF) -eq $esperado)
+      $ok = (([Win]::GetKeyboardLayout($thFoco).ToInt64() -band 0xFFFF) -eq $esperado)
     }
-    $thFoco = if ($info.hwndFocus -ne [IntPtr]::Zero) { ThreadDe $info.hwndFocus } else { 0 }
-    Write-Output ("layout pedido '{0}' hkl=0x{1:X}; thread da janela 0x{2:X}; thread do foco {3} layout=0x{4:X}" -f $Arg, $hkl.ToInt64(), [Win]::GetKeyboardLayout($tid).ToInt64(), $thFoco, [Win]::GetKeyboardLayout($thFoco).ToInt64())
-    if (-not $ok) { throw "o layout '$Arg' não ficou ativo no thread do app" }
+    Write-Output ("layout pedido '{0}' hkl=0x{1:X}; thread da janela {2} layout=0x{3:X}; thread do foco {4} layout=0x{5:X}" -f $Arg, $hkl.ToInt64(), $tid, [Win]::GetKeyboardLayout($tid).ToInt64(), $thFoco, [Win]::GetKeyboardLayout($thFoco).ToInt64())
+    if (-not $ok) { throw "o layout '$Arg' não ficou ativo no thread do foco" }
   }
   'tecla' {
     if (-not $Arg) { throw 'falta o acorde' }

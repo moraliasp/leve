@@ -57,7 +57,12 @@ export async function escutarMenu(): Promise<void> {
     "if (window.__menu) { window.__menu.length = 0; return; }" +
       "var ti = window.__TAURI_INTERNALS__; window.__menu = [];" +
       "var cb = ti.transformCallback(function (e) { window.__menu.push(e.payload); });" +
-      "ti.invoke('plugin:event|listen', { event: 'menu', target: { kind: 'Any' }, handler: cb });",
+      "ti.invoke('plugin:event|listen', { event: 'menu', target: { kind: 'Any' }, handler: cb });" +
+      // Diagnóstico: o que a página recebeu como tecla, para ler a falha (a tecla chegou ou não).
+      "window.__teclas = [];" +
+      "document.addEventListener('keydown', function (e) {" +
+      "  window.__teclas.push([e.key, e.code, e.ctrlKey ? 'C' : '', e.shiftKey ? 'S' : '', e.altKey ? 'A' : ''].join(' '));" +
+      "}, true);",
   );
 }
 
@@ -75,10 +80,15 @@ export async function limparEventos(): Promise<void> {
  */
 export async function esperarEventos(esperado: string[]): Promise<void> {
   const igual = async (): Promise<boolean> => JSON.stringify(await eventosMenu()) === JSON.stringify(esperado);
-  await browser.waitUntil(igual, {
-    timeout: 8_000,
-    timeoutMsg: `esperava os eventos de menu ${JSON.stringify(esperado)}`,
-  });
+  try {
+    await browser.waitUntil(igual, { timeout: 8_000 });
+  } catch {
+    const teclasVistas = await browser.execute("return window.__teclas.slice(-12);");
+    throw new Error(
+      `esperava os eventos de menu ${JSON.stringify(esperado)}, vieram ${JSON.stringify(await eventosMenu())}; ` +
+        `a página viu as teclas ${JSON.stringify(teclasVistas)}`,
+    );
+  }
   await browser.pause(500);
   const final = await eventosMenu();
   if (JSON.stringify(final) !== JSON.stringify(esperado)) {

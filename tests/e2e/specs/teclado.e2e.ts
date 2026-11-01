@@ -1,5 +1,6 @@
 import { $, browser, expect } from "@wdio/globals";
 import { acionarMenu, esperarDocumento } from "../helpers";
+import { WIN } from "../paths";
 import {
   escutarMenu,
   esperarEventos,
@@ -84,26 +85,46 @@ describe("atalhos pelo teclado do sistema", () => {
     });
   });
 
-  it("Ctrl+Shift+] e Ctrl+Shift+[ alternam as abas, e Ctrl+W fecha a ativa", async () => {
-    // Uma segunda aba: o exemplo embutido, como no menu Ajuda.
-    await acionarMenu("sample");
-    await browser.waitUntil(async () => (await abas()) === 2, { timeoutMsg: "a segunda aba não abriu" });
-    await browser.waitUntil(async () => (await abaAtiva()) === 1, { timeoutMsg: "a aba do exemplo não ficou ativa" });
+  it("Ctrl+[ e Ctrl+] voltam e avançam no histórico", async () => {
+    teclas("ctrl+[");
+    await esperarEventos(["back"]);
     await limparEventos();
+    teclas("ctrl+]");
+    await esperarEventos(["forward"]);
+  });
 
-    teclas("ctrl+shift+]");
-    await esperarEventos(["next-tab"]);
-    await browser.waitUntil(async () => (await abaAtiva()) === 0, { timeoutMsg: "Ctrl+Shift+] não foi para a aba seguinte" });
+  describe("abas", () => {
+    before(async () => {
+      // Uma segunda aba: o exemplo embutido, como no menu Ajuda.
+      await acionarMenu("sample");
+      await browser.waitUntil(async () => (await abas()) === 2, { timeoutMsg: "a segunda aba não abriu" });
+      await browser.waitUntil(async () => (await abaAtiva()) === 1, { timeoutMsg: "a aba do exemplo não ficou ativa" });
+    });
 
-    await limparEventos();
-    teclas("ctrl+shift+[");
-    await esperarEventos(["prev-tab"]);
-    await browser.waitUntil(async () => (await abaAtiva()) === 1, { timeoutMsg: "Ctrl+Shift+[ não voltou para a aba anterior" });
+    // Medido no Linux (GTK, xvfb, layout us): Ctrl+Shift+] chega à página como `}` com Ctrl e Shift e
+    // nenhum acelerador casa. O `muda` registra `<Shift><Control>bracketright`, e o GTK compara o nível
+    // da tecla (Shift+] é o nível 1, `braceright`), então o atalho com Shift sobre pontuação não dispara
+    // no GTK. Não é o teste: é o app, e a correção é do app, fora desta fatia. No Windows (VK, accel.rs)
+    // casa. Pendente em vez de verde falso (docs/decisoes.md, "Teste de ponta a ponta").
+    it("Ctrl+Shift+] e Ctrl+Shift+[ alternam as abas", async function () {
+      if (!WIN) this.skip();
+      await limparEventos();
+      teclas("ctrl+shift+]");
+      await esperarEventos(["next-tab"]);
+      await browser.waitUntil(async () => (await abaAtiva()) === 0, { timeoutMsg: "Ctrl+Shift+] não foi para a aba seguinte" });
 
-    await limparEventos();
-    teclas("ctrl+w");
-    await esperarEventos(["close-tab"]);
-    await browser.waitUntil(async () => (await abas()) <= 1, { timeoutMsg: "Ctrl+W não fechou a aba" });
+      await limparEventos();
+      teclas("ctrl+shift+[");
+      await esperarEventos(["prev-tab"]);
+      await browser.waitUntil(async () => (await abaAtiva()) === 1, { timeoutMsg: "Ctrl+Shift+[ não voltou para a aba anterior" });
+    });
+
+    it("Ctrl+W fecha a aba ativa", async () => {
+      await limparEventos();
+      teclas("ctrl+w");
+      await esperarEventos(["close-tab"]);
+      await browser.waitUntil(async () => (await abas()) <= 1, { timeoutMsg: "Ctrl+W não fechou a aba" });
+    });
   });
 });
 

@@ -3,7 +3,7 @@ name: e2e
 # fora porque o tauri-driver não roda nele. Por quê e o que não cobre: docs/decisoes.md, "Teste de ponta a ponta".
 #   gh workflow run e2e.yml -f sistemas=ambos     (a pedido; só vale com o arquivo já na main)
 #   push em leve/e2e/**                           (prova na própria branch, onde o dispatch ainda não existe)
-#   workflow_call                                 (o release.yml chama na #101)
+#   workflow_call                                 (o release.yml chama, e o publish espera por ele)
 on:
   workflow_dispatch:
     inputs:
@@ -12,18 +12,31 @@ on:
         type: choice
         options: [ambos, windows, linux]
         default: ambos
+      sem_cache:
+        description: "Sem cache de Actions (como na release)"
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       sistemas:
         description: "Sistemas: ambos, windows ou linux"
         type: string
         default: ambos
+      # O release.yml passa true: release não usa cache de Actions (docs/decisoes.md, "Release sem cache").
+      sem_cache:
+        description: "Sem cache de Actions (como na release)"
+        type: boolean
+        default: false
   push:
     branches: ["leve/e2e/**"]
 permissions: {}
+# Chamado pelo release.yml, `github.ref` é o ref da tag e `github.workflow` é o nome do chamador ("release"),
+# não "e2e": com o workflow no grupo, um run a pedido ou por push no mesmo ref não cancela o da release (nem o
+# contrário), e na tag nada cancela (como o grupo do release.yml). Medido: só com o ref, o chamado e o `push`
+# direto da mesma branch dividiam o grupo e um cancelava o outro.
 concurrency:
-  group: e2e-${{ github.ref }}
-  cancel-in-progress: true
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 jobs:
   matriz:
     # `matrix` não existe no `if` do job, então a escolha de sistemas vira a lista da matriz aqui.
@@ -76,12 +89,14 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: pnpm
+          # Sem `sem_cache` (push) o input vem vazio, e `!` dele é verdadeiro: cache ligado.
+          cache: ${{ !inputs.sem_cache && 'pnpm' || '' }}
           cache-dependency-path: |
             pnpm-lock.yaml
             tests/e2e/pnpm-lock.yaml
       - run: rustup toolchain install stable --profile minimal && rustup default stable
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ !inputs.sem_cache }}
         with:
           path: |
             ~/.cargo/registry
@@ -109,6 +124,7 @@ jobs:
       # tauri-driver fixado e em cache: `cargo install` compila ~2 min.
       - name: tauri-driver (cache)
         id: cache-driver
+        if: ${{ !inputs.sem_cache }}
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -122,7 +138,7 @@ jobs:
       # Windows: o msedgedriver tem de ser o da versão do WebView2 do runner, que muda com o runner.
       # A ferramenta lê a versão instalada e baixa o driver dela, então só ela vai para o cache.
       - name: msedgedriver-tool (cache)
-        if: matrix.id == 'windows'
+        if: matrix.id == 'windows' && !inputs.sem_cache
         id: cache-edge
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

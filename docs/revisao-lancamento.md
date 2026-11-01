@@ -70,6 +70,31 @@ Revisão feita antes do primeiro commit do repositório público `moraliasp/leve
 - Avisos "unmaintained" da cadeia Linux do Tauri (o alerta do Dependabot sobre `glib` foi dispensado como risco tolerável: não entra nos builds de Mac e Windows).
 - Rodar o instalador Windows numa máquina Windows (instalação, associação de `.md`, atualização).
 
+# O que a release prova sozinha e o que segue humano (novembro de 2026)
+
+Desde a #101, o `release.yml` chama o `e2e.yml` (`sistemas: ambos`) em paralelo com os builds, e o `publish` só roda com ele verde: rc vermelho não vira rascunho. Decisão e limites em `docs/decisoes.md`, "Teste de ponta a ponta".
+
+## Automático (a cada tag `v*`, Windows e Linux)
+
+| Coberto | Onde |
+|---|---|
+| App de verdade (build debug sem bundle, janela real, WebView2 e WebKitGTK) abre `docs/exemplo.md` | `tests/e2e/` |
+| Sumário, busca (abrir, próximo, fechar) e o que mais os roteiros `*.e2e.ts` fizerem | `tests/e2e/` |
+| Fluxos adicionais e teclado | a #99 e a #100 acrescentam roteiros; o que entrar lá passa a valer aqui sem mudar o `release.yml` |
+| Build, `audit`, versão da tag igual à dos arquivos, binário e pacotes Linux (`scripts/check-linux-packages.sh`), `.flatpak` | `release.yml` |
+
+O e2e roda sobre o build debug, não sobre os pacotes da release: ele não prova que o instalador instala.
+
+## Continua humano
+
+| Conferir à mão | Por quê |
+|---|---|
+| macOS inteiro (abrir, menu nativo, atalhos, atualização) | O `tauri-driver` não roda no macOS (o WKWebView não tem driver). |
+| Teclado físico, AltGr e layouts (ABNT2, US-Internacional) | O WebDriver não passa pelo teclado do sistema nem pelo menu nativo; o que depende da tecla chegar ao app (`accel.rs`, aceleradores do GTK) só se vê com tecla de verdade, salvo o que a #100 cobrir. |
+| Aparência em cada desktop (GNOME, KDE, Windows 10 e 11, claro e escuro, escala de tela) | O teste confere comportamento por id e atributo, não o que o leitor vê. |
+| Instalar o pacote da release (`-setup.exe`, `.msi`, `.dmg`, AppImage, `.deb`, `.rpm`, `.flatpak`): associação de `.md`, abrir por duplo clique, Gatekeeper e SmartScreen | O e2e roda o build debug do runner, não o instalador. |
+| Atualizar de uma versão para a seguinte pelo atualizador | Precisa da release publicada e do perfil de quem atualiza (roteiros abaixo). |
+
 # Atualização 0.2.0 → 0.3.0 (issue #35, 28 de outubro de 2026)
 
 Prova de que quem tem a 0.2.0 instalada recebe a 0.3.0 pelo atualizador do app, sem perder preferências, abas e Recentes. Capturas em `docs/img/atualizacao-0.3.0/`.

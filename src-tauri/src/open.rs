@@ -137,7 +137,7 @@ pub fn markdown_args(argv: &[String], cwd: &Path) -> Vec<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::grants::granted;
+    use crate::grants::{canonical, granted};
     use std::fs;
 
     const GRACE: Duration = Duration::from_millis(500);
@@ -170,7 +170,7 @@ mod tests {
         // `request_open`) acorda a espera antes dela; sem o aviso, o teste estoura o tempo.
         let t = TempDir::new("tarde");
         let doc = t.file("tarde.md", "# oi");
-        let esperado = fs::canonicalize(&doc).unwrap();
+        let esperado = canonical(&doc.to_string_lossy()).unwrap();
         let state = std::sync::Arc::new(AppState::default());
         mark_ready(&state);
         let s2 = state.clone();
@@ -205,7 +205,12 @@ mod tests {
         mark_ready(&state);
         let esperado: Vec<_> = docs
             .iter()
-            .map(|d| fs::canonicalize(d).unwrap().to_string_lossy().into_owned())
+            .map(|d| {
+                canonical(&d.to_string_lossy())
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned()
+            })
             .collect();
         assert_eq!(wait_launch(&state, GRACE, Duration::from_secs(2)), esperado);
         // Recarga da página pergunta de novo: nada volta.

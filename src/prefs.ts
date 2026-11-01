@@ -81,7 +81,26 @@ export function migrateLegacyKeys(): void {
   }
 }
 
+/** Listas de caminhos no localStorage. */
+const PATH_KEYS = ["leve.recent", TABS_KEY, FOLDER_KEY, SCROLL_KEY];
+
+/**
+ * Até a 0.6.0 o Windows entregava caminhos com `\\\\?\\` (`canonical` em `grants.rs`), que ficaram
+ * nos Recentes, nas abas, na pasta e nos pontos de leitura. Sem isto, nada disso bateria com o
+ * caminho novo do mesmo arquivo. Troca no JSON, onde cada `\` aparece dobrado.
+ */
+export function migrateVerbatimPaths(): void {
+  for (const key of PATH_KEYS) {
+    const raw = localStorage.getItem(key);
+    if (!raw?.includes("?")) continue;
+    // Só no começo da string (`"`), como o `strip_prefix` do Rust.
+    const plain = raw.replace(/"\\\\\\\\\?\\\\(?:UNC\\\\|(?=[A-Za-z]:\\\\))/g, (m) => (m.endsWith("UNC\\\\") ? '"\\\\\\\\' : '"'));
+    if (plain !== raw) localStorage.setItem(key, plain);
+  }
+}
+
 migrateLegacyKeys();
+migrateVerbatimPaths();
 
 export function readJson<T>(key: string, fallback: T): T {
   try {

@@ -299,7 +299,7 @@ fn navigation_allowed(url: &Url) -> bool {
 
 /// O que pode ir para um editor: só arquivo Markdown (mesma regra de extensão do argv). Um alvo de
 /// link concedido como `./run.command` não passa: com "Aplicativo padrão" o LaunchServices o
-/// executaria, contornando `OPENABLE_EXT`. No Windows tira o prefixo `\\?\` do canônico.
+/// executaria, contornando `OPENABLE_EXT`.
 fn editor_target(doc: &Path) -> Result<PathBuf, String> {
     let shown = doc.display().to_string();
     if !is_markdown(doc) {
@@ -308,7 +308,7 @@ fn editor_target(doc: &Path) -> Result<PathBuf, String> {
     if !doc.is_file() {
         return Err(fill(i18n::s().not_found, &[("path", &shown)]));
     }
-    Ok(editor::strip_verbatim(doc))
+    Ok(doc.to_path_buf())
 }
 
 /// Lista de "Abrir no editor" com o que está instalado (Preferências › Editor).

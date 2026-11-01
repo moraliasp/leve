@@ -732,6 +732,14 @@ body[data-font="mono"] #content {
   font-size: 13px;
 }
 
+.update-status {
+  color: var(--bar-muted);
+}
+
+.update-status.error {
+  color: var(--error);
+}
+
 .sheet::backdrop {
   background: rgba(0, 0, 0, 0.35);
 }

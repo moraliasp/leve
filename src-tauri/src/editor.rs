@@ -250,19 +250,6 @@ pub fn desktop_owner(xdg_out: &str, self_id: &str) -> String {
     }
 }
 
-/// Windows: `canonicalize` devolve `\\?\C:\...` (ou `\\?\UNC\servidor\...`), que vários editores
-/// não entendem. Tira o prefixo antes de passar o caminho adiante; outros caminhos passam iguais.
-pub fn strip_verbatim(p: &Path) -> PathBuf {
-    let s = p.to_string_lossy();
-    if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
-        PathBuf::from(format!(r"\\{rest}"))
-    } else if let Some(rest) = s.strip_prefix(r"\\?\") {
-        PathBuf::from(rest)
-    } else {
-        p.to_path_buf()
-    }
-}
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EditorInfo {
@@ -484,7 +471,7 @@ mod sys {
 
     pub fn default_and_self(_self_id: &str) -> (Option<String>, String) {
         let norm = |p: PathBuf| {
-            std::fs::canonicalize(&p)
+            crate::grants::canonical(&p.to_string_lossy())
                 .unwrap_or(p)
                 .to_string_lossy()
                 .into_owned()
@@ -660,26 +647,6 @@ mod tests {
                 r"c:\users\x\appdata\local\leve\leve.exe"
             ),
             None
-        );
-    }
-
-    #[test]
-    fn tira_prefixo_verbatim_do_windows() {
-        assert_eq!(
-            strip_verbatim(Path::new(r"\\?\C:\docs\a.md")),
-            PathBuf::from(r"C:\docs\a.md")
-        );
-        assert_eq!(
-            strip_verbatim(Path::new(r"\\?\UNC\srv\share\a.md")),
-            PathBuf::from(r"\\srv\share\a.md")
-        );
-        assert_eq!(
-            strip_verbatim(Path::new("/docs/a.md")),
-            PathBuf::from("/docs/a.md")
-        );
-        assert_eq!(
-            strip_verbatim(Path::new(r"C:\docs\a.md")),
-            PathBuf::from(r"C:\docs\a.md")
         );
     }
 

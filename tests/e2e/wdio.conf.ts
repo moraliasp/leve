@@ -21,8 +21,8 @@ let perfil: string | undefined;
  * Perfil descartável por rodada: o app lê e grava preferências, abas e concessões em disco, e o
  * teste não pode herdar (nem sujar) os de quem roda. O tauri-driver passa o próprio ambiente adiante,
  * até o app.
- * Linux: HOME e os XDG_*. Windows: APPDATA e LOCALAPPDATA (o WebView2 guarda o perfil em
- * `LOCALAPPDATA\br.com.moralia.leve`).
+ * Linux: HOME e os XDG_*. Windows: APPDATA e LOCALAPPDATA, só nominal: o Tauri resolve as pastas do
+ * app por SHGetKnownFolderPath, não pela variável (docs/decisoes.md); no runner descartável tanto faz.
  */
 function ambienteIsolado(dir: string): NodeJS.ProcessEnv {
   const sub = (nome: string): string => {

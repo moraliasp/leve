@@ -1,5 +1,6 @@
 import { $, browser, expect } from "@wdio/globals";
 import { acionarMenu, esperarDocumento } from "../helpers";
+import { WIN } from "../paths";
 import {
   escutarMenu,
   esperarEventos,
@@ -166,8 +167,11 @@ describe("ABNT2: AltGr e as teclas da pontuação", () => {
 
   // #111: no ABNT2 a tecla de `[` tem o VK do `]` do US (VK_OEM_6) e a de `]` tem VK_OEM_5. Casando pelo VK,
   // Ctrl+[ avançava, Ctrl+] não fazia nada e as abas andavam ao contrário. O `accel.rs` casa pelo caractere
-  // que o layout ativo dá à tecla. No Linux o GTK já compara o keyval traduzido (`accel_gtk.rs`).
-  it("Ctrl+[ e Ctrl+] voltam e avançam, Ctrl+Shift+] e Ctrl+Shift+[ alternam as abas", async () => {
+  // que o layout ativo dá à tecla. Só no Windows: no Linux o GTK já compara o keyval traduzido, e o `xdotool`
+  // acha o `]` do `br` no AltGr+9 (o primeiro keycode com o keysym), então Ctrl+Shift+] vira Ctrl+Shift+AltGr+9
+  // e sai `±`, que nenhum teclado manda por essa tecla.
+  it("Ctrl+[ e Ctrl+] voltam e avançam, Ctrl+Shift+] e Ctrl+Shift+[ alternam as abas", async function () {
+    if (!WIN) this.skip();
     teclas("ctrl+[");
     await esperarEventos(["back"]);
     await limparEventos();

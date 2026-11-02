@@ -148,13 +148,55 @@ pub fn gtk_shifted() -> Vec<(&'static str, &'static str)> {
         .collect()
 }
 
-/// Id do item de menu dessa combinação de teclas, se houver.
+/// Id do item de menu dessa combinação de teclas pelo VK do layout US, se houver.
 #[cfg(any(windows, test))]
-pub fn shortcut_for(vk: u32, ctrl: bool, shift: bool, alt: bool) -> Option<&'static str> {
+fn shortcut_for(vk: u32, ctrl: bool, shift: bool, alt: bool) -> Option<&'static str> {
     ACCELERATORS
         .iter()
         .find(|(_, a)| parse_accelerator(a) == Some((vk, ctrl, shift, alt)))
         .map(|(id, _)| *id)
+}
+
+/// Pontuação de um atalho de `ACCELERATORS` (`[` em `CmdOrCtrl+Shift+[`); letra, dígito e seta não.
+#[cfg(any(windows, test))]
+fn punctuation(accel: &str) -> Option<char> {
+    let key = accel.rsplit('+').next()?;
+    let mut chars = key.chars();
+    match (chars.next(), chars.next()) {
+        (Some(c), None) if c.is_ascii_punctuation() => Some(c),
+        _ => None,
+    }
+}
+
+/// Id do item de menu da tecla que o Windows entregou (`accel.rs`): `vk` é a tecla virtual, `ch` o
+/// caractere sem Shift que o layout ativo dá a ela (`None` se o Windows não disse). Pontuação muda de
+/// tecla e de VK entre layouts (no ABNT2 o `[` tem o VK do `]` do US, #111), então a tecla cujo
+/// caractere é de um atalho casa pelo caractere, e só por ele. As outras seguem o VK do US, como o
+/// acelerador nativo: letra, dígito e seta (o VK é o mesmo em todo layout latino, e num cirílico a
+/// letra impressa não é a do atalho), e pontuação que o layout pôs noutra tecla (no alemão a tecla
+/// `+` continua Ctrl+=). Alt nunca casa: Ctrl+Alt é o AltGr.
+#[cfg(any(windows, test))]
+pub fn shortcut_for_key(
+    vk: u32,
+    ch: Option<char>,
+    ctrl: bool,
+    shift: bool,
+    alt: bool,
+) -> Option<&'static str> {
+    let alphanumeric = matches!(vk, 0x30..=0x39 | 0x41..=0x5A);
+    if let Some(c) = ch.filter(|_| !alphanumeric)
+        && ACCELERATORS.iter().any(|(_, a)| punctuation(a) == Some(c))
+    {
+        return ACCELERATORS
+            .iter()
+            .find(|(_, a)| {
+                punctuation(a) == Some(c)
+                    && parse_accelerator(a).map(|(_, ct, sh, al)| (ct, sh, al))
+                        == Some((ctrl, shift, alt))
+            })
+            .map(|(id, _)| *id);
+    }
+    shortcut_for(vk, ctrl, shift, alt)
 }
 
 /// Menu nativo no idioma atual (`i18n`). Chamado no `setup` e de novo por `set_locale`; o
@@ -412,6 +454,15 @@ mod tests {
             assert!(ctrl, "{id}: atalho sem Ctrl seria digitação");
             assert!(!alt, "{id}: Ctrl+Alt é o AltGr no Windows");
             assert_eq!(shortcut_for(vk, ctrl, shift, alt), Some(*id), "{accel}");
+            // No US o caractere da tecla é o do próprio atalho: casar por ele dá o mesmo item.
+            let ch = punctuation(accel)
+                .or_else(|| char::from_u32(vk).filter(char::is_ascii_alphanumeric));
+            assert_eq!(
+                shortcut_for_key(vk, ch, ctrl, shift, alt),
+                Some(*id),
+                "{accel}"
+            );
+            assert_eq!(shortcut_for_key(vk, None, ctrl, shift, alt), Some(*id));
         }
     }
 
@@ -448,6 +499,83 @@ mod tests {
         assert_eq!(shortcut_for(0x43, true, false, false), None);
         assert_eq!(shortcut_for(0x56, true, false, false), None);
         assert_eq!(shortcut_for(0x4F, true, false, true), None);
+    }
+
+    // VK das teclas de pontuação (US: VK_OEM_4 = `[`, VK_OEM_6 = `]`).
+    const OEM_4: u32 = 0xDB;
+    const OEM_5: u32 = 0xDC;
+    const OEM_6: u32 = 0xDD;
+
+    #[test]
+    fn us_casa_colchetes_pelo_caractere() {
+        let k = |vk, ch, shift| shortcut_for_key(vk, Some(ch), true, shift, false);
+        assert_eq!(k(OEM_4, '[', false), Some("back"));
+        assert_eq!(k(OEM_6, ']', false), Some("forward"));
+        assert_eq!(k(OEM_6, ']', true), Some("next-tab"));
+        assert_eq!(k(OEM_4, '[', true), Some("prev-tab"));
+    }
+
+    /// #111: no ABNT2 a tecla de `[` dá VK_OEM_6 (o `]` do US) e a de `]` dá VK_OEM_5. Pelo VK,
+    /// Ctrl+[ avançava, Ctrl+] não fazia nada e Ctrl+Shift+[ ia para a aba seguinte.
+    #[test]
+    fn abnt2_casa_colchetes_pelo_caractere_e_nao_pelo_vk() {
+        let k = |vk, ch, shift| shortcut_for_key(vk, Some(ch), true, shift, false);
+        assert_eq!(k(OEM_6, '[', false), Some("back"));
+        assert_eq!(k(OEM_5, ']', false), Some("forward"));
+        assert_eq!(k(OEM_5, ']', true), Some("next-tab"));
+        assert_eq!(k(OEM_6, '[', true), Some("prev-tab"));
+        // A barra do ABNT2 fica na tecla extra (VK_ABNT_C1), fora do VK do US.
+        assert_eq!(k(0xC1, '/', false), Some("shortcuts"));
+    }
+
+    /// AltGr é Ctrl+Alt: digita (AltGr+Q = `/`, AltGr+W = `?` no ABNT2) e nunca vira atalho.
+    #[test]
+    fn altgr_nunca_casa() {
+        let altgr = |vk, ch| shortcut_for_key(vk, ch, true, false, true);
+        assert_eq!(altgr(OEM_6, Some('[')), None);
+        assert_eq!(altgr(OEM_5, Some(']')), None);
+        assert_eq!(altgr(0x51, Some('Q')), None);
+        assert_eq!(altgr(0x57, Some('W')), None);
+        assert_eq!(altgr(OEM_6, None), None);
+        assert_eq!(shortcut_for_key(OEM_6, Some('['), true, true, true), None);
+    }
+
+    #[test]
+    fn letra_digito_e_seta_seguem_o_vk() {
+        // Num layout cirílico a tecla do W imprime `Ц`: continua Ctrl+W.
+        assert_eq!(
+            shortcut_for_key(0x57, Some('Ц'), true, false, false),
+            Some("close-tab")
+        );
+        assert_eq!(
+            shortcut_for_key(0x30, Some('à'), true, false, false),
+            Some("zoom-reset")
+        );
+        assert_eq!(
+            shortcut_for_key(0x28, None, true, true, false),
+            Some("next-change")
+        );
+        // Ctrl+A, Ctrl+C e Ctrl+V ficam com a caixa de texto.
+        assert_eq!(shortcut_for_key(0x41, Some('A'), true, false, false), None);
+    }
+
+    #[test]
+    fn pontuacao_sem_atalho_e_sem_caractere_cai_no_vk() {
+        // Sem caractere (o Windows não disse), o VK do US, como antes.
+        assert_eq!(
+            shortcut_for_key(OEM_6, None, true, false, false),
+            Some("forward")
+        );
+        // Alemão: a tecla de VK_OEM_PLUS imprime `+`, que não é atalho; segue Ctrl+= pelo VK.
+        assert_eq!(
+            shortcut_for_key(0xBB, Some('+'), true, false, false),
+            Some("zoom-in")
+        );
+        // Sem Ctrl é digitação.
+        assert_eq!(
+            shortcut_for_key(OEM_5, Some(']'), false, false, false),
+            None
+        );
     }
 
     #[test]

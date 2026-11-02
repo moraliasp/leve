@@ -4,6 +4,8 @@ name: release
 # (NSIS + MSI) e Linux x86_64 (AppImage + .deb + .rpm) com os pacotes do atualizador assinados, mais o .flatpak (job `flatpak`, sem
 # chave), depois do job `audit`; o job `publish` gera latest.json, SHA256SUMS.txt, a attestation de
 # proveniência e a release em rascunho. Nada é publicado sem alguém revisar o rascunho.
+# O job `e2e` chama o e2e.yml (Windows e Linux) em paralelo com os builds, e o `publish` só roda com ele
+# verde: rc vermelho não vira rascunho. Por quê: docs/decisoes.md, "Teste de ponta a ponta".
 on:
   push:
     tags: ["v*"]
@@ -312,9 +314,23 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  e2e:
+    name: e2e
+    # Teste de ponta a ponta do app em Windows e Linux (.github/workflows/e2e.yml), em paralelo com o audit e
+    # os builds: não espera por eles e não os atrasa. Compila o próprio build debug e fica fora do environment
+    # `release`: não vê segredo nem chave, então não passa `secrets`. O `publish` espera por ele.
+    # `contents: read` é o teto do e2e.yml; o chamador tem de conceder o que o chamado pede.
+    # Sem cache, como o resto deste workflow: `sem_cache` desliga o actions/cache e o `cache: pnpm` do e2e.yml.
+    permissions:
+      contents: read # ler o código da tag
+    uses: ./.github/workflows/e2e.yml
+    with:
+      sistemas: ambos
+      sem_cache: true
+
   publish:
     name: publish
-    needs: [build, flatpak]
+    needs: [build, flatpak, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

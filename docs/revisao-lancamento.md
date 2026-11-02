@@ -70,6 +70,32 @@ Revisão feita antes do primeiro commit do repositório público `moraliasp/leve
 - Avisos "unmaintained" da cadeia Linux do Tauri (o alerta do Dependabot sobre `glib` foi dispensado como risco tolerável: não entra nos builds de Mac e Windows).
 - Rodar o instalador Windows numa máquina Windows (instalação, associação de `.md`, atualização).
 
+# O que a release prova sozinha e o que segue humano (novembro de 2026)
+
+Desde a #101, o `release.yml` chama o `e2e.yml` (`sistemas: ambos`) em paralelo com os builds, e o `publish` só roda com ele verde: rc vermelho não vira rascunho. Decisão e limites em `docs/decisoes.md`, "Teste de ponta a ponta".
+
+## Automático (a cada tag `v*`, Windows e Linux)
+
+| Coberto | Onde |
+|---|---|
+| App de verdade (build debug sem bundle, janela real, WebView2 e WebKitGTK) abre `docs/exemplo.md` | `tests/e2e/` |
+| Sumário, busca (abrir, próximo, fechar) e o que mais os roteiros `*.e2e.ts` fizerem | `tests/e2e/` |
+| Teclado do sistema (`teclado.e2e.ts`) | atalhos do menu com tecla mandada por `SendInput`/`xdotool` (Ctrl+F, Ctrl+P, Ctrl+Shift+L/N/A, Ctrl+Shift+] e [, Ctrl+[ e ], Ctrl+W, nos dois sistemas; no Linux o Shift sobre `[` e `]` passa por `accel_gtk.rs`, #106), e no layout ABNT2 AltGr+Q/W e as teclas de `[ ] /` |
+| Fluxos (#99) | abas (abrir pelo SO, alternar, fechar, restaurar: entre processos só no Linux, no Windows por recarga da página), Abrir rápido, pasta com a concessão semeada no perfil (árvore e `open_in_folder`; não prova o diálogo `pick_folder`), recarga com um salvamento e sem laço, imagem remota bloqueada e liberada, export (`copy-html`) sem caminho do disco |
+| Build, `audit`, versão da tag igual à dos arquivos, binário e pacotes Linux (`scripts/check-linux-packages.sh`), `.flatpak` | `release.yml` |
+
+O e2e roda sobre o build debug, não sobre os pacotes da release: ele não prova que o instalador instala.
+
+## Continua humano
+
+| Conferir à mão | Por quê |
+|---|---|
+| macOS inteiro (abrir, menu nativo, atalhos, atualização) | O `tauri-driver` não roda no macOS (o WKWebView não tem driver). |
+| Teclado físico, AltGr e layouts além do ABNT2 | O e2e simula a tecla depois do driver do teclado. AltGr físico, US-Internacional, Ctrl+[ no ABNT2 e o comportamento em cada desktop Linux (GNOME, KDE, Wayland, IBus) só se veem com tecla de verdade. |
+| Aparência em cada desktop (GNOME, KDE, Windows 10 e 11, claro e escuro, escala de tela) | O teste confere comportamento por id e atributo, não o que o leitor vê. |
+| Instalar o pacote da release (`-setup.exe`, `.msi`, `.dmg`, AppImage, `.deb`, `.rpm`, `.flatpak`): associação de `.md`, abrir por duplo clique, Gatekeeper e SmartScreen | O e2e roda o build debug do runner, não o instalador. |
+| Atualizar de uma versão para a seguinte pelo atualizador | Precisa da release publicada e do perfil de quem atualiza (roteiros abaixo). |
+
 # Atualização 0.2.0 → 0.3.0 (issue #35, 28 de outubro de 2026)
 
 Prova de que quem tem a 0.2.0 instalada recebe a 0.3.0 pelo atualizador do app, sem perder preferências, abas e Recentes. Capturas em `docs/img/atualizacao-0.3.0/`.

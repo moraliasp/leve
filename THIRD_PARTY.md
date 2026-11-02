@@ -1,6 +1,6 @@
 # Terceiros
 
-Gerado por `node scripts/third-party.mjs` em 2026-11-01. Textos completos das licenças com obrigação de aviso (Lucide, DOMPurify, crates MPL-2.0, webpki-root-certs) em `THIRD_PARTY_NOTICES.md`.
+Gerado por `node scripts/third-party.mjs` em 2026-11-02. Textos completos das licenças com obrigação de aviso (Lucide, DOMPurify, crates MPL-2.0, webpki-root-certs) em `THIRD_PARTY_NOTICES.md`.
 
 ## Licenças com obrigação de aviso (EPL/MPL/CDLA)
 
@@ -133,7 +133,7 @@ Fora do bundle (dependência instalada, não distribuída no app):
 | [layout-base](https://github.com/iVis-at-Bilkent/layout-base#readme) | 1.0.2, 2.0.1 | MIT |
 | [linkify-it](https://github.com/markdown-it/linkify-it#readme) | 6.1.0 | MIT |
 | [lodash-es](https://lodash.com/custom-builds) | 4.18.1 | MIT |
-| [lucide-static](https://lucide.dev) | 1.61.0 | ISC |
+| [lucide-static](https://lucide.dev) | 1.64.0 | ISC |
 | [markdown-it](https://github.com/markdown-it/markdown-it#readme) | 15.0.3 | MIT |
 | [markdown-it-anchor](https://github.com/valeriangalliat/markdown-it-anchor#readme) | 10.0.0 | Unlicense |
 | [markdown-it-footnote](https://github.com/markdown-it/markdown-it-footnote#readme) | 4.0.0 | MIT |
@@ -164,6 +164,7 @@ Fora do bundle (dependência instalada, não distribuída no app):
 |---|---|---|
 | [arboard](https://github.com/1Password/arboard) | 3.7.0 | MIT OR Apache-2.0 |
 | [base64](https://github.com/marshallpierce/rust-base64) | 0.22.1 | MIT OR Apache-2.0 |
+| [gtk](https://github.com/gtk-rs/gtk3-rs) | 0.18.2 | MIT |
 | [notify](https://github.com/notify-rs/notify.git) | 8.2.0 | CC0-1.0 |
 | [notify-debouncer-mini](https://github.com/notify-rs/notify.git) | 0.6.0 | MIT OR Apache-2.0 |
 | [serde](https://github.com/serde-rs/serde) | 1.0.229 | MIT OR Apache-2.0 |

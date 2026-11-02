@@ -2,7 +2,7 @@
 
 ## Lucide
 
-Ícones de interface do Leve (`src/icons.ts`, pacote `lucide-static` 1.61.0). https://lucide.dev
+Ícones de interface do Leve (`src/icons.ts`, pacote `lucide-static` 1.64.0). https://lucide.dev
 
 ```
 ISC License

@@ -8,6 +8,10 @@ updates:
     groups:
       npm:
         patterns: ["*"]
+    ignore:
+      # O KaTeX sobe junto com o do mermaid (hoje ^0.18): versão diferente põe duas cópias no build (+259 kB).
+      - dependency-name: katex
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
   - package-ecosystem: npm
     directory: /tests/e2e
     schedule:

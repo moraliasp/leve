@@ -2142,6 +2142,7 @@ version = "0.6.0"
 dependencies = [
  "arboard",
  "base64 0.22.1",
+ "gtk",
  "notify",
  "notify-debouncer-mini",
  "serde",

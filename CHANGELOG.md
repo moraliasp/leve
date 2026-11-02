@@ -4,10 +4,6 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
-### Fixed
-
-- Linux: the document no longer reloads in a loop after the first reload.
-
 ## [0.6.0] - 2026-10-31
 
 ### Added
@@ -22,6 +18,9 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 ### Fixed
 
 - Windows: the keyboard shortcuts shown in the menus now work while you read a document. Ctrl+F opens Leve's search and Ctrl+P its quick open, instead of the find bar and print screen of the embedded browser.
+- Windows with a Brazilian ABNT2 keyboard: Ctrl+[ and Ctrl+] now go back and forward, and Ctrl+Shift+] and Ctrl+Shift+[ switch to the next and previous tab. They were swapped or did nothing, because Leve matched the key position of a US keyboard instead of the character your layout types.
+- Linux: the document no longer reloads in a loop after the first reload.
+- Linux: Ctrl+Shift+] and Ctrl+Shift+[ now switch to the next and previous tab. The menu showed them, but GTK never matched the keys because Shift turns `]` into `}`.
 - Opening several Markdown files at once now opens all of them in tabs, with the last one active, even when Leve was closed. This covers Finder, `open -a`, `leve a.md b.md` and, on Windows and Linux, the file manager. Before, only one file opened and the others were lost without notice.
 - Changing the interface language no longer reopens the last file that came from the system.
 - Exported HTML, Copy as HTML and Copy as Formatted Text no longer carry paths from your disk: a missing image keeps its alt text and the path as the document wrote it, and a path written as absolute is left out. The notice in the document also shows the path as written.

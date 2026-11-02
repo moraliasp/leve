@@ -101,13 +101,10 @@ describe("atalhos pelo teclado do sistema", () => {
       await browser.waitUntil(async () => (await abaAtiva()) === 1, { timeoutMsg: "a aba do exemplo não ficou ativa" });
     });
 
-    // Medido no Linux (GTK, xvfb, layout us): Ctrl+Shift+] chega à página como `}` com Ctrl e Shift e
-    // nenhum acelerador casa. O `muda` registra `<Shift><Control>bracketright`, e o GTK compara o nível
-    // da tecla (Shift+] é o nível 1, `braceright`), então o atalho com Shift sobre pontuação não dispara
-    // no GTK (hipótese). Não é o teste: é o app, #106. No Windows (VK, accel.rs)
-    // casa. Pendente em vez de verde falso (docs/decisoes.md, "Teste de ponta a ponta").
-    it("Ctrl+Shift+] e Ctrl+Shift+[ alternam as abas", async function () {
-      if (!WIN) this.skip();
+    // Nos dois sistemas: no Windows pelo `accel.rs` (VK), no Linux pelo `accel_gtk.rs`. O GTK compara o keyval
+    // já traduzido pelo Shift (`braceright`), e o `muda` registra `bracketright` no menu: sem o grupo do
+    // `accel_gtk.rs` a página recebe `}` com Ctrl e Shift e nenhum evento `menu` chega (#106).
+    it("Ctrl+Shift+] e Ctrl+Shift+[ alternam as abas", async () => {
       await limparEventos();
       teclas("ctrl+shift+]");
       await esperarEventos(["next-tab"]);
@@ -166,5 +163,34 @@ describe("ABNT2: AltGr e as teclas da pontuação", () => {
     teclas("/");
     await browser.waitUntil(async () => (await campo()) === "[]/", { timeoutMsg: `esperava "[]/" e o campo tem "${await campo()}"` });
     await esperarSemEventos();
+  });
+
+  // #111: no ABNT2 a tecla de `[` tem o VK do `]` do US (VK_OEM_6) e a de `]` tem VK_OEM_5. Casando pelo VK,
+  // Ctrl+[ avançava, Ctrl+] não fazia nada e as abas andavam ao contrário. O `accel.rs` casa pelo caractere
+  // que o layout ativo dá à tecla. Só no Windows: no Linux o GTK já compara o keyval traduzido, e o `xdotool`
+  // manda o `]` do `br` por AltGr+9, então Ctrl+Shift+] vira Ctrl+Shift+AltGr+9 e sai `±`, que nenhum teclado
+  // manda por essa tecla.
+  it("Ctrl+[ e Ctrl+] voltam e avançam, Ctrl+Shift+] e Ctrl+Shift+[ alternam as abas", async function () {
+    if (!WIN) this.skip();
+    teclas("ctrl+[");
+    await esperarEventos(["back"]);
+    await limparEventos();
+    teclas("ctrl+]");
+    await esperarEventos(["forward"]);
+
+    // Uma segunda aba, como no bloco US (lá o Ctrl+W fechou a do exemplo).
+    await acionarMenu("sample");
+    await browser.waitUntil(async () => (await abas()) === 2, { timeoutMsg: "a segunda aba não abriu" });
+    await browser.waitUntil(async () => (await abaAtiva()) === 1, { timeoutMsg: "a aba do exemplo não ficou ativa" });
+
+    await limparEventos();
+    teclas("ctrl+shift+]");
+    await esperarEventos(["next-tab"]);
+    await browser.waitUntil(async () => (await abaAtiva()) === 0, { timeoutMsg: "Ctrl+Shift+] não foi para a aba seguinte" });
+
+    await limparEventos();
+    teclas("ctrl+shift+[");
+    await esperarEventos(["prev-tab"]);
+    await browser.waitUntil(async () => (await abaAtiva()) === 1, { timeoutMsg: "Ctrl+Shift+[ não voltou para a aba anterior" });
   });
 });

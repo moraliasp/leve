@@ -43,7 +43,7 @@ arboard = { version = "3", default-features = false, features = ["wayland-data-c
 # Atalhos com o foco no WebView2 (`accel.rs`): as mesmas versões que o Tauri já traz, sem crate novo no grafo.
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.39"
-windows = { version = "0.62", features = ["Win32_UI_Input_KeyboardAndMouse"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
 
 # Atalho com Shift sobre pontuação no GTK (`accel_gtk.rs`): a mesma versão que o Tauri já traz, sem crate novo no grafo.
 [target.'cfg(target_os = "linux")'.dependencies]

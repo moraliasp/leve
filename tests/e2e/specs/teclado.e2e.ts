@@ -1,5 +1,6 @@
 import { $, browser, expect } from "@wdio/globals";
 import { acionarMenu, esperarDocumento } from "../helpers";
+import { WIN } from "../paths";
 import {
   escutarMenu,
   esperarEventos,
@@ -162,5 +163,34 @@ describe("ABNT2: AltGr e as teclas da pontuação", () => {
     teclas("/");
     await browser.waitUntil(async () => (await campo()) === "[]/", { timeoutMsg: `esperava "[]/" e o campo tem "${await campo()}"` });
     await esperarSemEventos();
+  });
+
+  // #111: no ABNT2 a tecla de `[` tem o VK do `]` do US (VK_OEM_6) e a de `]` tem VK_OEM_5. Casando pelo VK,
+  // Ctrl+[ avançava, Ctrl+] não fazia nada e as abas andavam ao contrário. O `accel.rs` casa pelo caractere
+  // que o layout ativo dá à tecla. Só no Windows: no Linux o GTK já compara o keyval traduzido, e o `xdotool`
+  // manda o `]` do `br` por AltGr+9, então Ctrl+Shift+] vira Ctrl+Shift+AltGr+9 e sai `±`, que nenhum teclado
+  // manda por essa tecla.
+  it("Ctrl+[ e Ctrl+] voltam e avançam, Ctrl+Shift+] e Ctrl+Shift+[ alternam as abas", async function () {
+    if (!WIN) this.skip();
+    teclas("ctrl+[");
+    await esperarEventos(["back"]);
+    await limparEventos();
+    teclas("ctrl+]");
+    await esperarEventos(["forward"]);
+
+    // Uma segunda aba, como no bloco US (lá o Ctrl+W fechou a do exemplo).
+    await acionarMenu("sample");
+    await browser.waitUntil(async () => (await abas()) === 2, { timeoutMsg: "a segunda aba não abriu" });
+    await browser.waitUntil(async () => (await abaAtiva()) === 1, { timeoutMsg: "a aba do exemplo não ficou ativa" });
+
+    await limparEventos();
+    teclas("ctrl+shift+]");
+    await esperarEventos(["next-tab"]);
+    await browser.waitUntil(async () => (await abaAtiva()) === 0, { timeoutMsg: "Ctrl+Shift+] não foi para a aba seguinte" });
+
+    await limparEventos();
+    teclas("ctrl+shift+[");
+    await esperarEventos(["prev-tab"]);
+    await browser.waitUntil(async () => (await abaAtiva()) === 1, { timeoutMsg: "Ctrl+Shift+[ não voltou para a aba anterior" });
   });
 });

@@ -8,6 +8,7 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 - Linux: the document no longer reloads in a loop after the first reload.
 - Linux: Ctrl+Shift+] and Ctrl+Shift+[ now switch to the next and previous tab. The menu showed them, but GTK never matched the keys because Shift turns `]` into `}`.
+- Windows with a Brazilian ABNT2 keyboard: Ctrl+[ and Ctrl+] now go back and forward, and Ctrl+Shift+] and Ctrl+Shift+[ switch to the next and previous tab. They were swapped or did nothing, because Leve matched the key position of a US keyboard instead of the character your layout types.
 
 ## [0.6.0] - 2026-10-31
 

@@ -21,5 +21,11 @@
     "expect-webdriverio": "^8.0.0",
     "typescript": "^6.0.3",
     "webdriverio": "^10.1.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "minimatch@<11.0.1": "^11.0.1",
+      "glob@13": "^14.0.3"
+    }
   }
 }

@@ -30,10 +30,10 @@ fn held(key: VIRTUAL_KEY) -> bool {
 }
 
 /// Layout de quem traduziu a tecla. O layout é por thread, e o VK que o evento traz foi calculado no
-/// thread da janela com o foco, a do WebView2, que não é o deste callback (o da janela do app): os
-/// dois podem ter layouts diferentes (medido no e2e), e `GetKeyboardLayout(0)` daria o deste. A janela em primeiro plano é
-/// a do app, então o foco sai do `GetGUIThreadInfo` do thread dela (a fila de entrada é compartilhada
-/// com o WebView2). Sem foco, o thread da janela; sem janela, `GetKeyboardLayout(0)`, o deste thread.
+/// thread da janela com o foco, a do WebView2, que não é o da janela do app: os dois podem ter layouts
+/// diferentes, e com `GetKeyboardLayout(0)` o bug voltava (medido no e2e, docs/decisoes.md). A janela
+/// em primeiro plano é a do app, então o foco sai do `GetGUIThreadInfo` do thread dela. Sem foco, o
+/// thread da janela; sem janela, `GetKeyboardLayout(0)`, o deste thread.
 fn focus_layout() -> HKL {
     unsafe {
         let fg = GetForegroundWindow();

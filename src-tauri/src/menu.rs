@@ -125,6 +125,29 @@ fn parse_accelerator(accel: &str) -> Option<(u32, bool, bool, bool)> {
     key.map(|k| (k, ctrl, shift, alt))
 }
 
+/// Nome GDK da tecla que o Shift produz no nível 1 do layout, para atalho com Shift sobre pontuação
+/// (`accel_gtk.rs`). O GTK compara o keyval já traduzido (Shift+] chega como `braceright`), e o `muda`
+/// registra o do nível 0 (`bracketright`), que nunca casa. Pontuação com Shift em `ACCELERATORS` sem
+/// entrada aqui falha em `todo_atalho_com_shift_sobre_pontuacao_tem_keyval_do_gtk`.
+#[cfg(any(target_os = "linux", test))]
+fn shifted_keyval(accel: &str) -> Option<&'static str> {
+    // Só Ctrl+Shift+tecla, os modificadores que `accel_gtk.rs` liga.
+    match accel.split('+').collect::<Vec<_>>()[..] {
+        ["CmdOrCtrl", "Shift", "["] => Some("braceleft"),
+        ["CmdOrCtrl", "Shift", "]"] => Some("braceright"),
+        _ => None,
+    }
+}
+
+/// (id, nome GDK da tecla) dos atalhos de `ACCELERATORS` que o GTK só casa pelo keyval do Shift.
+#[cfg(any(target_os = "linux", test))]
+pub fn gtk_shifted() -> Vec<(&'static str, &'static str)> {
+    ACCELERATORS
+        .iter()
+        .filter_map(|(id, a)| shifted_keyval(a).map(|k| (*id, k)))
+        .collect()
+}
+
 /// Id do item de menu dessa combinação de teclas, se houver.
 #[cfg(any(windows, test))]
 pub fn shortcut_for(vk: u32, ctrl: bool, shift: bool, alt: bool) -> Option<&'static str> {
@@ -390,6 +413,25 @@ mod tests {
             assert!(!alt, "{id}: Ctrl+Alt é o AltGr no Windows");
             assert_eq!(shortcut_for(vk, ctrl, shift, alt), Some(*id), "{accel}");
         }
+    }
+
+    #[test]
+    fn todo_atalho_com_shift_sobre_pontuacao_tem_keyval_do_gtk() {
+        for (id, accel) in ACCELERATORS {
+            let parts: Vec<&str> = accel.split('+').collect();
+            let key = parts.last().unwrap();
+            let pontuacao = key.len() == 1 && !key.as_bytes()[0].is_ascii_alphanumeric();
+            // Só `=`, `-`, `,` e `/` sem Shift: o nível 0 é o que o GTK compara.
+            assert_eq!(
+                parts.contains(&"Shift") && pontuacao,
+                shifted_keyval(accel).is_some(),
+                "{id}: {accel}"
+            );
+        }
+        assert_eq!(
+            gtk_shifted(),
+            vec![("next-tab", "braceright"), ("prev-tab", "braceleft")]
+        );
     }
 
     #[test]

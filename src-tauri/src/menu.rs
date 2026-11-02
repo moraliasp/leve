@@ -168,13 +168,23 @@ fn punctuation(accel: &str) -> Option<char> {
     }
 }
 
+/// Tecla OEM de pontuação, a que muda de caractere com o layout: `VK_OEM_1` a `VK_OEM_3`
+/// (`0xBA..=0xC0`, com `VK_OEM_PLUS`, `_COMMA`, `_MINUS` e `_PERIOD`), `VK_ABNT_C1` (`0xC1`, a barra
+/// extra do ABNT2), `VK_OEM_4` a `VK_OEM_8` (`0xDB..=0xDF`) e `VK_OEM_102` (`0xE2`). Fora: letra,
+/// dígito (no AZERTY o 6 imprime `-`), seta e o teclado numérico, inclusive o `VK_ABNT_C2` (`0xC2`),
+/// que é o separador do numérico do ABNT2.
+#[cfg(any(windows, test))]
+fn is_oem_punctuation(vk: u32) -> bool {
+    matches!(vk, 0xBA..=0xC1 | 0xDB..=0xDF | 0xE2)
+}
+
 /// Id do item de menu da tecla que o Windows entregou (`accel.rs`): `vk` é a tecla virtual, `ch` o
 /// caractere sem Shift que o layout ativo dá a ela (`None` se o Windows não disse). Pontuação muda de
-/// tecla e de VK entre layouts (no ABNT2 o `[` tem o VK do `]` do US, #111), então a tecla cujo
-/// caractere é de um atalho casa pelo caractere, e só por ele. As outras seguem o VK do US, como o
-/// acelerador nativo: letra, dígito e seta (o VK é o mesmo em todo layout latino, e num cirílico a
-/// letra impressa não é a do atalho), e pontuação que o layout pôs noutra tecla (no alemão a tecla
-/// `+` continua Ctrl+=). Alt nunca casa: Ctrl+Alt é o AltGr.
+/// tecla e de VK entre layouts (no ABNT2 o `[` tem o VK do `]` do US, #111), então a tecla OEM de
+/// pontuação (`is_oem_punctuation`) cujo caractere é de um atalho casa pelo caractere, e só por ele.
+/// As outras seguem o VK do US, como o acelerador nativo: letra, dígito, seta e teclado numérico, e
+/// tecla OEM cujo caractere não é de atalho (no alemão a tecla `+` continua Ctrl+=). Alt nunca casa:
+/// Ctrl+Alt é o AltGr.
 #[cfg(any(windows, test))]
 pub fn shortcut_for_key(
     vk: u32,
@@ -183,8 +193,7 @@ pub fn shortcut_for_key(
     shift: bool,
     alt: bool,
 ) -> Option<&'static str> {
-    let alphanumeric = matches!(vk, 0x30..=0x39 | 0x41..=0x5A);
-    if let Some(c) = ch.filter(|_| !alphanumeric)
+    if let Some(c) = ch.filter(|_| is_oem_punctuation(vk))
         && ACCELERATORS.iter().any(|(_, a)| punctuation(a) == Some(c))
     {
         return ACCELERATORS
@@ -557,6 +566,37 @@ mod tests {
         );
         // Ctrl+A, Ctrl+C e Ctrl+V ficam com a caixa de texto.
         assert_eq!(shortcut_for_key(0x41, Some('A'), true, false, false), None);
+        // AZERTY: a tecla do 6 imprime `-`, e Ctrl+6 não é Ctrl+- (zoom-out).
+        assert_eq!(shortcut_for_key(0x36, Some('-'), true, false, false), None);
+    }
+
+    /// O teclado numérico não casa pelo caractere: antes nenhuma dessas teclas era atalho.
+    #[test]
+    fn teclado_numerico_nao_vira_atalho() {
+        let k = |vk, ch| shortcut_for_key(vk, Some(ch), true, false, false);
+        assert_eq!(k(0x6D, '-'), None); // VK_SUBTRACT
+        assert_eq!(k(0x6F, '/'), None); // VK_DIVIDE
+        assert_eq!(k(0x6E, ','), None); // VK_DECIMAL num layout de vírgula
+        assert_eq!(k(0xC2, ','), None); // VK_ABNT_C2, o separador do numérico do ABNT2
+    }
+
+    /// Só as teclas OEM de pontuação da documentação (Virtual-Key Codes, mais `VK_ABNT_C1` do
+    /// `kbd.h`) casam pelo caractere: uma tecla que imprime `/` só vira Ctrl+/ se estiver nesta lista
+    /// (ou for o próprio VK do `/` do US, que está nela).
+    #[test]
+    fn so_tecla_oem_de_pontuacao_casa_pelo_caractere() {
+        let oem: Vec<u32> = (0xBA..=0xC0)
+            .chain([0xC1])
+            .chain(0xDB..=0xDF)
+            .chain([0xE2])
+            .collect();
+        for vk in 0..=0xFFu32 {
+            assert_eq!(
+                shortcut_for_key(vk, Some('/'), true, false, false) == Some("shortcuts"),
+                oem.contains(&vk),
+                "VK 0x{vk:02X}"
+            );
+        }
     }
 
     #[test]

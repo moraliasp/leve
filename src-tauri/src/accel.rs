@@ -34,7 +34,6 @@ fn held(key: VIRTUAL_KEY) -> bool {
 /// dois podem ter layouts diferentes (medido no e2e), e `GetKeyboardLayout(0)` daria o deste. A janela em primeiro plano é
 /// a do app, então o foco sai do `GetGUIThreadInfo` do thread dela (a fila de entrada é compartilhada
 /// com o WebView2). Sem foco, o thread da janela; sem janela, `GetKeyboardLayout(0)`, o deste thread.
-#[allow(dead_code)]
 fn focus_layout() -> HKL {
     unsafe {
         let fg = GetForegroundWindow();
@@ -62,7 +61,7 @@ fn focus_layout() -> HKL {
 /// Caractere sem Shift que o layout do foco dá à tecla virtual. Tecla morta (bit alto, `´` no ABNT2)
 /// e tecla sem caractere dão `None`, e o atalho casa pelo VK, como antes.
 fn layout_char(vk: u32) -> Option<char> {
-    let mapped = unsafe { MapVirtualKeyExW(vk, MAPVK_VK_TO_CHAR, Some(GetKeyboardLayout(0))) };
+    let mapped = unsafe { MapVirtualKeyExW(vk, MAPVK_VK_TO_CHAR, Some(focus_layout())) };
     if mapped & 0x8000_0000 != 0 {
         return None;
     }

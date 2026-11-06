@@ -17,6 +17,7 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ### Fixed
 
+- macOS: *File › Print / Export PDF…* (⌘⇧P) now opens the print panel. It did nothing, because Leve never allowed the print command that the Mac's web view needs.
 - Windows: the keyboard shortcuts shown in the menus now work while you read a document. Ctrl+F opens Leve's search and Ctrl+P its quick open, instead of the find bar and print screen of the embedded browser.
 - Windows with a Brazilian ABNT2 keyboard: Ctrl+[ and Ctrl+] now go back and forward, and Ctrl+Shift+] and Ctrl+Shift+[ switch to the next and previous tab. They were swapped or did nothing, because Leve matched the key position of a US keyboard instead of the character your layout types.
 - Linux: the document no longer reloads in a loop after the first reload.

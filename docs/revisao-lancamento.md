@@ -171,3 +171,26 @@ Prova de que quem tem a 0.4.0 recebe a 0.5.0 pelo atualizador do app, com pacote
 **Estado devolvido.** Manifesto de 42 entradas igual antes e depois; `diff -r` vazio no `Application Support`, no `WebKit` e em `/Applications/Leve.app`.
 
 **Não testado.** Windows e Linux. Gatekeeper e "Abrir mesmo assim", porque o `.dmg` baixado pelo `gh` não leva quarentena. Preferências preservadas: o clique no tema não surtiu efeito na automação, então nenhuma foi mudada antes de atualizar.
+
+# 0.6.0: o que o rc.4 provou (7 de novembro de 2026)
+
+`v0.6.0-rc.4` em `0235057`, a ponta da `main` com a correção do Imprimir no Mac (#122) e as dependências que entraram depois do rc.3 (#95, #118). Run 42315246486 do `release.yml`, verde na primeira tentativa.
+
+## Windows e Linux: e2e da release
+
+Os 11 roteiros de `tests/e2e/` passaram nos dois sistemas: 42 testes no Windows (WebView2 156) e 41 no Linux (WebKitGTK). O roteiro de teclado (`teclado.e2e.ts`) tem 11 testes no Windows, com o ABNT2, e 10 no Linux.
+
+## macOS: pacote da release
+
+`Leve_0.6.0_aarch64.dmg` baixado da release, conferido com o `SHA256SUMS.txt` e com `gh attestation verify`, aberto com `HOME` e `CFFIXED_USER_HOME` isolados num Mac Apple Silicon (macOS 26.6). O perfil real ficou igual antes e depois (`stat` de 45 entradas).
+
+| Conferido | Resultado |
+|---|---|
+| Arquivo › Imprimir / Exportar PDF… e ⌘⇧P | Abrem o painel de impressão com a prévia (no rc.3 e antes, nada acontecia: #121). |
+| Teclado, com tecla real (não pelo menu) | ⌘⇧[ e ⌘⇧] alternam as abas, ⌘F abre a busca e acha, ⌘W fecha a aba. |
+| Recarga ao salvar com o vigia novo (`notify-debouncer-mini` 0.7) | O documento aberto, editado por fora, recarregou com a marca "1 section changed", sumário e Mermaid em ordem. |
+| Assinatura | Ad hoc, sem Developer ID, como no rc.3: o Gatekeeper recusa o duplo clique até a notarização (#37). Não é regressão. |
+
+## Sem teste de teclado físico no Windows e no Linux
+
+Decisão do mantenedor em 7 de novembro de 2026: a 0.6.0 sai sem o teste de teclado físico, que estava pendente desde o rc.1 por falta de máquina. Fica valendo o e2e acima, que manda a tecla pelo sistema (`SendInput`, `xdotool`) e passa pelo menu nativo. Continuam sem prova o hardware de verdade (AltGr físico, outros layouts), o pacote instalado pelo instalador (#102) e o Linux num desktop real (#38). Problema que aparecer aí sai numa versão de correção.

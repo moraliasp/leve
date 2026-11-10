@@ -26,7 +26,7 @@ O app é o mesmo da release, com a mesma primeira abertura (abaixo). No macOS o 
 2. Dê duplo-clique em Leve. O macOS avisa que o Leve é um app baixado da internet; clique em **Abrir**. Da segunda vez em diante abre direto.
 3. Para abrir um `.md` com duplo-clique, use **Abrir com › Leve** uma vez (ou "Sempre abrir com", em Obter Informações › Abrir com › Alterar Tudo).
 
-Até a 0.6.0 o app não era assinado, e o macOS bloqueava a primeira abertura até liberar em **Ajustes do Sistema › Privacidade e Segurança › Abrir Mesmo Assim**. Quem já tem uma dessas versões recebe a assinada pelo atualizador do app, sem passar por isso de novo.
+Até a 0.6.0 o app não era assinado, e o macOS bloqueava a primeira abertura até liberar em **Ajustes do Sistema › Privacidade e Segurança › Abrir Mesmo Assim**. Quem já tem uma dessas versões atualiza pelo próprio app (**Leve › Verificar atualizações…**) ou baixa o `.dmg` novo.
 
 ## Windows
 

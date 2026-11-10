@@ -84,7 +84,7 @@ brew uninstall --cask leve
 
 O `brew install` usa `/Applications` e fica com um Leve que já esteja lá, e o `brew uninstall` apaga esse app, mesmo que ele não tenha vindo do `brew`.
 
-`brew audit --cask --new` reprova (app não passa no Gatekeeper, repositório pouco notável): é a régua do `homebrew/cask` oficial, não a do tap, e é o motivo de o tap existir.
+`brew audit --cask --new` reprova por repositório pouco notável (até a 0.6.0 também por app que não passava no Gatekeeper): é a régua do `homebrew/cask` oficial, não a do tap, e é o motivo de o tap existir.
 
 ### A cada versão
 

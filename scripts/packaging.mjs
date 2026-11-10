@@ -23,7 +23,6 @@ export const assetNames = (version) => ({
   nsis: `Leve_${version}_x64-setup.exe`,
 });
 
-/** `sha256sum` (`<hash>  <nome>`, `*` antes do nome em modo binário) → Map nome → hash minúsculo. */
 /** Primeira versão com o macOS assinado com Developer ID e notarizado. */
 export const MAC_SIGNED_SINCE = "0.6.1";
 
@@ -35,6 +34,7 @@ export function macSigned(version) {
   return true;
 }
 
+/** `sha256sum` (`<hash>  <nome>`, `*` antes do nome em modo binário) → Map nome → hash minúsculo. */
 export function parseSums(text) {
   const sums = new Map();
   for (const line of text.split(/\r?\n/)) {

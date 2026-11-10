@@ -24,6 +24,17 @@ export const assetNames = (version) => ({
 });
 
 /** `sha256sum` (`<hash>  <nome>`, `*` antes do nome em modo binário) → Map nome → hash minúsculo. */
+/** Primeira versão com o macOS assinado com Developer ID e notarizado. */
+export const MAC_SIGNED_SINCE = "0.6.1";
+
+/** `version` (X.Y.Z) é igual ou posterior a `MAC_SIGNED_SINCE`. */
+export function macSigned(version) {
+  const a = version.split(".").map(Number);
+  const b = MAC_SIGNED_SINCE.split(".").map(Number);
+  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] > b[i];
+  return true;
+}
+
 export function parseSums(text) {
   const sums = new Map();
   for (const line of text.split(/\r?\n/)) {
@@ -139,6 +150,21 @@ export function buildPackaging({ version, sums, releaseDate }) {
   end
 `;
 
+  // Até a 0.6.0 o dmg saía sem Developer ID e o Gatekeeper barrava a primeira abertura; da 0.6.1 em diante é
+  // notarizado, e a quarentena que o Homebrew mantém só pede a confirmação comum, sem caveats.
+  const caskCaveats = macSigned(version)
+    ? ""
+    : `
+  caveats <<~EOS
+    Leve is not signed or notarized by Apple yet, so macOS blocks the first launch.
+    Open Leve once, click Done, then go to System Settings > Privacy & Security
+    and click Open Anyway. macOS may ask again after brew upgrade.
+    Or remove the quarantine flag yourself, if you trust this download:
+      xattr -dr com.apple.quarantine "#{appdir}/Leve.app"
+    Checksums and build provenance: https://github.com/${REPO}/releases
+  EOS
+`;
+
   const cask = `cask "leve" do
   version "${version}"
 ${caskSource}
@@ -172,16 +198,7 @@ ${caskSource}
     "~/Library/Saved Application State/br.com.moralia.leve.savedState",
     "~/Library/WebKit/br.com.moralia.leve",
   ]
-
-  caveats <<~EOS
-    Leve is not signed or notarized by Apple yet, so macOS blocks the first launch.
-    Open Leve once, click Done, then go to System Settings > Privacy & Security
-    and click Open Anyway. macOS may ask again after brew upgrade.
-    Or remove the quarantine flag yourself, if you trust this download:
-      xattr -dr com.apple.quarantine "#{appdir}/Leve.app"
-    Checksums and build provenance: https://github.com/${REPO}/releases
-  EOS
-end
+${caskCaveats}end
 `;
 
   const dir = `packaging/winget/${version}`;

@@ -162,4 +162,4 @@ O Flathub cria `flathub/br.com.moralia.leve` e convida o dono. Cada versão nova
 ## 5. Depois de publicar
 
 - Tirar o "em breve" das linhas de `winget install`, `brew install` e `flatpak install` nos READMEs e em [`instalacao.md`](instalacao.md).
-- Com assinatura Apple e Authenticode, revisar a decisão: a `caveats` sai do cask (`scripts/packaging.mjs`) e o `homebrew/cask` oficial vira opção.
+- A `caveats` saiu do cask com o macOS assinado (0.6.1). O `homebrew/cask` oficial vira opção quando o repositório passar na notabilidade do `brew audit --cask --new`; com Authenticode, revisar o winget.

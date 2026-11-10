@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { buildPackaging, parseSums } from "../scripts/packaging.mjs";
+import { buildPackaging, macSigned, parseSums } from "../scripts/packaging.mjs";
 import wVersion from "../packaging/winget/0.2.0/Moralia.Leve.yaml?raw";
 import wInstaller from "../packaging/winget/0.2.0/Moralia.Leve.installer.yaml?raw";
 import wEn from "../packaging/winget/0.2.0/Moralia.Leve.locale.en-US.yaml?raw";
@@ -104,6 +104,18 @@ describe("pacotes winget e Homebrew", () => {
     expect(bloco("on_intel")).toContain(`sha256 "${"d".repeat(64)}"`);
     expect(bloco("on_intel")).toContain("releases/download/v#{version}/Leve_#{version}_x64.dmg");
     expect(cask).not.toContain("universal");
+  });
+
+  it("cask: caveats de Gatekeeper só até a 0.6.0; da 0.6.1 em diante o dmg é notarizado", () => {
+    expect(gen()["packaging/homebrew/Casks/leve.rb"]).toContain("click Open Anyway");
+    const arq = (v: string) => gen(v, SUMS_ARQ.split("0.7.0").join(v))["packaging/homebrew/Casks/leve.rb"];
+    expect(arq("0.6.0")).toContain("caveats <<~EOS");
+    for (const v of ["0.6.1", "0.7.0", "0.10.0", "1.0.0"]) {
+      expect(arq(v)).not.toContain("caveats");
+      expect(arq(v)).not.toContain("xattr");
+      expect(arq(v)).toMatch(/  \]\nend\n$/);
+    }
+    expect([macSigned("0.6.0"), macSigned("0.6.1"), macSigned("0.5.9"), macSigned("0.10.0"), macSigned("1.0.0")]).toEqual([false, true, false, true, true]);
   });
 
   it("cask: Leve já instalado fica no lugar, em passos declarativos", () => {

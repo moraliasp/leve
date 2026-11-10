@@ -4,7 +4,7 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
-## [0.6.1] - 2026-11-09
+## [0.6.1] - 2026-11-10
 
 ### Changed
 

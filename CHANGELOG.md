@@ -4,6 +4,12 @@ All notable changes to Leve are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-09
+
+### Changed
+
+- macOS downloads are signed with Moralia's Developer ID and notarized by Apple, so Leve opens on first launch without a trip to *System Settings › Privacy & Security*.
+
 ## [0.6.0] - 2026-11-07
 
 ### Added
@@ -115,7 +121,8 @@ First public release.
 
 - Raw HTML is sanitized (DOMPurify); remote images and resources are blocked until requested; the window never navigates away from the app; documents can only reach files by relative path; file access is granted per file.
 
-[Unreleased]: https://github.com/moraliasp/leve/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/moraliasp/leve/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/moraliasp/leve/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/moraliasp/leve/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/moraliasp/leve/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/moraliasp/leve/compare/v0.3.0...v0.4.0

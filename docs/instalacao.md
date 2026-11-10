@@ -1,6 +1,6 @@
 # Instalar o Leve
 
-Os instaladores ainda saem sem assinatura (macOS até a Moralia ter conta Apple Developer própria; Windows sem certificado), então o sistema avisa na primeira abertura. É esperado e acontece uma vez. No Linux não há aviso de sistema: a origem se confere pelo `SHA256SUMS.txt` e pela attestation da release.
+No macOS, desde a 0.6.1, o Leve sai assinado com o Developer ID da Moralia e notarizado pela Apple: a primeira abertura só confirma que o app veio da internet. O instalador Windows ainda sai sem certificado, então o SmartScreen avisa na primeira abertura; é esperado e acontece uma vez. No Linux não há aviso de sistema: a origem se confere pelo `SHA256SUMS.txt` e pela attestation da release.
 
 ## Por gerenciador de pacotes
 
@@ -18,20 +18,15 @@ Windows, com o instalador por usuário:
 winget install Moralia.Leve
 ```
 
-O app é o mesmo da release, com o mesmo aviso na primeira abertura (abaixo). No macOS o Homebrew mantém a quarentena de propósito, então o passo do **Abrir Mesmo Assim** vale também para quem instala pelo `brew`, e pode voltar depois de um `brew upgrade`. Se já houver um Leve em Aplicativos, o `brew install` fica com ele em vez de instalar por cima: o app, a liberação do Gatekeeper e a versão continuam como estão, e o atualizador do app segue cuidando das versões novas. Pelo winget vai o instalador por usuário (`-setup.exe`); o `.msi` continua só na release.
+O app é o mesmo da release, com a mesma primeira abertura (abaixo). No macOS o Homebrew mantém a quarentena de propósito, então quem instala pelo `brew` também vê a confirmação de app baixado da internet, que pode voltar depois de um `brew upgrade`. Se já houver um Leve em Aplicativos, o `brew install` fica com ele em vez de instalar por cima: o app e a versão continuam como estão, e o atualizador do app segue cuidando das versões novas. Pelo winget vai o instalador por usuário (`-setup.exe`); o `.msi` continua só na release.
 
 ## macOS
 
 1. Baixe o `.dmg`: `Leve_x.y.z_universal.dmg` até a 0.5.0; nas versões seguintes, o do seu Mac, `Leve_x.y.z_aarch64.dmg` para Apple silicon (chip Apple M…, no menu Apple > Sobre Este Mac) ou `Leve_x.y.z_x64.dmg` para Intel. Abra e arraste **Leve** para **Aplicativos**.
-2. Dê duplo-clique em Leve. Vai aparecer "Não foi possível verificar se 'Leve' está livre de malware". Clique em **OK** (ou **Concluído**).
-3. Abra **Ajustes do Sistema › Privacidade e Segurança**, role até o fim: "Leve foi bloqueado para proteger o Mac". Clique em **Abrir Mesmo Assim** e confirme com a senha ou Touch ID.
-4. Da segunda vez em diante abre normalmente. Para abrir um `.md` com duplo-clique, use **Abrir com › Leve** uma vez (ou "Sempre abrir com", em Obter Informações › Abrir com › Alterar Tudo).
+2. Dê duplo-clique em Leve. O macOS avisa que o Leve é um app baixado da internet; clique em **Abrir**. Da segunda vez em diante abre direto.
+3. Para abrir um `.md` com duplo-clique, use **Abrir com › Leve** uma vez (ou "Sempre abrir com", em Obter Informações › Abrir com › Alterar Tudo).
 
-Alternativa pelo Terminal, para quem prefere:
-
-```bash
-xattr -dr com.apple.quarantine /Applications/Leve.app
-```
+Até a 0.6.0 o app não era assinado, e o macOS bloqueava a primeira abertura até liberar em **Ajustes do Sistema › Privacidade e Segurança › Abrir Mesmo Assim**. Quem já tem uma dessas versões atualiza pelo próprio app (**Leve › Verificar atualizações…**) ou baixa o `.dmg` novo.
 
 ## Windows
 

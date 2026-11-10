@@ -3,6 +3,8 @@ export const WINGET_ID: string;
 export const WINGET_SCHEMA: string;
 export const EXTENSIONS: string[];
 export function assetNames(version: string): { dmgArm: string; dmgIntel: string; dmgUniversal: string; nsis: string };
+export const MAC_SIGNED_SINCE: string;
+export function macSigned(version: string): boolean;
 export function parseSums(text: string): Map<string, string>;
 export function buildPackaging(opts: {
   version: string;

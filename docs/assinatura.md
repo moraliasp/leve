@@ -1,11 +1,11 @@
 # Assinatura e notarização
 
-## macOS (conta e segredos prontos desde 2026-11-09; falta o primeiro rc assinado)
+## macOS (assinado e notarizado desde a 0.6.1)
 
-A conta Apple Developer da Moralia (Organization) foi aprovada em 2026-11-09. Até o primeiro rc assinado passar, as releases publicadas continuam sem assinatura. O que foi feito, e o que refazer na renovação:
+A conta Apple Developer da Moralia (Organization) foi aprovada em 2026-11-09. O `v0.6.1-rc.1` (2026-11-10) foi o primeiro build assinado: `spctl` aceita o `.dmg` e o `.app` como "Notarized Developer ID", `stapler validate` passa nos dois e o app abre só com a confirmação de arquivo baixado da internet. O que foi feito, e o que refazer na renovação:
 
 1. Criar certificado **Developer ID Application** no portal (só o Account Holder cria; emissão pela G2 Sub-CA) a partir de um CSR do Acesso às Chaves, e exportar `.p12` pela aba *Meus Certificados* (na aba *Certificados* o `.p12` fica cinza, porque ela não leva a chave). Se o certificado aparecer como não confiável (`CSSMERR_TP_NOT_TRUSTED`), falta a intermediária [`DeveloperIDG2CA.cer`](https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer) no Mac. O certificado vale até 2027-12-10.
-2. Criar chave de API do App Store Connect (Issuer ID, Key ID, `.p8`) para o `notarytool`: **Team Key** com papel **Developer**, em *Users and Access › Integrations*. Chave individual não serve ao `notarytool`. O `.p8` só baixa uma vez.
+2. Criar chave de API do App Store Connect (Issuer ID, Key ID, `.p8`) para o `notarytool`: **Team Key** com papel **Developer**, em *Users and Access › Integrations*. Chave individual não serve ao `notarytool`. O `.p8` só baixa uma vez. O Issuer ID é o UUID (36 caracteres) mostrado acima da lista de chaves; valor fora desse formato derruba a notarização com "must be a valid UUID", depois de o build já ter assinado.
 3. No environment `release` do GitHub, não no repositório (é o environment que tem revisor e só aceita tag `v*`):
    - Secrets `APPLE_CERTIFICATE` (base64 do .p12), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_API_ISSUER`, `APPLE_API_KEY` (o Key ID) e `APPLE_API_KEY_P8` (o conteúdo do `.p8`).
    - Variable `APPLE_SIGNING_IDENTITY` (ex.: `Developer ID Application: <razão social da Moralia> (TEAMID)`). É ela que liga a assinatura no `release.yml`; sem ela, o build sai como hoje.
@@ -13,7 +13,7 @@ A conta Apple Developer da Moralia (Organization) foi aprovada em 2026-11-09. At
 5. O Tauri notariza e grampeia só o `.app`. O passo **dmg em LZMA** (`scripts/dmg-lzma.sh`) converte o `.dmg` para ULMO e o assina de novo, porque a conversão perde a assinatura e a keychain do Tauri já foi apagada. O passo **Notarizar o .dmg** faz `notarytool submit`, `stapler staple`, `stapler validate` e `spctl`. Qualquer falha derruba o build.
 6. O primeiro build assinado vai por `vX.Y.Z-rc.N`, porque o caminho assinado do `release.yml` só roda com a conta Apple. Conferir o `.dmg` num Mac limpo e atualizar uma instalação sem assinatura para a assinada.
 
-Sem assinatura, o Gatekeeper exige liberar o app em Ajustes → Privacidade e Segurança na primeira abertura.
+Até a 0.6.0, sem assinatura, o Gatekeeper exigia liberar o app em Ajustes → Privacidade e Segurança na primeira abertura.
 
 ## Windows: assinatura dos instaladores
 

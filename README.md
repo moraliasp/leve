@@ -61,9 +61,8 @@ Each release lists SHA-256 checksums in `SHA256SUMS.txt` and carries [build prov
 
 ### First launch
 
-Leve isn't signed with an Apple or Microsoft certificate yet, so the system warns you once.
-**macOS:** open Leve, click *Done*, then go to *System Settings › Privacy & Security* and click *Open Anyway* (or run `xattr -dr com.apple.quarantine /Applications/Leve.app`).
-**Windows:** in the SmartScreen prompt, click *More info › Run anyway*.
+**macOS:** since 0.6.1, Leve is signed with Moralia's Developer ID and notarized by Apple. The first launch only asks you to confirm opening an app downloaded from the internet.
+**Windows:** Leve isn't signed with a Microsoft certificate yet, so SmartScreen warns you once: click *More info › Run anyway*.
 **Linux:** make the AppImage executable (`chmod +x Leve_*.AppImage`) and run it, install the `.deb` with `sudo apt install ./Leve_*_amd64.deb`, or the `.rpm` with `sudo dnf install ./Leve-*.x86_64.rpm`.
 
 Updates are signed separately and verified by the app before installing: *Leve › Check for Updates…* (on Windows and Linux, *Help › Check for Updates…*), or turn on the daily check in *Settings*.

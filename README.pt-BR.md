@@ -61,9 +61,8 @@ Cada release traz os SHA-256 em `SHA256SUMS.txt` e [attestations de proveniênci
 
 ### Primeira abertura
 
-O Leve ainda não tem assinatura Apple nem Microsoft, então o sistema avisa uma vez.
-**macOS:** abra o Leve, clique em *Concluído*, vá em *Ajustes do Sistema › Privacidade e Segurança* e clique em *Abrir Mesmo Assim* (ou rode `xattr -dr com.apple.quarantine /Applications/Leve.app`).
-**Windows:** no aviso do SmartScreen, clique em *Mais informações › Executar assim mesmo*.
+**macOS:** desde a 0.6.1, o Leve é assinado com o Developer ID da Moralia e notarizado pela Apple. A primeira abertura só pede para confirmar que é um app baixado da internet.
+**Windows:** o Leve ainda não tem certificado Microsoft, então o SmartScreen avisa uma vez: clique em *Mais informações › Executar assim mesmo*.
 **Linux:** torne o AppImage executável (`chmod +x Leve_*.AppImage`) e abra, instale o `.deb` com `sudo apt install ./Leve_*_amd64.deb`, ou o `.rpm` com `sudo dnf install ./Leve-*.x86_64.rpm`.
 
 Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações têm assinatura própria, conferida pelo app antes de instalar: *Leve › Verificar atualizações…* (no Windows e no Linux, *Ajuda › Verificar atualizações…*), ou ligue a checagem diária nas *Preferências*.

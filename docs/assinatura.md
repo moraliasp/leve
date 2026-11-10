@@ -1,11 +1,11 @@
 # Assinatura e notarização
 
-## macOS (pendente: conta Apple Developer da Moralia)
+## macOS (conta e segredos prontos desde 2026-11-09; falta o primeiro rc assinado)
 
-Até a Moralia ter conta Apple Developer própria, o app sai sem assinatura. Quando a conta Organization for aprovada:
+A conta Apple Developer da Moralia (Organization) foi aprovada em 2026-11-09. Até o primeiro rc assinado passar, as releases publicadas continuam sem assinatura. O que foi feito, e o que refazer na renovação:
 
-1. Criar certificado **Developer ID Application** no portal e exportar `.p12`.
-2. Criar chave de API do App Store Connect (Issuer ID, Key ID, `.p8`) para o `notarytool`.
+1. Criar certificado **Developer ID Application** no portal (só o Account Holder cria; emissão pela G2 Sub-CA) a partir de um CSR do Acesso às Chaves, e exportar `.p12` pela aba *Meus Certificados* (na aba *Certificados* o `.p12` fica cinza, porque ela não leva a chave). Se o certificado aparecer como não confiável (`CSSMERR_TP_NOT_TRUSTED`), falta a intermediária [`DeveloperIDG2CA.cer`](https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer) no Mac. O certificado vale até 2027-12-10.
+2. Criar chave de API do App Store Connect (Issuer ID, Key ID, `.p8`) para o `notarytool`: **Team Key** com papel **Developer**, em *Users and Access › Integrations*. Chave individual não serve ao `notarytool`. O `.p8` só baixa uma vez.
 3. No environment `release` do GitHub, não no repositório (é o environment que tem revisor e só aceita tag `v*`):
    - Secrets `APPLE_CERTIFICATE` (base64 do .p12), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_API_ISSUER`, `APPLE_API_KEY` (o Key ID) e `APPLE_API_KEY_P8` (o conteúdo do `.p8`).
    - Variable `APPLE_SIGNING_IDENTITY` (ex.: `Developer ID Application: <razão social da Moralia> (TEAMID)`). É ela que liga a assinatura no `release.yml`; sem ela, o build sai como hoje.

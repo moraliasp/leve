@@ -51,6 +51,27 @@ describe("apple-api-env.sh", () => {
     expect(r.stdout).toContain(`::add-mask::${KEY}`);
   });
 
+  it("aceita o Issuer ID com hex em maiúsculas ou minúsculas", () => {
+    expect(run(UUID.toUpperCase(), KEY).status).toBe(0);
+    expect(run(UUID, KEY).status).toBe(0);
+  });
+
+  // Cada caso derruba um afrouxamento da regex: tamanho, âncoras ^/$ e alfabeto.
+  it.each([
+    ["Issuer com letra fora do hex", UUID.replace(/ab$/, "zz"), KEY],
+    ["Issuer com prefixo", `0${UUID}`, KEY],
+    ["Issuer com sufixo", `${UUID}0`, KEY],
+    ["Issuer sem hífens", UUID.replace(/-/g, ""), KEY],
+    ["Key ID com 11", UUID, `${KEY}6`],
+    ["Key ID com 9", UUID, KEY.slice(1)],
+    ["Key ID com prefixo", UUID, `x${KEY}`],
+    ["Key ID com símbolo", UUID, "ABCDE-1234"],
+  ])("recusa %s", (_, issuer, key) => {
+    const r = run(issuer, key);
+    expect(r.status).toBe(1);
+    expect(r.written).toBe("");
+  });
+
   it.each([
     ["trocados", KEY, UUID, ["APPLE_API_ISSUER do environment release parece um Key ID", "APPLE_API_KEY do environment release parece o Issuer ID"]],
     ["vazios", "", "", ["APPLE_API_ISSUER do environment release está vazio", "APPLE_API_KEY do environment release está vazio"]],

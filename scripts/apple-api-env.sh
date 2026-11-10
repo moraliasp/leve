@@ -26,6 +26,7 @@ fi
 if [[ ! "$KEY" =~ $KEY_ID ]]; then
   if [ -z "$KEY" ]; then DICA="está vazio"
   elif [[ "$KEY" =~ $UUID ]]; then DICA="parece o Issuer ID (UUID), não o Key ID"
+  elif [[ "$KEY" =~ ^[A-Za-z0-9]{10}$ ]]; then DICA="tem letras minúsculas, e o Key ID é em maiúsculas"
   else DICA="tem ${#KEY} caracteres, e o Key ID tem 10 (letras maiúsculas e números)"; fi
   echo "::error::Segredo APPLE_API_KEY do environment release $DICA."
   ERRO=1

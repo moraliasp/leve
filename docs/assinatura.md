@@ -9,7 +9,7 @@ A conta Apple Developer da Moralia (Organization) foi aprovada em 2026-11-09. At
 3. No environment `release` do GitHub, não no repositório (é o environment que tem revisor e só aceita tag `v*`):
    - Secrets `APPLE_CERTIFICATE` (base64 do .p12), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_API_ISSUER`, `APPLE_API_KEY` (o Key ID) e `APPLE_API_KEY_P8` (o conteúdo do `.p8`).
    - Variable `APPLE_SIGNING_IDENTITY` (ex.: `Developer ID Application: <razão social da Moralia> (TEAMID)`). É ela que liga a assinatura no `release.yml`; sem ela, o build sai como hoje.
-4. O passo **Chave de notarização** grava o `.p8` no disco do runner, porque `APPLE_API_KEY_PATH` é o caminho de um arquivo. No **Build**, a CLI do Tauri assina e notariza o `.app` a partir das variáveis `APPLE_*`.
+4. O passo **Chave de notarização** grava o `.p8` no disco do runner, porque `APPLE_API_KEY_PATH` é o caminho de um arquivo. Antes, `scripts/apple-api-env.sh` tira espaço, quebra de linha e aspas do Issuer ID e do Key ID e confere o formato (UUID; 10 caracteres): segredo errado para ali, antes de compilar, com o que ele parece ser. No **Build**, a CLI do Tauri assina e notariza o `.app` a partir das variáveis `APPLE_*`.
 5. O Tauri notariza e grampeia só o `.app`. O passo **dmg em LZMA** (`scripts/dmg-lzma.sh`) converte o `.dmg` para ULMO e o assina de novo, porque a conversão perde a assinatura e a keychain do Tauri já foi apagada. O passo **Notarizar o .dmg** faz `notarytool submit`, `stapler staple`, `stapler validate` e `spctl`. Qualquer falha derruba o build.
 6. O primeiro build assinado vai por `vX.Y.Z-rc.N`, porque o caminho assinado do `release.yml` só roda com a conta Apple. Conferir o `.dmg` num Mac limpo e atualizar uma instalação sem assinatura para a assinada.
 

@@ -168,9 +168,13 @@ jobs:
       # APPLE_API_KEY_PATH é caminho de arquivo: o .p8 vai do secret para o disco do runner.
       - name: Chave de notarização (macOS)
         if: env.SIGN_MACOS == 'true'
+        # O Issuer ID e o Key ID saem daqui limpos e conferidos para o Build e o .dmg (#127).
         env:
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
         run: |
+          scripts/apple-api-env.sh
           KEY="$RUNNER_TEMP/AuthKey.p8"
           (umask 077 && printf '%s' "$APPLE_API_KEY_P8" > "$KEY")
           echo "APPLE_API_KEY_PATH=$KEY" >> "$GITHUB_ENV"
@@ -193,8 +197,6 @@ jobs:
           APPLE_CERTIFICATE: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_CERTIFICATE || '' }}
           APPLE_CERTIFICATE_PASSWORD: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
           APPLE_SIGNING_IDENTITY: ${{ env.SIGN_MACOS == 'true' && vars.APPLE_SIGNING_IDENTITY || '' }}
-          APPLE_API_ISSUER: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_API_ISSUER || '' }}
-          APPLE_API_KEY: ${{ env.SIGN_MACOS == 'true' && secrets.APPLE_API_KEY || '' }}
         shell: bash
         run: |
           if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
@@ -241,8 +243,6 @@ jobs:
         if: env.SIGN_MACOS == 'true'
         env:
           BUNDLE: ${{ matrix.bundle }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
         run: |
           for DMG in "$BUNDLE"/dmg/*.dmg; do
             xcrun notarytool submit "$DMG" --key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER" --wait

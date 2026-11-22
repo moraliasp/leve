@@ -18,6 +18,14 @@ Windows, com o instalador por usuário:
 winget install Moralia.Leve
 ```
 
+macOS ou Windows, com Node 18 ou mais novo (pelo npm, sem dependências):
+
+```bash
+npx leve.md
+```
+
+O `npx leve.md` baixa da release do GitHub o pacote do seu sistema (`.app.tar.gz` da arquitetura do Mac ou o `-setup.exe`), confere o SHA-256 contra o que veio dentro do pacote npm e só então instala: no macOS move o `Leve.app` para Aplicativos (ou `~/Applications`, se Aplicativos não for gravável) e abre; no Windows abre o instalador por usuário. Se já houver um `Leve.app`, ele fica como está, a não ser com `npx leve.md --force`. No Linux não instala: mostra onde baixar o `.deb`, o `.rpm` e o Flatpak.
+
 O app é o mesmo da release, com a mesma primeira abertura (abaixo). No macOS o Homebrew mantém a quarentena de propósito, então quem instala pelo `brew` também vê a confirmação de app baixado da internet, que pode voltar depois de um `brew upgrade`. Se já houver um Leve em Aplicativos, o `brew install` fica com ele em vez de instalar por cima: o app e a versão continuam como estão, e o atualizador do app segue cuidando das versões novas. Pelo winget vai o instalador por usuário (`-setup.exe`); o `.msi` continua só na release.
 
 ## macOS

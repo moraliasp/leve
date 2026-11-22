@@ -45,6 +45,12 @@ macOS:
 brew install --cask moraliasp/tap/leve
 ```
 
+macOS ou Windows, com Node 18 ou mais novo (baixa o pacote da release para o seu sistema, confere o SHA-256 e instala; Linux fora):
+
+```bash
+npx leve.md
+```
+
 Windows (em breve: em revisão no winget-pkgs):
 
 ```powershell

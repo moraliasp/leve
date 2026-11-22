@@ -1,11 +1,12 @@
-# Publicar no Homebrew, no winget e no Flathub
+# Publicar no Homebrew, no winget, no npm e no Flathub
 
-Passo a passo do dono para levar uma release estável do Leve ao tap `moraliasp/homebrew-tap` (macOS), ao `microsoft/winget-pkgs` (Windows) e ao Flathub (Linux, seção 4). Por que assim: "Homebrew (tap próprio) e winget antes da assinatura" em [`decisoes.md`](decisoes.md). Nada aqui roda sozinho: cada passo publica algo fora deste repositório e é feito à mão.
+Passo a passo do dono para levar uma release estável do Leve ao tap `moraliasp/homebrew-tap` (macOS), ao `microsoft/winget-pkgs` (Windows), ao npm (`npx leve.md`, macOS e Windows, seção 5) e ao Flathub (Linux, seção 4). Por que assim: "Homebrew (tap próprio) e winget antes da assinatura" em [`decisoes.md`](decisoes.md). Nada aqui roda sozinho: cada passo publica algo fora deste repositório e é feito à mão.
 
 Os arquivos de uma versão saem de `scripts/packaging.mjs` a partir do `SHA256SUMS.txt` da release:
 
 - `packaging/winget/<versão>/Moralia.Leve*.yaml`: manifesto multi-arquivo (versão, instalador NSIS, en-US, pt-BR), schema 1.12.0.
 - `packaging/homebrew/Casks/leve.rb`: cask com um dmg por arquitetura (`on_arm`/`on_intel`). Release até a 0.5.0 (e o 0.6.0-rc.1) sai com o dmg universal: o gerador segue o `SHA256SUMS.txt`.
+- `packaging/npm/package.json` e `packaging/npm/sums.json`: versão e SHA-256 dos três pacotes que o `npx leve.md` baixa (`.app.tar.gz` de cada arquitetura e `-setup.exe`). Só sai de release com um pacote por arquitetura no macOS (da 0.6.0 em diante); não são versionados. O resto do pacote, `bin/leve.mjs` e `README.md`, está em `packaging/npm/`.
 
 Os de 0.2.0 já estão neste repositório.
 
@@ -13,7 +14,7 @@ Os de 0.2.0 já estão neste repositório.
 
 Depois que a release `vX.Y.Z` saiu do rascunho (publicada, não pre-release):
 
-As duas rotas abaixo terminam no mesmo lugar, `/tmp/leve-out/packaging/` (com `winget/X.Y.Z/` e `homebrew/Casks/leve.rb`), e os passos seguintes usam esses caminhos.
+As duas rotas abaixo terminam no mesmo lugar, `/tmp/leve-out/packaging/` (com `winget/X.Y.Z/`, `homebrew/Casks/leve.rb` e `npm/`), e os passos seguintes usam esses caminhos.
 
 **Pelo workflow.** `gh workflow run` não devolve o id do run, e `gh run list --limit 1` logo depois pode pegar outro run (o novo leva alguns segundos para aparecer). Por isso: anotar a hora antes de disparar e esperar o primeiro run `workflow_dispatch` do `packaging.yml`, seu, criado depois dela.
 
@@ -47,7 +48,12 @@ gh release download "v$V" --repo moraliasp/leve --pattern SHA256SUMS.txt --dir /
 gh attestation verify /tmp/leve-sums/SHA256SUMS.txt --repo moraliasp/leve --signer-workflow moraliasp/leve/.github/workflows/release.yml
 DATA="$(gh release view "v$V" --repo moraliasp/leve --json publishedAt --jq '.publishedAt[0:10]')"
 node scripts/packaging.mjs /tmp/leve-sums/SHA256SUMS.txt "$V" "$DATA" /tmp/leve-out
+mkdir -p /tmp/leve-out/packaging/npm/bin
+cp packaging/npm/bin/leve.mjs /tmp/leve-out/packaging/npm/bin/
+cp packaging/npm/README.md /tmp/leve-out/packaging/npm/
 ```
+
+O workflow faz essa cópia do `bin/` e do `README.md` sozinho.
 
 Para guardar o registro aqui, copie `/tmp/leve-out/packaging/winget/X.Y.Z/` e `/tmp/leve-out/packaging/homebrew/Casks/leve.rb` para `packaging/` e abra um PR no `leve`. Ao atualizar o `leve.rb` daqui, troque também o `SUMS` em `tests/packaging.test.ts` pelo `SHA256SUMS.txt` da versão nova e acrescente os manifestos dela ao teste: ele compara o que está versionado com o gerador.
 
@@ -159,7 +165,27 @@ O app aparece como não verificado até o dono provar o domínio: o token do Dev
 
 O Flathub cria `flathub/br.com.moralia.leve` e convida o dono. Cada versão nova é um PR lá (tag, commit e fontes regeradas), com a release nova também no `<releases>` do metainfo deste repositório.
 
-## 5. Depois de publicar
+## 5. npm: `leve.md`
+
+Por que assim: "npx leve.md" em [`decisoes.md`](decisoes.md). O pacote é a pasta `/tmp/leve-out/packaging/npm/` inteira, gerada no passo 1: `package.json`, `sums.json`, `bin/leve.mjs` e `README.md`. Sem dependência, sem `postinstall`.
+
+### Uma vez
+
+Conta no npm com 2FA ligado para publicar (`npm profile enable-2fa auth-and-writes`). O nome `leve.md` estava livre em 2026-11-22 (o `leve` é de terceiro); confira com `npm view leve.md` antes da primeira publicação.
+
+### A cada versão
+
+```bash
+cd /tmp/leve-out/packaging/npm
+node -e 'const p=require("./package.json"); console.log(p.name, p.version, Object.keys(p.scripts ?? {}), Object.keys(p.dependencies ?? {}))'
+cat sums.json                       # os três hashes, iguais aos do SHA256SUMS.txt da release
+npm pack --dry-run                  # só bin/leve.mjs, sums.json, package.json e README.md
+npm publish --access public
+```
+
+Conferir depois, numa máquina macOS ou Windows: `npx leve.md@X.Y.Z --version` e, num Mac sem Leve, `npx leve.md@X.Y.Z`. Versão publicada no npm não se troca: se algo sair errado, `npm deprecate leve.md@X.Y.Z "<motivo>"` e uma versão nova só com a release nova do app (a versão do pacote é a do app).
+
+## 6. Depois de publicar
 
 - Tirar o "em breve" das linhas de `winget install`, `brew install` e `flatpak install` nos READMEs e em [`instalacao.md`](instalacao.md).
 - A `caveats` saiu do cask com o macOS assinado (0.6.1). O `homebrew/cask` oficial vira opção quando o repositório passar na notabilidade do `brew audit --cask --new`; com Authenticode, revisar o winget.

@@ -39,3 +39,7 @@ flatpak-repo
 
 # Teste de ponta a ponta (tests/e2e): capturas e HTML da falha
 tests/e2e/artifacts
+
+# Pacote npm (scripts/packaging.mjs gera; bin/ e README.md são versionados)
+packaging/npm/package.json
+packaging/npm/sums.json

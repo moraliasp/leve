@@ -6,6 +6,7 @@ import wInstaller from "../packaging/winget/0.2.0/Moralia.Leve.installer.yaml?ra
 import wEn from "../packaging/winget/0.2.0/Moralia.Leve.locale.en-US.yaml?raw";
 import wPt from "../packaging/winget/0.2.0/Moralia.Leve.locale.pt-BR.yaml?raw";
 import cask from "../packaging/homebrew/Casks/leve.rb?raw";
+import { allowedUrl, download, pickAsset, sha256, verify } from "../packaging/npm/bin/leve.mjs";
 
 const committed: Record<string, string> = {
   "packaging/winget/0.2.0/Moralia.Leve.yaml": wVersion,
@@ -141,5 +142,93 @@ describe("pacotes winget e Homebrew", () => {
     expect(() => gen("0.7.0", SUMS_ARQ.replace(/.*_x64\.dmg\n/, ""))).toThrow(/Leve_0.7.0_x64.dmg/);
     const semExe = SUMS_020.split("\n").filter((l) => !l.endsWith("setup.exe")).join("\n");
     expect(() => gen("0.2.0", semExe)).toThrow(/x64-setup.exe/);
+  });
+});
+
+describe("pacote npm leve.md", () => {
+  it("só sai de release com um pacote por arquitetura; universal (até a 0.5.0) segue sem ele", () => {
+    expect(Object.keys(gen()).some((f) => f.startsWith("packaging/npm/"))).toBe(false);
+    const files = gen("0.7.0", SUMS_ARQ);
+    expect(JSON.parse(files["packaging/npm/sums.json"])).toEqual({
+      "Leve_0.7.0_aarch64.app.tar.gz": "a".repeat(64),
+      "Leve_0.7.0_x64.app.tar.gz": "c".repeat(64),
+      "Leve_0.7.0_x64-setup.exe": "e".repeat(64),
+    });
+  });
+
+  it("package.json: leve.md, versão da release, sem scripts nem dependências", () => {
+    const pkg = JSON.parse(gen("0.7.0", SUMS_ARQ)["packaging/npm/package.json"]);
+    expect(pkg).toMatchObject({
+      name: "leve.md",
+      version: "0.7.0",
+      type: "module",
+      license: "MIT",
+      bin: { "leve.md": "bin/leve.mjs" },
+      files: ["bin/leve.mjs", "sums.json"],
+      engines: { node: ">=18" },
+    });
+    for (const k of ["scripts", "dependencies", "optionalDependencies", "peerDependencies", "private"]) expect(pkg).not.toHaveProperty(k);
+  });
+
+  it("hash ausente de qualquer um dos três pacotes = erro", () => {
+    for (const n of ["aarch64.app.tar.gz", "x64.app.tar.gz", "x64-setup.exe"]) {
+      const sums = SUMS_ARQ.split("\n").filter((l) => !l.endsWith(`_${n}`)).join("\n");
+      expect(() => gen("0.7.0", sums)).toThrow(`Leve_0.7.0_${n}`);
+    }
+  });
+
+  it("escolhe o pacote por plataforma e arquitetura", () => {
+    expect(pickAsset("darwin", "arm64", "1.2.3")).toEqual({ kind: "mac", name: "Leve_1.2.3_aarch64.app.tar.gz" });
+    expect(pickAsset("darwin", "x64", "1.2.3")).toEqual({ kind: "mac", name: "Leve_1.2.3_x64.app.tar.gz" });
+    expect(pickAsset("win32", "x64", "1.2.3")).toEqual({ kind: "win", name: "Leve_1.2.3_x64-setup.exe" });
+    expect(pickAsset("linux", "x64", "1.2.3").kind).toBe("linux");
+    expect(pickAsset("linux", "arm64", "1.2.3").kind).toBe("linux");
+    for (const [p, a] of [["win32", "arm64"], ["win32", "ia32"], ["freebsd", "x64"], ["darwin", "ppc"]]) {
+      expect(pickAsset(p, a, "1.2.3").kind).toBe("unsupported");
+    }
+  });
+
+  it("recusa conteúdo adulterado e hash ausente", () => {
+    const ok = new TextEncoder().encode("leve");
+    const h = sha256(ok);
+    expect(h).toMatch(/^[0-9a-f]{64}$/);
+    expect(() => verify(ok, h, "Leve.tar.gz")).not.toThrow();
+    expect(() => verify(new TextEncoder().encode("leve!"), h, "Leve.tar.gz")).toThrow(/Leve\.tar\.gz/);
+    expect(() => verify(ok, undefined, "Leve.tar.gz")).toThrow();
+    expect(() => verify(ok, h.toUpperCase(), "Leve.tar.gz")).toThrow();
+  });
+
+  it("só baixa por https do GitHub e do CDN dele, redirecionamento a redirecionamento", async () => {
+    expect(allowedUrl("https://github.com/moraliasp/leve/releases/download/v1/x")).toBe(true);
+    expect(allowedUrl("https://release-assets.githubusercontent.com/x")).toBe(true);
+    expect(allowedUrl("https://objects.githubusercontent.com/x")).toBe(true);
+    for (const u of [
+      "http://github.com/x",
+      "https://githubusercontent.com/x",
+      "https://evilgithubusercontent.com/x",
+      "https://github.com.evil.com/x",
+      "https://gist.github.com/x",
+      "https://objects.githubusercontent.com.evil.com/x",
+      "file:///etc/passwd",
+      "não é url",
+    ]) expect(allowedUrl(u), u).toBe(false);
+
+    const res = (status: number, location?: string) =>
+      new Response(status === 200 ? "ok" : null, { status, headers: location ? { location } : {} });
+    const chain = (...steps: Response[]) => {
+      const calls: string[] = [];
+      const f = async (url: string) => (calls.push(url), steps.shift()!);
+      return { f, calls };
+    };
+    const good = chain(res(302, "https://release-assets.githubusercontent.com/a?x=1"), res(200));
+    expect(new TextDecoder().decode(await download("https://github.com/a", good.f))).toBe("ok");
+    expect(good.calls).toEqual(["https://github.com/a", "https://release-assets.githubusercontent.com/a?x=1"]);
+
+    const evil = chain(res(302, "https://evil.example/a"), res(200));
+    await expect(download("https://github.com/a", evil.f)).rejects.toThrow(/evil\.example/);
+    expect(evil.calls).toHaveLength(1);
+
+    const loop = chain(...Array.from({ length: 10 }, () => res(302, "https://github.com/a")));
+    await expect(download("https://github.com/a", loop.f)).rejects.toThrow(/redirects/);
   });
 });

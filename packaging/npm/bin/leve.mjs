@@ -171,16 +171,22 @@ export async function main(args = process.argv.slice(2)) {
   const buf = await download(url);
   // Confere antes de gravar: conteúdo que não confere nunca chega ao disco.
   verify(buf, readJson("../sums.json")[asset.name], asset.name, msg);
-  const file = join(mkdtempSync(join(tmpdir(), "leve-")), asset.name);
+  const dir = mkdtempSync(join(tmpdir(), "leve-"));
+  const file = join(dir, asset.name);
   writeFileSync(file, buf);
 
   if (asset.kind === "win") {
     console.log(msg.runningInstaller);
+    // O instalador segue rodando depois deste processo: o arquivo fica no temp.
     runWindowsInstaller(file);
     return 0;
   }
-  const app = installMac(file, dest, { force, msg });
-  rmSync(file, { force: true });
+  let app;
+  try {
+    app = installMac(file, dest, { force, msg });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
   console.log(msg.installed(app));
   openApp(app);
   return 0;

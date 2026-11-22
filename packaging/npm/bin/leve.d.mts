@@ -14,7 +14,18 @@ export function download(
   fetchImpl?: (url: string, init: { redirect: "manual" }) => Promise<Response>,
 ): Promise<Uint8Array>;
 export function macDestination(): string;
-export function installMac(tarPath: string, destDir: string, opts?: { force?: boolean; msg?: unknown }): string;
+export function installMac(tarPath: string, destDir: string, opts?: { force?: boolean; msg?: unknown; move?: (from: string, to: string) => void }): string;
 export function openApp(appPath: string): void;
 export function runWindowsInstaller(exePath: string): void;
-export function main(args?: string[]): Promise<number>;
+export function main(
+  args?: string[],
+  deps?: {
+    platform?: string;
+    arch?: string;
+    fetchImpl?: (url: string, init: { redirect: "manual" }) => Promise<Response>;
+    pkg?: { version: string };
+    sums?: Record<string, string>;
+    dest?: string;
+    open?: (appPath: string) => void;
+  },
+): Promise<number>;

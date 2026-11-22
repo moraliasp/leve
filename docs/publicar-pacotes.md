@@ -6,7 +6,7 @@ Os arquivos de uma versão saem de `scripts/packaging.mjs` a partir do `SHA256SU
 
 - `packaging/winget/<versão>/Moralia.Leve*.yaml`: manifesto multi-arquivo (versão, instalador NSIS, en-US, pt-BR), schema 1.12.0.
 - `packaging/homebrew/Casks/leve.rb`: cask com um dmg por arquitetura (`on_arm`/`on_intel`). Release até a 0.5.0 (e o 0.6.0-rc.1) sai com o dmg universal: o gerador segue o `SHA256SUMS.txt`.
-- `packaging/npm/package.json` e `packaging/npm/sums.json`: versão e SHA-256 dos três pacotes que o `npx leve.md` baixa (`.app.tar.gz` de cada arquitetura e `-setup.exe`). Só sai de release com um pacote por arquitetura no macOS (da 0.6.0 em diante); não são versionados. O resto do pacote, `bin/leve.mjs` e `README.md`, está em `packaging/npm/`.
+- `packaging/npm/package.json` e `packaging/npm/sums.json`: versão e SHA-256 dos três pacotes que o `npx leve.md` baixa (`.app.tar.gz` de cada arquitetura e `-setup.exe`). Só sai de release com um pacote por arquitetura no macOS (sem dmg universal: da 0.6.0 final em diante, os rc com dmg universal ficam de fora); não são versionados. O resto do pacote, `bin/leve.mjs` e `README.md`, está em `packaging/npm/`.
 
 Os de 0.2.0 já estão neste repositório.
 

@@ -79,7 +79,7 @@ export function pickAsset(platform, arch, version) {
 
 export const assetUrl = (version, name) => `https://github.com/${REPO}/releases/download/v${version}/${name}`;
 
-/** Só https, e só o GitHub e o CDN de downloads dele. */
+/** Só https, sem usuário nem porta, e só o GitHub e o CDN de downloads dele. */
 export function allowedUrl(url) {
   let u;
   try {
@@ -87,7 +87,8 @@ export function allowedUrl(url) {
   } catch {
     return false;
   }
-  return u.protocol === "https:" && (u.hostname === "github.com" || u.hostname.endsWith(".githubusercontent.com"));
+  if (u.protocol !== "https:" || u.username || u.password || u.port) return false;
+  return u.hostname === "github.com" || u.hostname.endsWith(".githubusercontent.com");
 }
 
 export const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
@@ -126,8 +127,10 @@ export function macDestination() {
   }
 }
 
+const mv = (from, to) => execFileSync("mv", [from, to], { stdio: "inherit" });
+
 /** Extrai o tar.gz (já conferido) e move só o Leve.app para `destDir`. Devolve o caminho do app. */
-export function installMac(tarPath, destDir, { force = false, msg = messages() } = {}) {
+export function installMac(tarPath, destDir, { force = false, msg = messages(), move = mv } = {}) {
   const target = join(destDir, "Leve.app");
   if (existsSync(target) && !force) throw new Error(msg.exists(target));
   const out = mkdtempSync(join(tmpdir(), "leve-x-"));
@@ -135,9 +138,16 @@ export function installMac(tarPath, destDir, { force = false, msg = messages() }
     execFileSync("tar", ["-xzf", tarPath, "-C", out], { stdio: "inherit" });
     const app = join(out, "Leve.app");
     if (!existsSync(join(app, "Contents", "Info.plist"))) throw new Error(`Leve.app not found in ${tarPath}`);
-    if (existsSync(target)) rmSync(target, { recursive: true, force: true });
     // mv, não rename: a pasta temporária pode estar em outro volume.
-    execFileSync("mv", [app, target], { stdio: "inherit" });
+    // O app antigo sai de lado e só some (no finally) se o novo entrou; se não, volta.
+    const old = existsSync(target) ? join(out, "Leve.old.app") : "";
+    if (old) move(target, old);
+    try {
+      move(app, target);
+    } catch (e) {
+      if (old) move(old, target);
+      throw e;
+    }
     return target;
   } finally {
     rmSync(out, { recursive: true, force: true });
@@ -151,26 +161,28 @@ export const runWindowsInstaller = (exePath) => spawn(exePath, [], { detached: t
 
 const readJson = (rel) => JSON.parse(readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8"));
 
-export async function main(args = process.argv.slice(2)) {
+/** `deps` troca plataforma, rede, arquivos do pacote, destino e o abrir: só os testes passam. */
+export async function main(args = process.argv.slice(2), deps = {}) {
+  const { platform = process.platform, arch = process.arch, fetchImpl = fetch, open = openApp } = deps;
   const msg = messages();
-  const { version } = readJson("../package.json");
+  const { version } = deps.pkg ?? readJson("../package.json");
   for (const a of args) if (!["--force", "--help", "--version"].includes(a)) return fail(msg.unknownArg(a), 2);
   if (args.includes("--help")) return console.log(msg.help(version)), 0;
   if (args.includes("--version")) return console.log(version), 0;
   const force = args.includes("--force");
 
-  const asset = pickAsset(process.platform, process.arch, version);
+  const asset = pickAsset(platform, arch, version);
   if (asset.kind === "linux") return fail(msg.linux(version), 1);
-  if (asset.kind === "unsupported") return fail(msg.unsupported(process.platform, process.arch), 1);
+  if (asset.kind === "unsupported") return fail(msg.unsupported(platform, arch), 1);
 
-  const dest = asset.kind === "mac" ? macDestination() : "";
+  const dest = asset.kind === "mac" ? (deps.dest ?? macDestination()) : "";
   if (asset.kind === "mac" && !force && existsSync(join(dest, "Leve.app"))) return fail(msg.exists(join(dest, "Leve.app")), 1);
 
   const url = assetUrl(version, asset.name);
   console.log(msg.downloading(url));
-  const buf = await download(url);
+  const buf = await download(url, fetchImpl);
   // Confere antes de gravar: conteúdo que não confere nunca chega ao disco.
-  verify(buf, readJson("../sums.json")[asset.name], asset.name, msg);
+  verify(buf, (deps.sums ?? readJson("../sums.json"))[asset.name], asset.name, msg);
   const dir = mkdtempSync(join(tmpdir(), "leve-"));
   const file = join(dir, asset.name);
   writeFileSync(file, buf);
@@ -188,7 +200,7 @@ export async function main(args = process.argv.slice(2)) {
     rmSync(dir, { recursive: true, force: true });
   }
   console.log(msg.installed(app));
-  openApp(app);
+  open(app);
   return 0;
 }
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Gera os manifestos do winget e o cask do Homebrew de uma versão publicada, a partir do
+// Gera os manifestos do winget, o cask do Homebrew e o pacote npm `leve.md` de uma versão publicada, a partir do
 // `SHA256SUMS.txt` da release (o release.yml grava e atesta esse arquivo):
 //   node scripts/packaging.mjs <SHA256SUMS.txt> <X.Y.Z> [AAAA-MM-DD] [pasta]
-// Grava em <pasta>/packaging/winget/<X.Y.Z>/ e <pasta>/packaging/homebrew/Casks/leve.rb (pasta
-// padrão: a atual). Não publica nada: o passo a passo está em docs/publicar-pacotes.md.
+// Grava em <pasta>/packaging/winget/<X.Y.Z>/, <pasta>/packaging/homebrew/Casks/leve.rb e, com um pacote
+// por arquitetura no macOS, <pasta>/packaging/npm/{package.json,sums.json} (pasta padrão: a atual). Não publica nada: o passo a passo está em docs/publicar-pacotes.md.
 // winget: só o `-setup.exe` (NSIS, por usuário). O `.msi` fica fora porque o ProductCode dele muda
 // a cada build (WiX `Id="*"`) e só se lê abrindo o .msi; ver "Homebrew e winget" em docs/decisoes.md.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -20,6 +20,8 @@ export const assetNames = (version) => ({
   dmgArm: `Leve_${version}_aarch64.dmg`,
   dmgIntel: `Leve_${version}_x64.dmg`,
   dmgUniversal: `Leve_${version}_universal.dmg`,
+  appTarArm: `Leve_${version}_aarch64.app.tar.gz`,
+  appTarIntel: `Leve_${version}_x64.app.tar.gz`,
   nsis: `Leve_${version}_x64-setup.exe`,
 });
 
@@ -201,6 +203,27 @@ ${caskSource}
 ${caskCaveats}end
 `;
 
+  // npm `leve.md`: só release com um pacote por arquitetura (o bin não sabe instalar o universal).
+  // bin/ e README.md são versionados em packaging/npm/; daqui saem a versão e os hashes que o bin confere.
+  const npm = {};
+  if (!sums.has(names.dmgUniversal)) {
+    const npmAssets = [names.appTarArm, names.appTarIntel, names.nsis];
+    const npmPackage = {
+      name: "leve.md",
+      version,
+      description: "Install Leve, a small, fast, private Markdown viewer, from its GitHub release (macOS, Windows)",
+      license: "MIT",
+      homepage: `https://github.com/${REPO}`,
+      repository: { type: "git", url: `git+https://github.com/${REPO}.git`, directory: "packaging/npm" },
+      type: "module",
+      bin: { "leve.md": "bin/leve.mjs" },
+      files: ["bin/leve.mjs", "sums.json"],
+      engines: { node: ">=18" },
+    };
+    npm["packaging/npm/package.json"] = JSON.stringify(npmPackage, null, 2) + "\n";
+    npm["packaging/npm/sums.json"] = JSON.stringify(Object.fromEntries(npmAssets.map((n) => [n, hash(n)])), null, 2) + "\n";
+  }
+
   const dir = `packaging/winget/${version}`;
   return {
     [`${dir}/${id}.yaml`]: versionYaml,
@@ -208,6 +231,7 @@ ${caskCaveats}end
     [`${dir}/${id}.locale.en-US.yaml`]: defaultLocaleYaml,
     [`${dir}/${id}.locale.pt-BR.yaml`]: ptBrYaml,
     "packaging/homebrew/Casks/leve.rb": cask,
+    ...npm,
   };
 }
 

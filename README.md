@@ -45,6 +45,12 @@ macOS:
 brew install --cask moraliasp/tap/leve
 ```
 
+macOS or Windows, with Node 18+ (downloads the release package for your system, checks its SHA-256 and installs it; Linux not supported):
+
+```bash
+npx leve.md
+```
+
 Windows (coming soon: under review in winget-pkgs):
 
 ```powershell

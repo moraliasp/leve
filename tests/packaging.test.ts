@@ -6,6 +6,7 @@ import wInstaller from "../packaging/winget/0.2.0/Moralia.Leve.installer.yaml?ra
 import wEn from "../packaging/winget/0.2.0/Moralia.Leve.locale.en-US.yaml?raw";
 import wPt from "../packaging/winget/0.2.0/Moralia.Leve.locale.pt-BR.yaml?raw";
 import cask from "../packaging/homebrew/Casks/leve.rb?raw";
+import { allowedUrl, download, installMac, main, pickAsset, sha256, verify } from "../packaging/npm/bin/leve.mjs";
 
 const committed: Record<string, string> = {
   "packaging/winget/0.2.0/Moralia.Leve.yaml": wVersion,
@@ -141,5 +142,187 @@ describe("pacotes winget e Homebrew", () => {
     expect(() => gen("0.7.0", SUMS_ARQ.replace(/.*_x64\.dmg\n/, ""))).toThrow(/Leve_0.7.0_x64.dmg/);
     const semExe = SUMS_020.split("\n").filter((l) => !l.endsWith("setup.exe")).join("\n");
     expect(() => gen("0.2.0", semExe)).toThrow(/x64-setup.exe/);
+  });
+});
+
+describe("pacote npm leve.md", () => {
+  it("só sai de release com um pacote por arquitetura; universal (até a 0.5.0) segue sem ele", () => {
+    expect(Object.keys(gen()).some((f) => f.startsWith("packaging/npm/"))).toBe(false);
+    const files = gen("0.7.0", SUMS_ARQ);
+    expect(JSON.parse(files["packaging/npm/sums.json"])).toEqual({
+      "Leve_0.7.0_aarch64.app.tar.gz": "a".repeat(64),
+      "Leve_0.7.0_x64.app.tar.gz": "c".repeat(64),
+      "Leve_0.7.0_x64-setup.exe": "e".repeat(64),
+    });
+  });
+
+  it("package.json: leve.md, versão da release, sem scripts nem dependências", () => {
+    const pkg = JSON.parse(gen("0.7.0", SUMS_ARQ)["packaging/npm/package.json"]);
+    expect(pkg).toMatchObject({
+      name: "leve.md",
+      version: "0.7.0",
+      type: "module",
+      license: "MIT",
+      bin: { "leve.md": "bin/leve.mjs" },
+      files: ["bin/leve.mjs", "sums.json"],
+      engines: { node: ">=18" },
+    });
+    for (const k of ["scripts", "dependencies", "optionalDependencies", "peerDependencies", "private"]) expect(pkg).not.toHaveProperty(k);
+  });
+
+  it("hash ausente de qualquer um dos três pacotes = erro", () => {
+    for (const n of ["aarch64.app.tar.gz", "x64.app.tar.gz", "x64-setup.exe"]) {
+      const sums = SUMS_ARQ.split("\n").filter((l) => !l.endsWith(`_${n}`)).join("\n");
+      expect(() => gen("0.7.0", sums)).toThrow(`Leve_0.7.0_${n}`);
+    }
+  });
+
+  it("escolhe o pacote por plataforma e arquitetura", () => {
+    expect(pickAsset("darwin", "arm64", "1.2.3")).toEqual({ kind: "mac", name: "Leve_1.2.3_aarch64.app.tar.gz" });
+    expect(pickAsset("darwin", "x64", "1.2.3")).toEqual({ kind: "mac", name: "Leve_1.2.3_x64.app.tar.gz" });
+    expect(pickAsset("win32", "x64", "1.2.3")).toEqual({ kind: "win", name: "Leve_1.2.3_x64-setup.exe" });
+    expect(pickAsset("linux", "x64", "1.2.3").kind).toBe("linux");
+    expect(pickAsset("linux", "arm64", "1.2.3").kind).toBe("linux");
+    for (const [p, a] of [["win32", "arm64"], ["win32", "ia32"], ["freebsd", "x64"], ["darwin", "ppc"]]) {
+      expect(pickAsset(p, a, "1.2.3").kind).toBe("unsupported");
+    }
+  });
+
+  it("recusa conteúdo adulterado e hash ausente", () => {
+    const ok = new TextEncoder().encode("leve");
+    const h = sha256(ok);
+    expect(h).toMatch(/^[0-9a-f]{64}$/);
+    expect(() => verify(ok, h, "Leve.tar.gz")).not.toThrow();
+    expect(() => verify(new TextEncoder().encode("leve!"), h, "Leve.tar.gz")).toThrow(/Leve\.tar\.gz/);
+    expect(() => verify(ok, undefined, "Leve.tar.gz")).toThrow();
+    expect(() => verify(ok, h.toUpperCase(), "Leve.tar.gz")).toThrow();
+  });
+
+  it("só baixa por https do GitHub e do CDN dele, redirecionamento a redirecionamento", async () => {
+    expect(allowedUrl("https://github.com/moraliasp/leve/releases/download/v1/x")).toBe(true);
+    expect(allowedUrl("https://release-assets.githubusercontent.com/x")).toBe(true);
+    expect(allowedUrl("https://objects.githubusercontent.com/x")).toBe(true);
+    for (const u of [
+      "http://github.com/x",
+      "https://githubusercontent.com/x",
+      "https://evilgithubusercontent.com/x",
+      "https://github.com.evil.com/x",
+      "https://gist.github.com/x",
+      "https://u:p@github.com/x",
+      "https://u@github.com/x",
+      "https://github.com:8443/x",
+      "https://objects.githubusercontent.com:444/x",
+      "https://objects.githubusercontent.com.evil.com/x",
+      "file:///etc/passwd",
+      "não é url",
+    ]) expect(allowedUrl(u), u).toBe(false);
+
+    const res = (status: number, location?: string) =>
+      new Response(status === 200 ? "ok" : null, { status, headers: location ? { location } : {} });
+    const chain = (...steps: Response[]) => {
+      const calls: string[] = [];
+      const f = async (url: string) => (calls.push(url), steps.shift()!);
+      return { f, calls };
+    };
+    const good = chain(res(302, "https://release-assets.githubusercontent.com/a?x=1"), res(200));
+    expect(new TextDecoder().decode(await download("https://github.com/a", good.f))).toBe("ok");
+    expect(good.calls).toEqual(["https://github.com/a", "https://release-assets.githubusercontent.com/a?x=1"]);
+
+    const evil = chain(res(302, "https://evil.example/a"), res(200));
+    await expect(download("https://github.com/a", evil.f)).rejects.toThrow(/evil\.example/);
+    expect(evil.calls).toHaveLength(1);
+
+    const loop = chain(...Array.from({ length: 10 }, () => res(302, "https://github.com/a")));
+    await expect(download("https://github.com/a", loop.f)).rejects.toThrow(/redirects/);
+  });
+
+  // tar e mv do sistema: o caminho do macOS roda igual no Linux do CI; no Windows não há o que provar.
+  // Sem @types/node no projeto: módulos do Node vêm por import() com o tipo escrito aqui, como em version.test.ts.
+  const { platform } = (globalThis as unknown as { process: { platform: string } }).process;
+  describe.skipIf(platform === "win32")("instalação no macOS de ponta a ponta", async () => {
+    const { execFileSync } = (await import("node:child_process" as string)) as { execFileSync(cmd: string, args: string[]): unknown };
+    const { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = (await import("node:fs" as string)) as {
+      existsSync(p: string): boolean;
+      mkdirSync(p: string, o?: { recursive: boolean }): unknown;
+      mkdtempSync(prefix: string): string;
+      readFileSync(p: string): Uint8Array;
+      readFileSync(p: string, e: "utf8"): string;
+      rmSync(p: string, o: { recursive: boolean; force: boolean }): void;
+      writeFileSync(p: string, data: string): void;
+    };
+    const { tmpdir } = (await import("node:os" as string)) as { tmpdir(): string };
+    const { join } = (await import("node:path" as string)) as { join(...parts: string[]): string };
+    const NAME = "Leve_1.2.3_aarch64.app.tar.gz";
+    const setup = (plist = "novo") => {
+      const dir = mkdtempSync(join(tmpdir(), "leve-t-"));
+      mkdirSync(join(dir, "src", "Leve.app", "Contents"), { recursive: true });
+      writeFileSync(join(dir, "src", "Leve.app", "Contents", "Info.plist"), plist);
+      const tar = join(dir, NAME);
+      execFileSync("tar", ["-czf", tar, "-C", join(dir, "src"), "Leve.app"]);
+      const dest = join(dir, "dest");
+      mkdirSync(dest);
+      return { dir, tar, dest, plistAt: join(dest, "Leve.app", "Contents", "Info.plist") };
+    };
+    const old = (dest: string) => {
+      mkdirSync(join(dest, "Leve.app", "Contents"), { recursive: true });
+      writeFileSync(join(dest, "Leve.app", "Contents", "Info.plist"), "antigo");
+    };
+    const run = (t: ReturnType<typeof setup>, sums: Record<string, string>, args: string[] = []) => {
+      const calls: string[] = [];
+      const opened: string[] = [];
+      const fetchImpl = async (url: string) => (calls.push(url), new Response(readFileSync(t.tar) as BodyInit));
+      const deps = { platform: "darwin", arch: "arm64", fetchImpl, pkg: { version: "1.2.3" }, sums, dest: t.dest, open: (p: string) => void opened.push(p) };
+      return { calls, opened, done: main(args, deps) };
+    };
+
+    it("hash que confere: instala e abre", async () => {
+      const t = setup();
+      const r = run(t, { [NAME]: sha256(readFileSync(t.tar)) });
+      expect(await r.done).toBe(0);
+      expect(readFileSync(t.plistAt, "utf8")).toBe("novo");
+      expect(r.opened).toEqual([join(t.dest, "Leve.app")]);
+      rmSync(t.dir, { recursive: true, force: true });
+    });
+
+    it("hash errado ou ausente: nada é instalado nem aberto, mesmo com um tar válido", async () => {
+      const cases: Record<string, string>[] = [{ [NAME]: "0".repeat(64) }, {}];
+      for (const sums of cases) {
+        const t = setup();
+        const r = run(t, sums);
+        await expect(r.done).rejects.toThrow(NAME);
+        expect(existsSync(join(t.dest, "Leve.app"))).toBe(false);
+        expect(r.opened).toEqual([]);
+        rmSync(t.dir, { recursive: true, force: true });
+      }
+    });
+
+    it("Leve.app existente: recusa sem baixar; --force substitui", async () => {
+      const t = setup();
+      old(t.dest);
+      const sums = { [NAME]: sha256(readFileSync(t.tar)) };
+      const refused = run(t, sums);
+      expect(await refused.done).toBe(1);
+      expect(refused.calls).toEqual([]);
+      expect(readFileSync(t.plistAt, "utf8")).toBe("antigo");
+      expect(await run(t, sums, ["--force"]).done).toBe(0);
+      expect(readFileSync(t.plistAt, "utf8")).toBe("novo");
+      rmSync(t.dir, { recursive: true, force: true });
+    });
+
+    it("--force que falha deixa o app antigo no lugar", () => {
+      const t = setup();
+      old(t.dest);
+      // O mv de verdade, menos o que poria o app novo no lugar: o antigo já saiu e tem de voltar.
+      const moves: string[] = [];
+      const move = (from: string, to: string) => {
+        moves.push(to);
+        if (moves.length === 2) throw new Error("mv falhou");
+        execFileSync("mv", [from, to]);
+      };
+      expect(() => installMac(t.tar, t.dest, { force: true, move })).toThrow("mv falhou");
+      expect(moves).toHaveLength(3);
+      expect(readFileSync(t.plistAt, "utf8")).toBe("antigo");
+      rmSync(t.dir, { recursive: true, force: true });
+    });
   });
 });

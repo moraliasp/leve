@@ -18,7 +18,7 @@ Windows, com o instalador por usuário:
 winget install Moralia.Leve
 ```
 
-macOS ou Windows, com Node 18 ou mais novo (em breve: ainda não está no npm; pelo npm, sem dependências):
+macOS ou Windows, com Node 18 ou mais novo (pelo npm, sem dependências):
 
 ```bash
 npx leve.md

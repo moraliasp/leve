@@ -45,7 +45,7 @@ macOS:
 brew install --cask moraliasp/tap/leve
 ```
 
-macOS ou Windows, com Node 18 ou mais novo (baixa o pacote da release para o seu sistema, confere o SHA-256 e instala; Linux fora):
+macOS ou Windows, com Node 18 ou mais novo (em breve: ainda não está no npm; baixa o pacote da release para o seu sistema, confere o SHA-256 e instala; Linux fora):
 
 ```bash
 npx leve.md
@@ -72,6 +72,17 @@ Cada release traz os SHA-256 em `SHA256SUMS.txt` e [attestations de proveniênci
 **Linux:** torne o AppImage executável (`chmod +x Leve_*.AppImage`) e abra, instale o `.deb` com `sudo apt install ./Leve_*_amd64.deb`, ou o `.rpm` com `sudo dnf install ./Leve-*.x86_64.rpm`.
 
 Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações têm assinatura própria, conferida pelo app antes de instalar: *Leve › Verificar atualizações…* (no Windows e no Linux, *Ajuda › Verificar atualizações…*), ou ligue a checagem diária nas *Preferências*.
+
+### Para agentes de IA
+
+Se você é um agente de IA instalando o Leve para alguém, ou mostrando um Markdown que você escreveu:
+
+- **Instalar sem perguntas** (macOS e Windows, Node 18+, quando o pacote estiver no npm): `npx --yes leve.md`. Até lá, no macOS, `brew install --cask moraliasp/tap/leve`.
+- **Códigos de saída:** `0` instalou (macOS: `Leve.app` movido e aberto; Windows: o instalador foi iniciado), `1` o Leve já está instalado, o sistema é Linux ou não é suportado, ou o download ou o SHA-256 falhou (o motivo sai no stderr), `2` opção desconhecida.
+- **"Já instalado" não é falha.** O app fica como está e se atualiza sozinho. `--force` substitui, só no macOS.
+- **Efeitos:** no macOS grava o `Leve.app` em `/Applications` (ou `~/Applications`) e abre. No Windows inicia um instalador por usuário, com janela, e volta na hora: não dá para saber por ele quando a instalação terminou.
+- **Linux:** o `npx leve.md` não instala nada; use o `.deb`, `.rpm`, AppImage ou Flatpak acima.
+- **Abrir um arquivo:** macOS `open -a Leve arquivo.md`; Windows `& "$env:LOCALAPPDATA\Leve\leve.exe" arquivo.md`; Linux (`.deb`) `leve arquivo.md`. O Leve recarrega o documento quando o arquivo é salvo, então dá para continuar escrevendo nele.
 
 ## Recursos
 

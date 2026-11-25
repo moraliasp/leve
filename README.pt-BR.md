@@ -45,7 +45,7 @@ macOS:
 brew install --cask moraliasp/tap/leve
 ```
 
-macOS ou Windows, com Node 18 ou mais novo (em breve: ainda não está no npm; baixa o pacote da release para o seu sistema, confere o SHA-256 e instala; Linux fora):
+macOS ou Windows, com Node 18 ou mais novo (baixa o pacote da release para o seu sistema, confere o SHA-256 e instala; Linux fora):
 
 ```bash
 npx leve.md
@@ -77,7 +77,7 @@ Passo a passo em [`docs/instalacao.md`](docs/instalacao.md). As atualizações t
 
 Se você é um agente de IA instalando o Leve para alguém, ou mostrando um Markdown que você escreveu:
 
-- **Instalar sem perguntas** (macOS e Windows, Node 18+, quando o pacote estiver no npm): `npx --yes leve.md`. Até lá, no macOS, `brew install --cask moraliasp/tap/leve`.
+- **Instalar sem perguntas** (macOS e Windows, Node 18+): `npx --yes leve.md`. No macOS, `brew install --cask moraliasp/tap/leve` também serve.
 - **Códigos de saída:** `0` instalou (macOS: `Leve.app` movido e aberto; Windows: o instalador foi iniciado), `1` o Leve já está instalado, o sistema é Linux ou não é suportado, ou o download ou o SHA-256 falhou (o motivo sai no stderr), `2` opção desconhecida.
 - **"Já instalado" não é falha.** O app fica como está e se atualiza sozinho. `--force` substitui, só no macOS.
 - **Efeitos:** no macOS grava o `Leve.app` em `/Applications` (ou `~/Applications`) e abre. No Windows inicia um instalador por usuário, com janela, e volta na hora: não dá para saber por ele quando a instalação terminou.

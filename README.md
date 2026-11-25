@@ -45,7 +45,7 @@ macOS:
 brew install --cask moraliasp/tap/leve
 ```
 
-macOS or Windows, with Node 18+ (downloads the release package for your system, checks its SHA-256 and installs it; Linux not supported):
+macOS or Windows, with Node 18+ (coming soon: not on npm yet; downloads the release package for your system, checks its SHA-256 and installs it; Linux not supported):
 
 ```bash
 npx leve.md
@@ -72,6 +72,17 @@ Each release lists SHA-256 checksums in `SHA256SUMS.txt` and carries [build prov
 **Linux:** make the AppImage executable (`chmod +x Leve_*.AppImage`) and run it, install the `.deb` with `sudo apt install ./Leve_*_amd64.deb`, or the `.rpm` with `sudo dnf install ./Leve-*.x86_64.rpm`.
 
 Updates are signed separately and verified by the app before installing: *Leve › Check for Updates…* (on Windows and Linux, *Help › Check for Updates…*), or turn on the daily check in *Settings*.
+
+### For AI agents
+
+If you are an AI agent setting Leve up for someone, or showing them a Markdown file you wrote:
+
+- **Install without prompts** (macOS and Windows, Node 18+, once the package is on npm): `npx --yes leve.md`. Until then, on macOS, `brew install --cask moraliasp/tap/leve`.
+- **Exit codes:** `0` installed (macOS: `Leve.app` moved and opened; Windows: the installer was started), `1` Leve is already installed, the system is Linux or unsupported, or the download or its SHA-256 failed (the reason goes to stderr), `2` unknown option.
+- **"Already installed" is not a failure.** The app is left as is and updates itself. `--force` replaces it, on macOS only.
+- **Side effects:** on macOS it writes `Leve.app` to `/Applications` (or `~/Applications`) and opens it. On Windows it starts a per-user installer with a window and returns right away, so it cannot tell you when the install is done.
+- **Linux:** `npx leve.md` installs nothing; use the `.deb`, `.rpm`, AppImage or Flatpak above.
+- **Open a file:** macOS `open -a Leve file.md`; Windows `& "$env:LOCALAPPDATA\Leve\leve.exe" file.md`; Linux (`.deb`) `leve file.md`. Leve reloads the document when the file is saved, so you can keep writing to it.
 
 ## Features
 
